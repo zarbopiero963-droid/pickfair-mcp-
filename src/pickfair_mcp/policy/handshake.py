@@ -109,10 +109,15 @@ class HandshakeGuard:
             return await self._perform_locked()
 
     async def _perform_locked(self) -> HandshakeResult:
+        epoch = self._adapter.connection_epoch
+        last = self._last
+        # Un contratto incompatibile resta tale fino a una nuova connessione: un
+        # handshake esplicito nello stesso epoch non può riaprire il cancello.
+        if last is not None and last.epoch == epoch and last.status is HandshakeStatus.INCOMPATIBLE:
+            return last
         # Nessun verdetto precedente sopravvive a un handshake interrotto
         # (cancellazione o errore imprevisto): fail-closed.
         self._last = None
-        epoch = self._adapter.connection_epoch
         result = await self._evaluate(epoch)
         self._last = result
         return result

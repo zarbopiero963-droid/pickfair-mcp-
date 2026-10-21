@@ -8,8 +8,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import signal
 import sys
 from collections.abc import Sequence
+from types import FrameType
 
 import anyio
 from mcp.server.stdio import stdio_server
@@ -88,14 +90,37 @@ def main(argv: Sequence[str] | None = None) -> int:
         contract_version=SUPPORTED_CONTRACT_VERSION,
         mutation_exposure=MUTATION_EXPOSURE,
     )
+    # Se SIGINT arriva mentre il thread di lettura di stdin si chiude, il runtime può
+    # terminare con BrokenResourceError e perdere il KeyboardInterrupt: lo registriamo
+    # qui e deleghiamo al comportamento standard di Python.
+    interrupted = False
+    previous_handler = signal.getsignal(signal.SIGINT)
+
+    def _on_sigint(signum: int, frame: FrameType | None) -> None:
+        nonlocal interrupted
+        interrupted = True
+        signal.default_int_handler(signum, frame)
+
+    signal.signal(signal.SIGINT, _on_sigint)
     try:
         anyio.run(_serve, adapter, timeout_s)
-    except KeyboardInterrupt:
-        return _abnormal_stop("interrupted", EXIT_INTERRUPTED)
-    except BaseException:  # noqa: BLE001 - es. pipe chiusa dal client: niente traceback
+    except BaseException as exc:  # noqa: BLE001 - es. pipe chiusa dal client: niente traceback
+        if interrupted or _is_interrupt(exc):
+            return _abnormal_stop("interrupted", EXIT_INTERRUPTED)
         return _abnormal_stop("transport_error", EXIT_TRANSPORT)
+    finally:
+        signal.signal(signal.SIGINT, previous_handler)
     audit_event("server_stop", server_version=__version__, outcome="ok")
     return 0
+
+
+def _is_interrupt(exc: BaseException) -> bool:
+    """SIGINT può arrivare avvolto (anche più volte) in un BaseExceptionGroup di anyio."""
+    if isinstance(exc, KeyboardInterrupt):
+        return True
+    if isinstance(exc, BaseExceptionGroup):
+        return any(_is_interrupt(inner) for inner in exc.exceptions)
+    return False
 
 
 def _abnormal_stop(outcome: str, code: int) -> int:

@@ -225,8 +225,8 @@ MUTANTS: tuple[Mutant, ...] = (
         (
             (
                 H,
-                "        self._last = None\n        epoch = self._adapter.connection_epoch",
-                "        epoch = self._adapter.connection_epoch",
+                "        # (cancellazione o errore imprevisto): fail-closed.\n        self._last = None\n",
+                "        # (cancellazione o errore imprevisto): fail-closed.\n",
             ),
         ),
     ),
@@ -256,6 +256,16 @@ MUTANTS: tuple[Mutant, ...] = (
         "M28",
         "comandi annotati come sola lettura",
         ((S, "    is_read = ROUTES_BY_KEY[route].kind is RouteKind.READ", "    is_read = True"),),
+    ),
+    Mutant(
+        "M29",
+        "handshake esplicito riapre un epoch incompatibile",
+        ((H, "and last.status is HandshakeStatus.INCOMPATIBLE:", "and False:"),),
+    ),
+    Mutant(
+        "M30",
+        "SIGINT perso classificato come errore di trasporto",
+        (("src/pickfair_mcp/cli.py", "        interrupted = True\n", "        pass\n"),),
     ),
 )
 

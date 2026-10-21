@@ -35,7 +35,8 @@ crea route né semantiche di prodotto. Le 25 route sono quelle approvate in pick
 | Command | POST | `/v1/mode` | `set_mode` | Bloccato (BLOCKED_CORE / owner) |
 
 Il registro dei tool rifiuta la registrazione di qualunque comando finché
-`MCP_MUTATION_EXPOSURE = BLOCKED_UNTIL_CORE_AUTHORITY_READY`.
+`MCP_MUTATION_EXPOSURE = BLOCKED_UNTIL_CORE_AUTHORITY_READY` (costante di codice
+`pickfair_mcp.policy.exposure.MUTATION_EXPOSURE`).
 
 ## GET /v1/meta — forma attesa (PROVISIONAL)
 
@@ -60,7 +61,8 @@ nessuna chiave duplicata, nessun campo extra, nessuna coercizione di tipo.
 - Compatibile solo se la coppia `(contract_version, schema_hash)` è nella compat matrix.
   Oggi: `1.0.0` con lo schema hash calcolato dal descrittore canonico (`pickfair-mcp contract-info`).
 - L'handshake si ripete a ogni nuovo epoch di connessione; su contratto incompatibile i
-  tool restano bloccati finché non avviene una riconnessione. Timeout e indisponibilità
+  tool restano bloccati finché non avviene una riconnessione, anche se `get_meta` ripete
+  l'handshake nello stesso epoch. Timeout e indisponibilità
   sono riprovabili solo per le letture.
 
 Alternative documentate, non adottate:
@@ -90,3 +92,22 @@ hash (descrittore canonico comune ai due repository) e nomi delle capability.
 5. **Journal di idempotenza (MCP-01b)**: il guard del core (`MCP_FORBIDDEN_RE`) vieta
    `sqlite3` nel codice MCP; il journal userà un file append-only proprio con fsync, mai
    il DB Pickfair.
+
+## Limiti noti di MCP-01a (non bloccanti)
+
+- **Tool sconosciuto o argomenti non validi**: restituiti come risultato di tool con
+  `isError: true` e codice `UNKNOWN_TOOL` / `INVALID_REQUEST`, non come errore JSON-RPC
+  -32602. Scelta deliberata: il client riceve sempre l'envelope strutturato. Da rivedere
+  se il client di riferimento richiede l'errore di protocollo.
+- **JSON malformato dal client**: l'SDK `mcp` 1.30.0 non risponde con -32700, ma invia una
+  notifica generica «Internal Server Error». Nessun dato del client viene riportato e
+  nessuna operazione viene eseguita.
+- **Altri comportamenti dell'SDK**: metodo sconosciuto con -32602 invece di -32601;
+  `notifications/cancelled` può produrre una risposta con codice 0; `structuredContent`
+  inviato anche a client che negoziano 2024-11-05.
+- **Chiusura**: il ciclo di vita stdio previsto (chiusura di stdin, poi SIGTERM) termina
+  correttamente. Con SIGINT e stdin ancora aperto il processo termina alla successiva riga
+  di input o alla chiusura di stdin, perché il thread di lettura dell'SDK non è
+  interrompibile. SIGTERM termina subito, senza riga di audit `server_stop`.
+- **Handshake serializzato**: chiamate concorrenti a `get_meta` attendono in coda; con
+  upstream lento l'attesa può arrivare a N × timeout, sempre fail-closed.
