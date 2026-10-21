@@ -76,3 +76,41 @@ def test_config_is_patch_not_post() -> None:
     assert "PATCH /v1/config" in keys
     assert "POST /v1/config" not in keys
     assert "PUT /v1/config" not in keys
+
+
+# Testo «Capacità / vincolo» della tabella in pickfair-mcp- #1, copiato alla lettera.
+EXPECTED_PURPOSE = {
+    "GET /v1/meta": "Version/capabilities/git SHA/schema hash",
+    "GET /v1/status": "Runtime/readiness",
+    "GET /v1/account": "Account/saldo reale o fittizio secondo contratto; niente secret",
+    "GET /v1/exposure": "Esposizione/liability/pending",
+    "GET /v1/config": "Config redatta",
+    "GET /v1/events": "Eventi per nome",
+    "GET /v1/markets": "Mercati/runner per nome",
+    "GET /v1/markets/{id}/book": "Book/freshness",
+    "GET /v1/orders": "Current/cleared secondo filtro contrattuale, senza route duplicate",
+    "GET /v1/positions": "Posizioni pertinenti",
+    "GET /v1/operations/{id}": "Async status operation_id",
+    "GET /v1/operations?status=pending": "Pending operations",
+    "GET /v1/reconciliation/status": "Recovery/readiness",
+    "GET /v1/audit/{correlation_id}": "Audit trail redatto",
+    "POST /v1/preview": "Zero effetti ordine; schema e business autorevoli",
+    "POST /v1/orders": "Place order tramite authority",
+    "POST /v1/dutching": "Dutching tramite authority",
+    "POST /v1/orders/{id}/cancel": "Cancel pertinente",
+    "POST /v1/orders/{id}/replace": "Replace, no retry cieco",
+    "POST /v1/cashout": (
+        "target/selection/market/all/fraction/percentage/Void/intent/lifecycle nel body"
+    ),
+    "POST /v1/stop": "PAUSE/STOP/RISK_STOP/EMERGENCY secondo schema runtime",
+    "POST /v1/resume": "Nuova readiness completa",
+    "POST /v1/reconcile": "Via runtime, non secondo reconciler",
+    "PATCH /v1/config": (
+        "Config patch via contract; non POST config né MM/risk endpoint paralleli"
+    ),
+    "POST /v1/mode": "Switch SOLO su comando owner, tutti i gate restano",
+}
+
+
+def test_route_purposes_are_verbatim_copies_of_issue_1() -> None:
+    assert {route_key(r): r.purpose for r in APPROVED_ROUTES} == EXPECTED_PURPOSE

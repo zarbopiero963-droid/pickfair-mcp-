@@ -294,3 +294,20 @@ async def test_exact_reason_codes(scenario: Scenario, reasons: tuple[str, ...]) 
     result = await HandshakeGuard(adapter, timeout_s=0.05).perform()
     assert result.reasons == reasons
     assert result.epoch == 2
+
+
+async def test_explicit_handshake_cannot_reopen_an_incompatible_epoch() -> None:
+    """D3: un verdetto incompatibile resta valido fino a una nuova connessione,
+    anche se get_meta ripete l'handshake e l'upstream ora risponde «compatibile»."""
+    adapter = SimulatedControlApiAdapter(Scenario.INCOMPATIBLE_MAJOR)
+    guard = HandshakeGuard(adapter, timeout_s=1.0)
+    first = await guard.perform()
+    assert first.status is HandshakeStatus.INCOMPATIBLE
+    adapter.set_scenario_without_reconnect(Scenario.COMPATIBLE)
+    again = await guard.perform()  # handshake esplicito nello stesso epoch
+    assert again.status is HandshakeStatus.INCOMPATIBLE
+    assert again.reasons == first.reasons
+    with pytest.raises(HandshakeFailed):
+        await guard.require_compatible(META_CAP)
+    adapter.reconnect()  # solo una nuova connessione riapre la valutazione
+    assert (await guard.perform()).status is HandshakeStatus.COMPATIBLE
