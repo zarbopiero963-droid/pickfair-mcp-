@@ -55,11 +55,10 @@ jobs:
           pip install --require-hashes -r requirements/dev.lock
       - name: Catalogo mutanti critici
         run: python scripts/critical_mutations.py --json critical-mutations.json
-      - uses: actions/upload-artifact@v4
+      # Report nel log, non come artifact: nessun consumo della quota di storage.
+      - name: Report mutanti critici
         if: always()
-        with:
-          name: critical-mutations
-          path: critical-mutations.json
+        run: cat critical-mutations.json || true
 
   mutmut:
     name: mutation testing generale (soglia 85%)
@@ -79,8 +78,6 @@ jobs:
         run: mutmut run --max-children 4
       - name: Gate sul punteggio
         run: python scripts/mutmut_gate.py --fail-under 85 --json mutmut-report.json
-      - uses: actions/upload-artifact@v4
+      - name: Report mutmut
         if: always()
-        with:
-          name: mutmut-report
-          path: mutmut-report.json
+        run: cat mutmut-report.json || true
