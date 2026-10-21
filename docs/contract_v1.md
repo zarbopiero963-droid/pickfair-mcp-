@@ -106,7 +106,10 @@ hash (descrittore canonico comune ai due repository) e nomi delle capability.
   `notifications/cancelled` può produrre una risposta con codice 0; `structuredContent`
   inviato anche a client che negoziano 2024-11-05.
 - **Chiusura**: chiusura di stdin ⇒ exit 0 con audit `server_stop` `ok`; SIGINT ⇒ exit 130
-  con `server_stop` `interrupted` anche con stdin aperto; un SIGINT ignorato dal processo
-  padre resta ignorato. SIGTERM termina subito, senza riga di audit `server_stop`.
+  con `server_stop` `interrupted`. Con stdin lasciato aperto dal client, in rari casi
+  (1 su 100 nella verifica indipendente) il processo attende la chiusura di stdin prima di
+  uscire, perché il thread di lettura dell'SDK non è interrompibile: mai un blocco
+  permanente dopo la chiusura di stdin. Un SIGINT ignorato dal processo padre resta
+  ignorato. SIGTERM termina subito, senza riga di audit `server_stop`.
 - **Handshake serializzato**: chiamate concorrenti a `get_meta` attendono in coda; con
   upstream lento l'attesa può arrivare a N × timeout, sempre fail-closed.
