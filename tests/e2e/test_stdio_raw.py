@@ -205,3 +205,30 @@ def test_sigint_stops_an_idle_server_with_stdin_still_open() -> None:
             assert (raw.proc.returncode, stops) == (130, ["interrupted"])
         finally:
             raw.kill()
+
+
+@pytest.mark.parametrize("gaps", [(0.3,), (1.0,), (0.01, 0.01), (0.3, 0.3)])
+def test_repeated_sigint_never_waits_for_stdin(gaps: tuple[float, ...]) -> None:
+    """B1: un secondo SIGINT fa uscire anyio.run, ma il thread di stdin resta vivo:
+    la chiusura non può passare dalla finalizzazione dell'interprete."""
+    raw = RawServer()
+    try:
+        raw.send(INIT)
+        assert raw.read()["id"] == 1
+        raw.send({"jsonrpc": "2.0", "method": "notifications/initialized"})
+        time.sleep(IDLE_PAUSE_S)
+        raw.proc.send_signal(signal.SIGINT)
+        for gap in gaps:
+            time.sleep(gap)
+            if raw.proc.poll() is None:
+                raw.proc.send_signal(signal.SIGINT)
+        try:
+            raw.proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            pytest.fail("server in attesa di stdin dopo SIGINT ripetuti")
+        assert raw.proc.stderr is not None
+        records = assert_stderr_is_audit_only(raw.proc.stderr.read())
+        stops = [r["outcome"] for r in records if r["event"] == "server_stop"]
+        assert (raw.proc.returncode, stops) == (130, ["interrupted"])
+    finally:
+        raw.kill()

@@ -60,9 +60,11 @@ class InterruptTracker:
     il loop, avvolge il gestore corrente e lo ripristina prima che il Runner chiuda.
     Una disposizione ignorata o di default (SIG_IGN, SIG_DFL) resta invariata.
 
-    SIGINT arma anche un watchdog: l'SDK legge stdin in un thread non cancellabile,
-    quindi a riposo, con stdin aperto, il Runner attenderebbe la riga successiva o EOF.
-    Se ``main`` non disarma entro ``grace_s``, ``on_expire`` chiude il processo. Il thread
+    SIGINT arma anche un watchdog: l'SDK legge stdin in un thread non cancellabile e
+    non daemon, quindi a riposo, con stdin aperto, né il Runner né la finalizzazione
+    dell'interprete terminano prima della riga successiva o di EOF. Ogni chiusura
+    «interrupted» passa quindi da ``stop_interrupted``, una sola volta e sotto lock: la
+    chiama ``main`` oppure, se ``main`` non arriva entro ``grace_s``, il watchdog. Il thread
     del watchdog parte con ``install``: il gestore del segnale non avvia thread e non
     prende lock propri, si limita a un solo ``Event.set``.
     """
@@ -98,10 +100,14 @@ class InterruptTracker:
 
     def _watch(self) -> None:
         self._signalled.wait()
-        if self._finished.wait(self._grace_s):
-            return
-        with self._lock:  # tenuto fino all'uscita: disarm non può superarlo
+        if not self._finished.wait(self._grace_s):
+            self.stop_interrupted()
+
+    def stop_interrupted(self) -> None:
+        """Esegue ``on_expire`` al più una volta; il lock resta tenuto fino all'uscita."""
+        with self._lock:
             if not self._finished.is_set():
+                self._finished.set()
                 self._on_expire()
 
     def disarm(self) -> None:
@@ -166,13 +172,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         anyio.run(_serve, adapter, timeout_s, tracker)
     except BaseException as exc:  # noqa: BLE001 - es. pipe chiusa dal client: niente traceback
-        tracker.disarm()
         if tracker.seen or _is_interrupt(exc):
-            return _abnormal_stop("interrupted", EXIT_INTERRUPTED)
+            tracker.stop_interrupted()  # non ritorna: il thread di stdin può essere ancora vivo
+            return EXIT_INTERRUPTED
+        tracker.disarm()
         return _abnormal_stop("transport_error", EXIT_TRANSPORT)
-    tracker.disarm()
     if tracker.seen:
-        return _abnormal_stop("interrupted", EXIT_INTERRUPTED)
+        tracker.stop_interrupted()
+        return EXIT_INTERRUPTED
+    tracker.disarm()
     audit_event("server_stop", server_version=__version__, outcome="ok")
     return 0
 
@@ -198,5 +206,5 @@ def _abnormal_stop(outcome: str, code: int) -> int:
 
 
 def _force_interrupted_exit() -> None:
-    """Il Runner non si è chiuso entro il margine dopo SIGINT: uscita senza attendere stdin."""
+    """Chiusura dopo SIGINT: una riga di audit e uscita senza attendere il thread di stdin."""
     os._exit(_abnormal_stop("interrupted", EXIT_INTERRUPTED))

@@ -306,8 +306,8 @@ MUTANTS: tuple[Mutant, ...] = (
         (
             (
                 "src/pickfair_mcp/cli.py",
-                "    tracker.disarm()\n    if tracker.seen:\n",
-                "    if tracker.seen:\n",
+                "        return EXIT_INTERRUPTED\n    tracker.disarm()\n",
+                "        return EXIT_INTERRUPTED\n",
             ),
         ),
     ),
@@ -327,6 +327,55 @@ MUTANTS: tuple[Mutant, ...] = (
                 "                threading.Thread(target=self._finished.wait, daemon=True).start()\n",
             ),
         ),
+    ),
+    Mutant(
+        "M37",
+        "uscita interrupted di main tramite la finalizzazione dell'interprete",
+        (
+            (
+                "src/pickfair_mcp/cli.py",
+                "            tracker.stop_interrupted()  # non ritorna: il thread di stdin può essere ancora vivo\n            return EXIT_INTERRUPTED\n",
+                '            return _abnormal_stop("interrupted", EXIT_INTERRUPTED)\n',
+            ),
+        ),
+    ),
+    Mutant(
+        "M38",
+        "chiusura interrupted eseguita più di una volta",
+        (
+            (
+                "src/pickfair_mcp/cli.py",
+                "            if not self._finished.is_set():\n                self._finished.set()\n                self._on_expire()\n",
+                "            self._finished.set()\n            self._on_expire()\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "M39",
+        "chiusura interrupted senza lock",
+        (
+            (
+                "src/pickfair_mcp/cli.py",
+                "        with self._lock:\n            if not self._finished.is_set():\n",
+                "        if True:\n            if not self._finished.is_set():\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "M40",
+        "disarm senza lock supera un'uscita in corso",
+        (
+            (
+                "src/pickfair_mcp/cli.py",
+                "        with self._lock:\n            self._finished.set()\n        self._signalled.set()",
+                "        if True:\n            self._finished.set()\n        self._signalled.set()",
+            ),
+        ),
+    ),
+    Mutant(
+        "M41",
+        "margine del watchdog di un'ora",
+        (("src/pickfair_mcp/cli.py", "INTERRUPT_GRACE_S = 2.0\n", "INTERRUPT_GRACE_S = 3600.0\n"),),
     ),
 )
 

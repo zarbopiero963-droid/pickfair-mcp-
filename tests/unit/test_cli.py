@@ -6,7 +6,18 @@ import json
 
 import pytest
 
+from pickfair_mcp import cli as cli_module
 from pickfair_mcp.cli import main
+
+REAL_FORCED_EXIT = cli_module._force_interrupted_exit
+
+
+@pytest.fixture(autouse=True)
+def forced_exits(monkeypatch: pytest.MonkeyPatch) -> list[bool]:
+    """Nessun test in-process può raggiungere il vero os._exit."""
+    calls: list[bool] = []
+    monkeypatch.setattr(cli_module, "_force_interrupted_exit", lambda: calls.append(True))
+    return calls
 
 
 def test_contract_info(capsys: pytest.CaptureFixture[str]) -> None:
@@ -304,6 +315,98 @@ def test_forced_exit_writes_the_interrupted_audit_and_exits_130(
 
     monkeypatch.setattr(cli, "_abnormal_stop", fake_stop)
     monkeypatch.setattr(os, "_exit", exits.append)
-    cli._force_interrupted_exit()
+    REAL_FORCED_EXIT()
     assert stops == [("interrupted", 130)]
     assert exits == [130]
+
+
+def _interrupted_on_normal_exit(tracker: object) -> None:
+    tracker.seen = True  # type: ignore[attr-defined]
+
+
+def _interrupted_with_exception(tracker: object) -> None:
+    tracker.seen = True  # type: ignore[attr-defined]
+    raise KeyboardInterrupt
+
+
+def _interrupt_without_tracker(tracker: object) -> None:
+    raise BaseExceptionGroup("task group", [KeyboardInterrupt()])
+
+
+@pytest.mark.parametrize(
+    "outcome",
+    [_interrupted_on_normal_exit, _interrupted_with_exception, _interrupt_without_tracker],
+)
+def test_every_interrupted_exit_goes_through_the_forced_exit_once(
+    outcome: object, monkeypatch: pytest.MonkeyPatch, forced_exits: list[bool]
+) -> None:
+    """B1: dopo un secondo SIGINT anyio.run esce, ma il thread di stdin resta vivo e la
+    finalizzazione dell'interprete lo attenderebbe: main non deve tornare normalmente."""
+    from pickfair_mcp import cli
+
+    def fake_run(_serve: object, _adapter: object, _timeout: object, tracker: object) -> None:
+        outcome(tracker)  # type: ignore[operator]
+
+    monkeypatch.setattr(cli.anyio, "run", fake_run)
+    _patch_serve_env(monkeypatch)
+    assert main(["serve"]) == 130
+    assert forced_exits == [True]
+
+
+def test_transport_error_does_not_use_the_forced_exit(
+    monkeypatch: pytest.MonkeyPatch, forced_exits: list[bool]
+) -> None:
+    from pickfair_mcp import cli
+
+    def fake_run(*_: object) -> None:
+        raise BaseExceptionGroup("task group", [BrokenPipeError()])
+
+    monkeypatch.setattr(cli.anyio, "run", fake_run)
+    _patch_serve_env(monkeypatch)
+    assert main(["serve"]) == 1
+    assert forced_exits == []
+
+
+def test_stop_interrupted_runs_once_even_with_the_watchdog() -> None:
+    import threading
+
+    from pickfair_mcp.cli import InterruptTracker
+
+    calls: list[bool] = []
+    tracker = InterruptTracker(lambda: calls.append(True), grace_s=0.05)
+    _fire_sigint(tracker)
+    tracker.stop_interrupted()
+    tracker.stop_interrupted()
+    assert not threading.Event().wait(0.3)  # lascia scadere il watchdog
+    assert calls == [True]
+
+
+def test_stop_holds_the_lock_until_the_exit_completes() -> None:
+    """Mentre il watchdog sta uscendo, main non può scrivere un'altra chiusura."""
+    import threading
+
+    from pickfair_mcp.cli import InterruptTracker
+
+    exiting = threading.Event()
+    release = threading.Event()
+
+    def slow_exit() -> None:
+        exiting.set()
+        release.wait(5)
+
+    tracker = InterruptTracker(slow_exit, grace_s=0.01)
+    _fire_sigint(tracker)
+    assert exiting.wait(5)
+    other = threading.Thread(target=tracker.disarm, daemon=True)
+    other.start()
+    other.join(0.3)
+    assert other.is_alive()  # bloccato sul lock finché l'uscita non termina
+    release.set()
+    other.join(5)
+    assert not other.is_alive()
+
+
+def test_interrupt_grace_is_short() -> None:
+    from pickfair_mcp.cli import INTERRUPT_GRACE_S
+
+    assert 0 < INTERRUPT_GRACE_S <= 5
