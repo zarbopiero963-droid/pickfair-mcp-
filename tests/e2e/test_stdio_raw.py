@@ -12,6 +12,7 @@ import signal
 import subprocess
 import sys
 import threading
+import time
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -176,3 +177,31 @@ def test_sigint_never_hangs_the_server() -> None:
         finally:
             raw.kill()
     assert set(outcomes) == {(130, "interrupted")}
+
+
+IDLE_SIGINT_RUNS = 3
+IDLE_PAUSE_S = 0.5
+
+
+def test_sigint_stops_an_idle_server_with_stdin_still_open() -> None:
+    """F4: a riposo il server è bloccato nella lettura di stdin; SIGINT non attende EOF."""
+    for _ in range(IDLE_SIGINT_RUNS):
+        raw = RawServer()
+        try:
+            raw.send(INIT)
+            assert raw.read()["id"] == 1
+            raw.send({"jsonrpc": "2.0", "method": "notifications/initialized"})
+            raw.send({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+            assert raw.read()["id"] == 2
+            time.sleep(IDLE_PAUSE_S)  # nessun messaggio in arrivo: lettore di stdin in attesa
+            raw.proc.send_signal(signal.SIGINT)
+            try:
+                raw.proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                pytest.fail("server in attesa di stdin dopo SIGINT")
+            assert raw.proc.stderr is not None
+            records = assert_stderr_is_audit_only(raw.proc.stderr.read())
+            stops = [r["outcome"] for r in records if r["event"] == "server_stop"]
+            assert (raw.proc.returncode, stops) == (130, ["interrupted"])
+        finally:
+            raw.kill()

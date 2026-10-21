@@ -265,7 +265,13 @@ MUTANTS: tuple[Mutant, ...] = (
     Mutant(
         "M30",
         "SIGINT perso classificato come errore di trasporto",
-        (("src/pickfair_mcp/cli.py", "            self.seen = True\n", "            pass\n"),),
+        (
+            (
+                "src/pickfair_mcp/cli.py",
+                "                self.seen = True\n",
+                "                pass\n",
+            ),
+        ),
     ),
     Mutant(
         "M31",
@@ -284,8 +290,41 @@ MUTANTS: tuple[Mutant, ...] = (
         (
             (
                 "src/pickfair_mcp/cli.py",
-                "    tracker = InterruptTracker()\n",
-                "    tracker = InterruptTracker()\n    tracker.install()\n",
+                "    tracker = InterruptTracker(_force_interrupted_exit)\n",
+                "    tracker = InterruptTracker(_force_interrupted_exit)\n    tracker.install()\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "M33",
+        "SIGINT a riposo attende EOF di stdin (watchdog non armato)",
+        (("src/pickfair_mcp/cli.py", "                self._signalled.set()\n", ""),),
+    ),
+    Mutant(
+        "M34",
+        "watchdog lasciato armato dopo la chiusura regolare",
+        (
+            (
+                "src/pickfair_mcp/cli.py",
+                "    tracker.disarm()\n    if tracker.seen:\n",
+                "    if tracker.seen:\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "M35",
+        "watchdog scaduto senza uscita dal processo",
+        (("src/pickfair_mcp/cli.py", "    os._exit(_abnormal_stop(", "    (_abnormal_stop("),),
+    ),
+    Mutant(
+        "M36",
+        "thread avviato dentro il gestore di SIGINT (rischio di deadlock)",
+        (
+            (
+                "src/pickfair_mcp/cli.py",
+                "                self._signalled.set()\n",
+                "                self._signalled.set()\n"
+                "                threading.Thread(target=self._finished.wait, daemon=True).start()\n",
             ),
         ),
     ),

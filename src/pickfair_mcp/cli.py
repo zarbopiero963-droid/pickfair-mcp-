@@ -10,6 +10,7 @@ import json
 import os
 import signal
 import sys
+import threading
 from collections.abc import Callable, Sequence
 from types import FrameType
 from typing import Any
@@ -32,6 +33,7 @@ EXIT_USAGE = 2
 EXIT_INTERRUPTED = 130
 EXIT_TRANSPORT = 1
 STDOUT_FD = 1
+INTERRUPT_GRACE_S = 2.0
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -57,11 +59,22 @@ class InterruptTracker:
     rimuove solo se lo ritrova al suo posto: per questo il tracker si installa dentro
     il loop, avvolge il gestore corrente e lo ripristina prima che il Runner chiuda.
     Una disposizione ignorata o di default (SIG_IGN, SIG_DFL) resta invariata.
+
+    SIGINT arma anche un watchdog: l'SDK legge stdin in un thread non cancellabile,
+    quindi a riposo, con stdin aperto, il Runner attenderebbe la riga successiva o EOF.
+    Se ``main`` non disarma entro ``grace_s``, ``on_expire`` chiude il processo. Il thread
+    del watchdog parte con ``install``: il gestore del segnale non avvia thread e non
+    prende lock propri, si limita a un solo ``Event.set``.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, on_expire: Callable[[], None], grace_s: float = INTERRUPT_GRACE_S) -> None:
         self.seen = False
         self._previous: Callable[[int, FrameType | None], Any] | None = None
+        self._on_expire = on_expire
+        self._grace_s = grace_s
+        self._signalled = threading.Event()
+        self._finished = threading.Event()
+        self._lock = threading.Lock()
 
     def install(self) -> None:
         current = signal.getsignal(signal.SIGINT)
@@ -70,15 +83,31 @@ class InterruptTracker:
         self._previous = current
 
         def _record_and_delegate(signum: int, frame: FrameType | None) -> Any:
-            self.seen = True
+            if not self.seen:  # un secondo SIGINT non rientra in Event.set
+                self.seen = True
+                self._signalled.set()
             return current(signum, frame)
 
+        threading.Thread(target=self._watch, name="sigint-watchdog", daemon=True).start()
         signal.signal(signal.SIGINT, _record_and_delegate)
 
     def uninstall(self) -> None:
         if self._previous is not None:
             signal.signal(signal.SIGINT, self._previous)
             self._previous = None
+
+    def _watch(self) -> None:
+        self._signalled.wait()
+        if self._finished.wait(self._grace_s):
+            return
+        with self._lock:  # tenuto fino all'uscita: disarm non può superarlo
+            if not self._finished.is_set():
+                self._on_expire()
+
+    def disarm(self) -> None:
+        with self._lock:
+            self._finished.set()
+        self._signalled.set()  # libera il watchdog anche se SIGINT non è mai arrivato
 
 
 async def _serve(
@@ -133,13 +162,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         contract_version=SUPPORTED_CONTRACT_VERSION,
         mutation_exposure=MUTATION_EXPOSURE,
     )
-    tracker = InterruptTracker()
+    tracker = InterruptTracker(_force_interrupted_exit)
     try:
         anyio.run(_serve, adapter, timeout_s, tracker)
     except BaseException as exc:  # noqa: BLE001 - es. pipe chiusa dal client: niente traceback
+        tracker.disarm()
         if tracker.seen or _is_interrupt(exc):
             return _abnormal_stop("interrupted", EXIT_INTERRUPTED)
         return _abnormal_stop("transport_error", EXIT_TRANSPORT)
+    tracker.disarm()
     if tracker.seen:
         return _abnormal_stop("interrupted", EXIT_INTERRUPTED)
     audit_event("server_stop", server_version=__version__, outcome="ok")
@@ -164,3 +195,8 @@ def _abnormal_stop(outcome: str, code: int) -> int:
     except (OSError, ValueError):
         pass
     return code
+
+
+def _force_interrupted_exit() -> None:
+    """Il Runner non si è chiuso entro il margine dopo SIGINT: uscita senza attendere stdin."""
+    os._exit(_abnormal_stop("interrupted", EXIT_INTERRUPTED))

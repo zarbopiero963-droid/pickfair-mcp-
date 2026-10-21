@@ -161,8 +161,8 @@ def test_tracker_records_delegates_and_restores() -> None:
         calls.append(signum)
 
     previous = signal_module.signal(signal_module.SIGINT, runner_handler)
+    tracker = InterruptTracker(lambda: None)
     try:
-        tracker = InterruptTracker()
         tracker.install()
         handler = signal_module.getsignal(signal_module.SIGINT)
         assert handler is not runner_handler
@@ -172,6 +172,7 @@ def test_tracker_records_delegates_and_restores() -> None:
         tracker.uninstall()
         assert signal_module.getsignal(signal_module.SIGINT) is runner_handler
     finally:
+        tracker.disarm()
         signal_module.signal(signal_module.SIGINT, previous)
 
 
@@ -183,10 +184,126 @@ def test_tracker_leaves_ignored_or_default_disposition_alone() -> None:
     for disposition in (signal_module.SIG_IGN, signal_module.SIG_DFL):
         previous = signal_module.signal(signal_module.SIGINT, disposition)
         try:
-            tracker = InterruptTracker()
+            tracker = InterruptTracker(lambda: None)
             tracker.install()
             assert signal_module.getsignal(signal_module.SIGINT) is disposition
             tracker.uninstall()
             assert signal_module.getsignal(signal_module.SIGINT) is disposition
         finally:
             signal_module.signal(signal_module.SIGINT, previous)
+
+
+def _fire_sigint(tracker: object) -> None:
+    import signal as signal_module
+
+    previous = signal_module.signal(signal_module.SIGINT, lambda *_: None)
+    try:
+        tracker.install()  # type: ignore[attr-defined]
+        signal_module.getsignal(signal_module.SIGINT)(signal_module.SIGINT, None)  # type: ignore[misc,operator]
+        tracker.uninstall()  # type: ignore[attr-defined]
+    finally:
+        signal_module.signal(signal_module.SIGINT, previous)
+
+
+def test_sigint_watchdog_exits_when_the_runner_never_returns() -> None:
+    """F4: con stdin aperto il Runner resta in attesa; il watchdog chiude il processo."""
+    import threading
+
+    from pickfair_mcp.cli import InterruptTracker
+
+    expired = threading.Event()
+    tracker = InterruptTracker(expired.set, grace_s=0.05)
+    _fire_sigint(tracker)
+    assert expired.wait(5)
+
+
+def test_disarmed_watchdog_never_fires() -> None:
+    import threading
+
+    from pickfair_mcp.cli import InterruptTracker
+
+    expired = threading.Event()
+    tracker = InterruptTracker(expired.set, grace_s=0.2)
+    _fire_sigint(tracker)
+    tracker.disarm()
+    assert not expired.wait(0.6)
+
+
+def test_watchdog_is_not_armed_without_sigint() -> None:
+    import threading
+
+    from pickfair_mcp.cli import InterruptTracker
+
+    expired = threading.Event()
+    tracker = InterruptTracker(expired.set, grace_s=0.05)
+    tracker.install()
+    tracker.uninstall()
+    assert not expired.wait(0.3)
+    tracker.disarm()  # libera il thread del watchdog
+    assert not expired.wait(0.3)
+
+
+def test_sigint_handler_starts_no_thread() -> None:
+    """Il gestore gira tra due bytecode del thread principale: avviare un thread lì
+    prende i lock interni di threading e può bloccarsi per sempre."""
+    import signal as signal_module
+    import threading
+
+    from pickfair_mcp.cli import InterruptTracker
+
+    previous = signal_module.signal(signal_module.SIGINT, lambda *_: None)
+    tracker = InterruptTracker(lambda: None, grace_s=30)
+    try:
+        tracker.install()
+        handler = signal_module.getsignal(signal_module.SIGINT)
+        before = threading.active_count()
+        handler(signal_module.SIGINT, None)  # type: ignore[operator]
+        handler(signal_module.SIGINT, None)  # type: ignore[operator]
+        assert threading.active_count() == before
+        assert tracker.seen is True
+        tracker.uninstall()
+    finally:
+        tracker.disarm()
+        signal_module.signal(signal_module.SIGINT, previous)
+
+
+def test_main_disarms_the_watchdog_on_every_exit_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    import anyio as anyio_module
+
+    from pickfair_mcp import cli
+
+    disarmed: list[bool] = []
+    monkeypatch.setattr(cli.InterruptTracker, "disarm", lambda self: disarmed.append(True))
+    _patch_serve_env(monkeypatch)
+
+    def ok_run(*_: object) -> None:
+        return None
+
+    def broken_run(*_: object) -> None:
+        raise BaseExceptionGroup("task group", [anyio_module.BrokenResourceError()])
+
+    for fake_run in (ok_run, broken_run):
+        monkeypatch.setattr(cli.anyio, "run", fake_run)
+        cli.main(["serve"])
+    assert disarmed == [True, True]
+
+
+def test_forced_exit_writes_the_interrupted_audit_and_exits_130(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import os
+
+    from pickfair_mcp import cli
+
+    stops: list[tuple[str, int]] = []
+    exits: list[int] = []
+
+    def fake_stop(outcome: str, code: int) -> int:
+        stops.append((outcome, code))
+        return code
+
+    monkeypatch.setattr(cli, "_abnormal_stop", fake_stop)
+    monkeypatch.setattr(os, "_exit", exits.append)
+    cli._force_interrupted_exit()
+    assert stops == [("interrupted", 130)]
+    assert exits == [130]
