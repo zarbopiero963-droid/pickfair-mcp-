@@ -74,8 +74,8 @@ packages = ["pickfair_mcp"]
 plugins = ["pydantic.mypy"]
 
 [tool.mutmut]
-# Moduli con i controlli critici; server, cli, adapter simulato e audit sono coperti
-# dal catalogo mirato in scripts/critical_mutations.py.
+# Moduli con i controlli critici. server.py e audit.py sono coperti dal catalogo mirato
+# in scripts/critical_mutations.py; cli e adapter simulato solo dai test e2e/unit.
 paths_to_mutate = ["src/pickfair_mcp/"]
 do_not_mutate = [
     "src/pickfair_mcp/cli.py",

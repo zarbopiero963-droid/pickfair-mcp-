@@ -8,13 +8,14 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Generic, TypeVar
 
-from pydantic import Field, StringConstraints
+from pydantic import Field, StringConstraints, model_validator
 
 from pickfair_mcp.contract.models import StrictModel
 from pickfair_mcp.errors import MESSAGES, RETRYABLE_FOR_READS, ErrorCode, ToolError
 
 REQUEST_ID_PATTERN = r"^req_[0-9a-f]{32}$"
 REASON_PATTERN = r"^[A-Z_]+(:[A-Za-z0-9_{}/?=. -]{1,140})?$"
+MAX_REASONS = 32
 
 DataT = TypeVar("DataT", bound=StrictModel)
 
@@ -22,7 +23,7 @@ Reason = Annotated[str, StringConstraints(pattern=REASON_PATTERN, max_length=160
 
 
 class ErrorDetails(StrictModel):
-    reasons: Annotated[tuple[Reason, ...], Field(max_length=32)]
+    reasons: Annotated[tuple[Reason, ...], Field(max_length=MAX_REASONS)]
     handshake_status: Annotated[str, StringConstraints(pattern=r"^[A-Z_]{1,32}$")] | None
 
 
@@ -40,6 +41,12 @@ class Envelope(StrictModel, Generic[DataT]):
     data: DataT | None
     error: ErrorBody | None
 
+    @model_validator(mode="after")
+    def _consistent(self) -> Envelope[DataT]:
+        if self.ok != (self.data is not None) or self.ok == (self.error is not None):
+            raise ValueError("envelope incoerente: ok, data ed error non concordano")
+        return self
+
 
 def success(request_id: str, tool: str, data: StrictModel) -> dict[str, Any]:
     return {"ok": True, "request_id": request_id, "tool": tool, "data": data, "error": None}
@@ -50,7 +57,9 @@ def failure(request_id: str, tool: str | None, err: ToolError) -> dict[str, Any]
         code=err.code,
         message=MESSAGES[err.code],
         retryable=err.code in RETRYABLE_FOR_READS,
-        details=ErrorDetails(reasons=err.reasons, handshake_status=err.handshake_status),
+        details=ErrorDetails(
+            reasons=err.reasons[:MAX_REASONS], handshake_status=err.handshake_status
+        ),
     )
     return {"ok": False, "request_id": request_id, "tool": tool, "data": None, "error": body}
 

@@ -65,9 +65,13 @@ def check_compatibility(
     elif meta.schema_hash not in accepted_hashes:
         reasons.append("SCHEMA_HASH_UNKNOWN")
     advertised = frozenset(meta.capabilities)
-    reasons.extend(f"CAPABILITY_NOT_APPROVED:{c}" for c in sorted(advertised - approved))
+    # Il testo delle capability upstream non approvate non viene mai riportato:
+    # è un dato non fidato (prompt injection) e non serve per decidere.
+    if advertised - approved:
+        reasons.append("CAPABILITY_NOT_APPROVED")
+    # Le capability richieste vengono dal codice MCP: il loro nome è sicuro.
     reasons.extend(f"CAPABILITY_MISSING:{c}" for c in sorted(required - advertised))
-    reasons.extend(f"CAPABILITY_NOT_APPROVED:{c}" for c in sorted(required - approved))
+    reasons.extend(f"CAPABILITY_REQUIRED_NOT_APPROVED:{c}" for c in sorted(required - approved))
     return tuple(dict.fromkeys(reasons))
 
 
@@ -105,6 +109,9 @@ class HandshakeGuard:
             return await self._perform_locked()
 
     async def _perform_locked(self) -> HandshakeResult:
+        # Nessun verdetto precedente sopravvive a un handshake interrotto
+        # (cancellazione o errore imprevisto): fail-closed.
+        self._last = None
         epoch = self._adapter.connection_epoch
         result = await self._evaluate(epoch)
         self._last = result
@@ -124,20 +131,16 @@ class HandshakeGuard:
             return self._failed(epoch, ErrorCode.UPSTREAM_UNAVAILABLE, ("ADAPTER_FAILURE",))
         try:
             meta = parse_meta(raw)
-        except UpstreamInvalidResponse as exc:
-            return HandshakeResult(
-                status=HandshakeStatus.INCOMPATIBLE,
-                epoch=epoch,
-                meta=None,
-                reasons=(f"UPSTREAM_INVALID_RESPONSE:{exc.reason}",),
-                error_code=ErrorCode.UPSTREAM_INVALID_RESPONSE,
+            reasons = check_compatibility(
+                meta,
+                matrix=self._matrix,
+                approved=self._approved,
+                required=HANDSHAKE_REQUIRED_CAPABILITIES,
             )
-        reasons = check_compatibility(
-            meta,
-            matrix=self._matrix,
-            approved=self._approved,
-            required=HANDSHAKE_REQUIRED_CAPABILITIES,
-        )
+        except UpstreamInvalidResponse as exc:
+            return self._invalid(epoch, exc.reason)
+        except Exception:  # noqa: BLE001 - qualunque guasto di parsing è fail-closed
+            return self._invalid(epoch, "PARSE_FAILURE")
         if reasons:
             return HandshakeResult(
                 status=HandshakeStatus.INCOMPATIBLE,
@@ -152,6 +155,16 @@ class HandshakeGuard:
             meta=meta,
             reasons=(),
             error_code=None,
+        )
+
+    @staticmethod
+    def _invalid(epoch: int, reason: str) -> HandshakeResult:
+        return HandshakeResult(
+            status=HandshakeStatus.INCOMPATIBLE,
+            epoch=epoch,
+            meta=None,
+            reasons=(f"UPSTREAM_INVALID_RESPONSE:{reason}",),
+            error_code=ErrorCode.UPSTREAM_INVALID_RESPONSE,
         )
 
     @staticmethod

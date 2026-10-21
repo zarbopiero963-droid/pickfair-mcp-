@@ -1,13 +1,15 @@
 """Parsing fail-closed delle risposte upstream (Control API o adapter simulato).
 
-Regole: solo bytes UTF-8, dimensione limitata, JSON standard senza NaN/Infinity,
-nessuna chiave duplicata, oggetto radice, poi validazione strict del modello.
+Regole: solo bytes UTF-8, dimensione limitata, JSON standard senza NaN/Infinity né
+numeri che diventano infiniti, profondità limitata dall'interprete, nessuna chiave
+duplicata, oggetto radice, poi validazione strict del modello.
 Il messaggio dell'eccezione non riporta mai il contenuto ricevuto.
 """
 
 from __future__ import annotations
 
 import json
+import math
 from typing import Any, Final
 
 from pydantic import ValidationError
@@ -27,6 +29,13 @@ class UpstreamInvalidResponse(Exception):
 
 def _reject_constant(token: str) -> Any:
     raise UpstreamInvalidResponse("NON_FINITE_NUMBER")
+
+
+def _finite_float(token: str) -> float:
+    value = float(token)
+    if math.isinf(value):
+        raise UpstreamInvalidResponse("NON_FINITE_NUMBER")
+    return value
 
 
 def _reject_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -49,10 +58,15 @@ def parse_json_object(raw: bytes) -> dict[str, Any]:
         raise UpstreamInvalidResponse("NOT_UTF8") from None
     try:
         value = json.loads(
-            text, object_pairs_hook=_reject_duplicates, parse_constant=_reject_constant
+            text,
+            object_pairs_hook=_reject_duplicates,
+            parse_constant=_reject_constant,
+            parse_float=_finite_float,
         )
     except UpstreamInvalidResponse:
         raise
+    except RecursionError:
+        raise UpstreamInvalidResponse("TOO_DEEP") from None
     except ValueError:
         raise UpstreamInvalidResponse("NOT_JSON") from None
     if not isinstance(value, dict):

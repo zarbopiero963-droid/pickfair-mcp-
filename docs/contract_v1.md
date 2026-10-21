@@ -55,7 +55,8 @@ nessuna chiave duplicata, nessun campo extra, nessuna coercizione di tipo.
 ## Handshake e compatibilità
 
 - Capability = chiave di route approvata (`"GET /v1/meta"` …). Una capability fuori
-  dalle 25 approvate rende il contratto incompatibile.
+  dalle 25 approvate rende il contratto incompatibile; il motivo restituito è il codice
+  `CAPABILITY_NOT_APPROVED`, senza mai riportare il testo inviato dall'upstream.
 - Compatibile solo se la coppia `(contract_version, schema_hash)` è nella compat matrix.
   Oggi: `1.0.0` con lo schema hash calcolato dal descrittore canonico (`pickfair-mcp contract-info`).
 - L'handshake si ripete a ogni nuovo epoch di connessione; su contratto incompatibile i

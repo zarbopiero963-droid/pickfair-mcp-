@@ -56,13 +56,7 @@ MUTANTS: tuple[Mutant, ...] = (
     Mutant(
         "M03",
         "capability non approvate ignorate",
-        (
-            (
-                H,
-                'reasons.extend(f"CAPABILITY_NOT_APPROVED:{c}" for c in sorted(advertised - approved))',
-                "pass",
-            ),
-        ),
+        ((H, 'reasons.append("CAPABILITY_NOT_APPROVED")', "pass"),),
     ),
     Mutant(
         "M04",
@@ -225,6 +219,44 @@ MUTANTS: tuple[Mutant, ...] = (
             ),
         ),
     ),
+    Mutant(
+        "M25",
+        "verdetto precedente conservato dopo handshake interrotto",
+        (
+            (
+                H,
+                "        self._last = None\n        epoch = self._adapter.connection_epoch",
+                "        epoch = self._adapter.connection_epoch",
+            ),
+        ),
+    ),
+    Mutant(
+        "M26",
+        "testo delle capability upstream riecheggiato al client",
+        (
+            (
+                H,
+                'reasons.append("CAPABILITY_NOT_APPROVED")',
+                'reasons.extend(f"CAPABILITY_NOT_APPROVED:{c}" for c in sorted(advertised - approved))',
+            ),
+        ),
+    ),
+    Mutant(
+        "M27",
+        "log dell'SDK non silenziati su stderr",
+        (
+            (
+                A,
+                "    root.handlers[:] = [logging.NullHandler()]\n    root.setLevel(logging.CRITICAL + 1)\n",
+                "",
+            ),
+        ),
+    ),
+    Mutant(
+        "M28",
+        "comandi annotati come sola lettura",
+        ((S, "    is_read = ROUTES_BY_KEY[route].kind is RouteKind.READ", "    is_read = True"),),
+    ),
 )
 
 
@@ -242,7 +274,7 @@ SUITE_TIMEOUT_S = 90  # la suite pulita impiega pochi secondi
 
 
 def run_suite(tmp: Path) -> str:
-    """'pass', 'fail' oppure 'timeout' (una suite bloccata è un mutante rilevato)."""
+    """'pass', 'fail', 'timeout' (suite bloccata = mutante rilevato) o 'error'."""
     env = {**os.environ, "PYTHONPATH": str(tmp / "src"), "PYTHONDONTWRITEBYTECODE": "1"}
     try:
         proc = subprocess.run(
@@ -256,7 +288,8 @@ def run_suite(tmp: Path) -> str:
         )
     except subprocess.TimeoutExpired:
         return "timeout"
-    return "pass" if proc.returncode == 0 else "fail"
+    # 0 = verde; 1 = test falliti; altri codici (collezione, uso) non provano nulla.
+    return {0: "pass", 1: "fail"}.get(proc.returncode, "error")
 
 
 def main() -> int:
@@ -282,7 +315,7 @@ def main() -> int:
             apply(work, mutant)
             started = time.monotonic()
             outcome = run_suite(work)
-            status = "SURVIVED" if outcome == "pass" else "KILLED"
+            status = {"pass": "SURVIVED", "error": "ERROR"}.get(outcome, "KILLED")
             results.append(
                 {
                     "id": mutant.ident,

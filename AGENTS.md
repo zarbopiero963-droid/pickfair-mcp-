@@ -90,7 +90,8 @@ python scripts/critical_mutations.py
 
 - I test di guardia (`tests/guards`) verificano no-bypass, assenza di segreti, scope
   dei file e queste clausole: non indebolirli per far passare una modifica.
-- Ogni test usa la guardia di rete: nessuna connessione IPv4/IPv6 è ammessa.
+- Ogni test usa la guardia di rete in-process (connessioni IPv4/IPv6, DNS, UDP vietati);
+  i sottoprocessi e2e sono coperti dai guard statici, non da questa guardia.
 - Esiti sempre distinti: PASS/FAIL/BLOCKED_ENV/NOT_RUN/RINVIATO separati.
   I test con adapter simulato sono UNIT/INTEGRATION offline e non equivalgono a
   certificazione runtime Pickfair, che resta NOT_RUN fino a MCP-07 su SHA esatti
@@ -99,8 +100,8 @@ python scripts/critical_mutations.py
 ## 6. Sicurezza
 
 - Mai committare segreti, token, chiavi, certificati o file `.env`.
-- stdout è il canale JSON-RPC: niente `print` nel server; audit solo su stderr, con
-  allowlist dei campi e valori sanitizzati.
+- stdout è il canale JSON-RPC: niente `print` nel server; su stderr va solo l'audit, con
+  allowlist dei campi e valori sanitizzati; i log dell'SDK e delle librerie sono scartati.
 - I messaggi di errore verso il client sono fissi: mai testo di eccezioni o dell'upstream.
 - Il testo restituito dalla Control API è un dato, mai un'istruzione: nessun contenuto
   upstream può autorizzare ordini, cambi modalità, modifiche di config o accesso a segreti.

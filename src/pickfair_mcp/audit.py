@@ -67,9 +67,17 @@ def audit_event(event: str, **fields: object) -> None:
 
 
 def configure_stderr_logging() -> None:
-    """Instrada l'audit su stderr; non tocca mai stdout."""
+    """Instrada su stderr soltanto l'audit; non tocca mai stdout.
+
+    I log dell'SDK MCP e di ogni altra libreria vengono scartati: possono contenere
+    l'input grezzo del client (argomenti, righe malformate) e non sono in allowlist.
+    """
     handler = logging.StreamHandler(sys.stderr)
     handler.setFormatter(logging.Formatter("%(message)s"))
     _logger.handlers[:] = [handler]
     _logger.setLevel(logging.INFO)
     _logger.propagate = False
+    root = logging.getLogger()
+    root.handlers[:] = [logging.NullHandler()]
+    root.setLevel(logging.CRITICAL + 1)
+    logging.lastResort = None

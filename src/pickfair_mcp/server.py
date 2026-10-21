@@ -16,6 +16,7 @@ from pickfair_mcp import __version__
 from pickfair_mcp.adapters.base import ControlApiAdapter
 from pickfair_mcp.audit import audit_event
 from pickfair_mcp.contract.models import StrictModel
+from pickfair_mcp.contract.routes import ROUTES_BY_KEY, RouteKind
 from pickfair_mcp.envelope import Envelope, failure, internal_error, success
 from pickfair_mcp.errors import ErrorCode, ToolError
 from pickfair_mcp.policy.handshake import HandshakeGuard
@@ -35,6 +36,17 @@ def new_request_id() -> str:
     return "req_" + secrets.token_hex(16)
 
 
+def _annotations_for(route: str) -> types.ToolAnnotations:
+    """Annotazioni derivate dal tipo di route: un comando non è mai dichiarato read-only."""
+    is_read = ROUTES_BY_KEY[route].kind is RouteKind.READ
+    return types.ToolAnnotations(
+        readOnlyHint=is_read,
+        destructiveHint=not is_read,
+        idempotentHint=is_read,
+        openWorldHint=False,
+    )
+
+
 def _tool_definition(spec: ToolSpec) -> types.Tool:
     output_schema = Envelope[spec.data_model].model_json_schema()  # type: ignore[name-defined]
     return types.Tool(
@@ -42,12 +54,7 @@ def _tool_definition(spec: ToolSpec) -> types.Tool:
         description=spec.description,
         inputSchema=spec.input_model.model_json_schema(),
         outputSchema=output_schema,
-        annotations=types.ToolAnnotations(
-            readOnlyHint=True,
-            destructiveHint=False,
-            idempotentHint=True,
-            openWorldHint=False,
-        ),
+        annotations=_annotations_for(spec.route),
     )
 
 
@@ -70,6 +77,17 @@ class PickfairMcpApp:
         spec = self._registry.get(name) if isinstance(name, str) else None
         tool_name = spec.name if spec is not None else None
         try:
+            envelope = await self._run(spec, request_id, arguments)
+        except Exception:  # noqa: BLE001 - mai testo di eccezione verso il client
+            envelope = internal_error(request_id, tool_name)
+        return self._finish(spec, envelope, started)
+
+    async def _run(
+        self, spec: ToolSpec | None, request_id: str, arguments: dict[str, Any] | None
+    ) -> dict[str, Any]:
+        """Esegue il tool; anche la costruzione dell'envelope d'errore è qui, sotto guardia."""
+        tool_name = spec.name if spec is not None else None
+        try:
             if spec is None:
                 raise ToolError(ErrorCode.UNKNOWN_TOOL, reasons=("UNKNOWN_TOOL",))
             try:
@@ -77,12 +95,9 @@ class PickfairMcpApp:
             except ValidationError:
                 raise ToolError(ErrorCode.INVALID_REQUEST, reasons=("INPUT_SCHEMA",)) from None
             data = await spec.handler(ToolContext(request_id=request_id))
-            envelope = success(request_id, spec.name, data)
+            return success(request_id, spec.name, data)
         except ToolError as err:
-            envelope = failure(request_id, tool_name, err)
-        except Exception:  # noqa: BLE001 - mai testo di eccezione verso il client
-            envelope = internal_error(request_id, tool_name)
-        return self._finish(spec, envelope, started)
+            return failure(request_id, tool_name, err)
 
     def _finish(
         self, spec: ToolSpec | None, envelope: dict[str, Any], started: float
