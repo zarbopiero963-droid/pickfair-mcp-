@@ -1,8 +1,10 @@
 """Fixture comuni.
 
-Guard di rete autouse: ogni test fallisce se qualcosa nel processo tenta una
-connessione IPv4/IPv6. MCP-01a non ha alcun motivo di aprire connessioni di rete;
-l'adapter HTTP verso la Control API è BLOCKED_CORE.
+Guard di rete autouse: ogni test fallisce se qualcosa nel processo di test tenta
+una connessione IPv4/IPv6, una risoluzione DNS o un invio UDP. I sottoprocessi
+(e2e stdio) non sono coperti da questa guardia: lì valgono i guard statici.
+MCP-01a non ha alcun motivo di aprire connessioni di rete; l'adapter HTTP verso
+la Control API è BLOCKED_CORE.
 """
 
 from __future__ import annotations
@@ -45,6 +47,19 @@ def forbid_network(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[object]]:
         attempts.append(address)
         raise NetworkAttemptError(f"connessione di rete vietata: {address!r}")
 
+    def guarded_getaddrinfo(host: object, *args: object, **kwargs: object) -> None:
+        attempts.append(host)
+        raise NetworkAttemptError(f"risoluzione DNS vietata: {host!r}")
+
+    def guarded_sendto(self: socket.socket, *args: object) -> int:
+        if self.family in _INET_FAMILIES:
+            attempts.append(args[-1])
+            raise NetworkAttemptError("invio UDP vietato")
+        return original_sendto(self, *args)  # type: ignore[arg-type]
+
+    original_sendto = socket.socket.sendto
+    monkeypatch.setattr(socket, "getaddrinfo", guarded_getaddrinfo)
+    monkeypatch.setattr(socket.socket, "sendto", guarded_sendto)
     monkeypatch.setattr(socket.socket, "connect", guarded_connect)
     monkeypatch.setattr(socket.socket, "connect_ex", guarded_connect_ex)
     monkeypatch.setattr(socket, "create_connection", guarded_create_connection)

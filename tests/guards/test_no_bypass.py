@@ -58,6 +58,7 @@ FORBIDDEN_IMPORT_ROOTS = {
     "sqlite3",
     "dbm",
     "shelve",
+    "importlib",
     "betfairlightweight",
     "telethon",
     "betfair_client",
@@ -72,6 +73,20 @@ FORBIDDEN_IMPORT_ROOTS = {
 }
 # urllib.parse è solo parsing di stringhe; i moduli di rete di urllib restano vietati.
 FORBIDDEN_IMPORT_EXACT = {"urllib.request", "urllib.error", "urllib.robotparser"}
+# Il client MCP dell'SDK (http/sse/websocket) non serve al server: vietato.
+FORBIDDEN_IMPORT_PREFIXES = ("mcp.client",)
+# Attributi di rete o di output diretto, rilevati anche se chiamati via modulo.
+FORBIDDEN_ATTRIBUTES = {
+    "connect_tcp",
+    "connect_unix",
+    "open_connection",
+    "create_connection",
+    "getaddrinfo",
+    "urlopen",
+    "stdout",
+    "system",
+    "popen",
+}
 FORBIDDEN_CALLS = {"eval", "exec", "compile", "__import__", "breakpoint"}
 PRINT_ALLOWED = {SRC_ROOT / "cli.py"}
 
@@ -121,7 +136,9 @@ def test_no_forbidden_imports_in_package() -> None:
         f"{p.relative_to(REPO_ROOT)}:{line}:{name}"
         for p in sorted(SRC_ROOT.rglob("*.py"))
         for line, name in _imports(p)
-        if name.split(".")[0] in FORBIDDEN_IMPORT_ROOTS or name in FORBIDDEN_IMPORT_EXACT
+        if name.split(".")[0] in FORBIDDEN_IMPORT_ROOTS
+        or name in FORBIDDEN_IMPORT_EXACT
+        or name.startswith(FORBIDDEN_IMPORT_PREFIXES)
     ]
     assert hits == []
 
@@ -131,6 +148,8 @@ def test_no_dynamic_execution_or_stray_prints() -> None:
     for path in sorted(SRC_ROOT.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute) and node.attr in FORBIDDEN_ATTRIBUTES:
+                hits.append(f"{path.name}:{node.lineno}:.{node.attr}")
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
                 if node.func.id in FORBIDDEN_CALLS:
                     hits.append(f"{path.name}:{node.lineno}:{node.func.id}")
@@ -166,9 +185,12 @@ def test_guard_detects_a_planted_violation(tmp_path: Path) -> None:
     planted = tmp_path / "planted.py"
     planted.write_text(
         "import betfairlightweight\nfrom urllib import request\nx = client.place_orders(1)\n"
+        "import importlib\nfrom mcp.client.stdio import stdio_client\n"
     )
     assert any(MCP_FORBIDDEN_RE.search(line) for _, line in code_lines(planted))
     assert any(MONEY_PATH_CALL_RE.search(line) for _, line in code_lines(planted))
     names = [n for _, n in _imports(planted)]
     assert any(n.split(".")[0] in FORBIDDEN_IMPORT_ROOTS for n in names)
     assert "urllib.request" in names
+    assert any(n.split(".")[0] == "importlib" for n in names)
+    assert any(n.startswith(FORBIDDEN_IMPORT_PREFIXES) for n in names)

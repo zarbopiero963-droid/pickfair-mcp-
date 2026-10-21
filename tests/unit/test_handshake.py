@@ -63,7 +63,7 @@ def test_pure_check_accepts_supported_pair() -> None:
         ({"capabilities": ("GET /v1/status",)}, "CAPABILITY_MISSING:GET /v1/meta"),
         (
             {"capabilities": ("GET /v1/meta", "POST /v1/cashout/all")},
-            "CAPABILITY_NOT_APPROVED:POST /v1/cashout/all",
+            "CAPABILITY_NOT_APPROVED",
         ),
     ],
 )
@@ -210,6 +210,7 @@ async def test_require_capability_outside_approved_set_is_refused() -> None:
     with pytest.raises(HandshakeFailed) as excinfo:
         await guard.require_compatible(frozenset({"POST /v1/cashout/all"}))
     assert excinfo.value.code is ErrorCode.CONTRACT_INCOMPATIBLE
+    assert "CAPABILITY_REQUIRED_NOT_APPROVED:POST /v1/cashout/all" in excinfo.value.reasons
 
 
 async def test_concurrent_requirements_share_one_handshake() -> None:
@@ -284,7 +285,7 @@ async def test_adapter_level_timeout_is_mapped() -> None:
         (Scenario.INCOMPATIBLE_MAJOR, ("VERSION_UNSUPPORTED",)),
         (Scenario.SCHEMA_HASH_MISMATCH, ("SCHEMA_HASH_UNKNOWN",)),
         (Scenario.MISSING_META_CAPABILITY, ("CAPABILITY_MISSING:GET /v1/meta",)),
-        (Scenario.UNAPPROVED_CAPABILITY, ("CAPABILITY_NOT_APPROVED:POST /v1/cashout/all",)),
+        (Scenario.UNAPPROVED_CAPABILITY, ("CAPABILITY_NOT_APPROVED",)),
     ],
 )
 async def test_exact_reason_codes(scenario: Scenario, reasons: tuple[str, ...]) -> None:

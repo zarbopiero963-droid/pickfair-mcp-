@@ -127,3 +127,38 @@ def test_audit_rejects_unknown_event_names(caplog: pytest.LogCaptureFixture) -> 
     audit.audit_event("rm -rf /", tool="get_meta")
     record = json.loads(caplog.records[-1].getMessage())
     assert record["event"] == "unknown_event"
+
+
+def test_serve_logging_keeps_only_audit_on_stderr(capsys: pytest.CaptureFixture[str]) -> None:
+    root = logging.getLogger()
+    audit_logger = logging.getLogger(audit.LOGGER_NAME)
+    saved = (
+        list(root.handlers),
+        root.level,
+        logging.lastResort,
+        list(audit_logger.handlers),
+        audit_logger.level,
+        audit_logger.propagate,
+    )
+    try:
+        # Configurazione «rumorosa» preesistente, come quella di una libreria.
+        import sys
+
+        root.handlers[:] = [logging.StreamHandler(sys.stderr)]
+        root.setLevel(logging.DEBUG)
+        audit.configure_stderr_logging()
+        logging.getLogger("mcp.server.lowlevel.server").error("input_value='hunter2-sdk'")
+        logging.getLogger("anything").critical("hunter2-lib")
+        audit.audit_event("tool_call", tool="get_meta")
+        err = capsys.readouterr().err
+    finally:
+        root.handlers[:] = saved[0]
+        root.setLevel(saved[1])
+        logging.lastResort = saved[2]
+        audit_logger.handlers[:] = saved[3]
+        audit_logger.setLevel(saved[4])
+        audit_logger.propagate = saved[5]
+    assert "hunter2" not in err
+    lines = [line for line in err.splitlines() if line.strip()]
+    assert len(lines) == 1
+    assert json.loads(lines[0])["tool"] == "get_meta"

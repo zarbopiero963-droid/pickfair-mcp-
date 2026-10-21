@@ -8,6 +8,7 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from typing import Any
 
+import anyio
 import jsonschema
 import pytest
 from mcp import ClientSession
@@ -38,8 +39,9 @@ async def session_for(
     adapter: SimulatedControlApiAdapter, **kwargs: Any
 ) -> AsyncIterator[ClientSession]:
     server = build_server(adapter, timeout_s=0.1, request_id_factory=counter_ids(), **kwargs)
-    async with create_connected_server_and_client_session(server) as session:
-        yield session
+    with anyio.fail_after(15):  # una regressione non deve bloccare la CI
+        async with create_connected_server_and_client_session(server) as session:
+            yield session
 
 
 async def test_list_tools_exposes_only_get_meta_with_strict_schemas() -> None:

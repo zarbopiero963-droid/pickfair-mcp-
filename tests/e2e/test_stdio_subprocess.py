@@ -8,6 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import anyio
 import jsonschema
 import pytest
 from mcp import ClientSession, StdioServerParameters
@@ -38,20 +39,21 @@ def server_params(*extra: str) -> StdioServerParameters:
 
 async def test_stdio_initialize_list_and_call_get_meta(tmp_path: Path) -> None:
     errlog = (tmp_path / "stderr.log").open("w+")
-    async with (
-        stdio_client(server_params(), errlog=errlog) as (read, write),
-        ClientSession(read, write) as session,
-    ):
-        init = await session.initialize()
-        assert init.serverInfo.name == "pickfair-mcp"
-        tools = (await session.list_tools()).tools
-        assert [t.name for t in tools] == ["get_meta"]
-        result = await session.call_tool("get_meta", {})
-        assert result.isError is False
-        assert result.structuredContent is not None
-        jsonschema.validate(result.structuredContent, tools[0].outputSchema)
-        assert result.structuredContent["data"]["handshake"]["status"] == "COMPATIBLE"
-        assert result.structuredContent["data"]["upstream"]["certified"] is False
+    with anyio.fail_after(60):
+        async with (
+            stdio_client(server_params(), errlog=errlog) as (read, write),
+            ClientSession(read, write) as session,
+        ):
+            init = await session.initialize()
+            assert init.serverInfo.name == "pickfair-mcp"
+            tools = (await session.list_tools()).tools
+            assert [t.name for t in tools] == ["get_meta"]
+            result = await session.call_tool("get_meta", {})
+            assert result.isError is False
+            assert result.structuredContent is not None
+            jsonschema.validate(result.structuredContent, tools[0].outputSchema)
+            assert result.structuredContent["data"]["handshake"]["status"] == "COMPATIBLE"
+            assert result.structuredContent["data"]["upstream"]["certified"] is False
     errlog.seek(0)
     stderr_lines = [line for line in errlog.read().splitlines() if line.strip()]
     events = [json.loads(line) for line in stderr_lines]
@@ -61,15 +63,16 @@ async def test_stdio_initialize_list_and_call_get_meta(tmp_path: Path) -> None:
 
 async def test_stdio_incompatible_contract_is_fail_closed(tmp_path: Path) -> None:
     errlog = (tmp_path / "stderr.log").open("w+")
-    async with (
-        stdio_client(server_params("--sim-scenario", "incompatible_major"), errlog=errlog) as (
-            read,
-            write,
-        ),
-        ClientSession(read, write) as session,
-    ):
-        await session.initialize()
-        result = await session.call_tool("get_meta", {})
+    with anyio.fail_after(60):
+        async with (
+            stdio_client(server_params("--sim-scenario", "incompatible_major"), errlog=errlog) as (
+                read,
+                write,
+            ),
+            ClientSession(read, write) as session,
+        ):
+            await session.initialize()
+            result = await session.call_tool("get_meta", {})
     assert result.isError is True
     assert result.structuredContent is not None
     assert result.structuredContent["error"]["code"] == "CONTRACT_INCOMPATIBLE"
