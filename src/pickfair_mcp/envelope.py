@@ -57,11 +57,16 @@ def failure(request_id: str, tool: str | None, err: ToolError) -> dict[str, Any]
         code=err.code,
         message=MESSAGES[err.code],
         retryable=err.code in RETRYABLE_FOR_READS,
-        details=ErrorDetails(
-            reasons=err.reasons[:MAX_REASONS], handshake_status=err.handshake_status
-        ),
+        details=ErrorDetails(reasons=_bounded(err.reasons), handshake_status=err.handshake_status),
     )
     return {"ok": False, "request_id": request_id, "tool": tool, "data": None, "error": body}
+
+
+def _bounded(reasons: tuple[str, ...]) -> tuple[str, ...]:
+    """Al massimo MAX_REASONS motivi; se troncati, l'ultimo lo dichiara."""
+    if len(reasons) <= MAX_REASONS:
+        return reasons
+    return (*reasons[: MAX_REASONS - 1], "REASONS_TRUNCATED")
 
 
 def internal_error(request_id: str, tool: str | None) -> dict[str, Any]:

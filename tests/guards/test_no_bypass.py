@@ -84,10 +84,22 @@ FORBIDDEN_ATTRIBUTES = {
     "getaddrinfo",
     "urlopen",
     "stdout",
+    "__stdout__",
     "system",
     "popen",
+    "create_udp_socket",
+    "create_tcp_listener",
+    "create_unix_listener",
+    "create_datagram_endpoint",
+    "sock_connect",
+    "posix_spawn",
+    "posix_spawnp",
+    "execv",
+    "execve",
+    "execvp",
+    "execl",
 }
-FORBIDDEN_CALLS = {"eval", "exec", "compile", "__import__", "breakpoint"}
+FORBIDDEN_CALLS = {"eval", "exec", "compile", "__import__", "breakpoint", "getattr"}
 PRINT_ALLOWED = {SRC_ROOT / "cli.py"}
 
 
@@ -139,6 +151,7 @@ def test_no_forbidden_imports_in_package() -> None:
         if name.split(".")[0] in FORBIDDEN_IMPORT_ROOTS
         or name in FORBIDDEN_IMPORT_EXACT
         or name.startswith(FORBIDDEN_IMPORT_PREFIXES)
+        or name.rsplit(".", 1)[-1] in FORBIDDEN_ATTRIBUTES  # from x import connect_tcp
     ]
     assert hits == []
 
@@ -186,6 +199,7 @@ def test_guard_detects_a_planted_violation(tmp_path: Path) -> None:
     planted.write_text(
         "import betfairlightweight\nfrom urllib import request\nx = client.place_orders(1)\n"
         "import importlib\nfrom mcp.client.stdio import stdio_client\n"
+        "from anyio import connect_tcp\nfrom os import system\n"
     )
     assert any(MCP_FORBIDDEN_RE.search(line) for _, line in code_lines(planted))
     assert any(MONEY_PATH_CALL_RE.search(line) for _, line in code_lines(planted))
@@ -194,3 +208,5 @@ def test_guard_detects_a_planted_violation(tmp_path: Path) -> None:
     assert "urllib.request" in names
     assert any(n.split(".")[0] == "importlib" for n in names)
     assert any(n.startswith(FORBIDDEN_IMPORT_PREFIXES) for n in names)
+    assert "anyio.connect_tcp" in names
+    assert any(n.rsplit(".", 1)[-1] in FORBIDDEN_ATTRIBUTES for n in names)

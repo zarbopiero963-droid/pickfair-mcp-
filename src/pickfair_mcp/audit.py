@@ -11,6 +11,7 @@ import json
 import logging
 import re
 import sys
+import threading
 import time
 from typing import Final
 
@@ -81,3 +82,20 @@ def configure_stderr_logging() -> None:
     root.handlers[:] = [logging.NullHandler()]
     root.setLevel(logging.CRITICAL + 1)
     logging.lastResort = None
+    logging.captureWarnings(True)  # gli avvisi passano dal logging, quindi scartati
+    # Nessun traceback grezzo su stderr: le eccezioni non gestite non vi arrivano.
+    sys.excepthook = _silent_excepthook
+    sys.unraisablehook = _silent_unraisablehook
+    threading.excepthook = _silent_thread_excepthook
+
+
+def _silent_excepthook(*_: object) -> None:
+    return None
+
+
+def _silent_unraisablehook(_: object) -> None:
+    return None
+
+
+def _silent_thread_excepthook(_: object) -> None:
+    return None

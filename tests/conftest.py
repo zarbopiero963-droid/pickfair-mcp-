@@ -10,6 +10,7 @@ la Control API è BLOCKED_CORE.
 from __future__ import annotations
 
 import socket
+import sys
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -23,6 +24,46 @@ _INET_FAMILIES = {socket.AF_INET, socket.AF_INET6}
 
 class NetworkAttemptError(AssertionError):
     """Sollevata quando il codice sotto test tenta una connessione di rete."""
+
+
+_NETWORK_AUDIT_EVENTS = {
+    "socket.connect",
+    "socket.sendto",
+    "socket.sendmsg",
+    "socket.getaddrinfo",
+    "socket.gethostbyname",
+    "socket.gethostbyaddr",
+    "socket.getnameinfo",
+}
+_network_guard_active = False
+_hook_attempts: list[object] = []
+
+
+def _audit_hook(event: str, args: tuple[object, ...]) -> None:
+    if not _network_guard_active or event not in _NETWORK_AUDIT_EVENTS:
+        return
+    if event in {"socket.connect", "socket.sendto", "socket.sendmsg"}:
+        sock = args[0]
+        if getattr(sock, "family", None) not in _INET_FAMILIES:
+            return
+    _hook_attempts.append(event)
+    raise NetworkAttemptError(f"operazione di rete vietata: {event}")
+
+
+sys.addaudithook(_audit_hook)  # gli audit hook non si rimuovono: si attiva per test
+
+
+@pytest.fixture(autouse=True)
+def network_audit_guard() -> Iterator[None]:
+    """Copre anche i percorsi che il monkeypatch non vede (_socket, sendmsg, DNS)."""
+    global _network_guard_active
+    _hook_attempts.clear()
+    _network_guard_active = True
+    try:
+        yield
+    finally:
+        _network_guard_active = False
+    assert _hook_attempts == [], f"operazioni di rete rilevate: {_hook_attempts!r}"
 
 
 @pytest.fixture(autouse=True)

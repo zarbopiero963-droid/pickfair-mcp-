@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import logging
+import sys
+import threading
 
 import pytest
 
@@ -139,11 +141,12 @@ def test_serve_logging_keeps_only_audit_on_stderr(capsys: pytest.CaptureFixture[
         list(audit_logger.handlers),
         audit_logger.level,
         audit_logger.propagate,
+        sys.excepthook,
+        sys.unraisablehook,
+        threading.excepthook,
     )
     try:
         # Configurazione «rumorosa» preesistente, come quella di una libreria.
-        import sys
-
         root.handlers[:] = [logging.StreamHandler(sys.stderr)]
         root.setLevel(logging.DEBUG)
         audit.configure_stderr_logging()
@@ -158,7 +161,30 @@ def test_serve_logging_keeps_only_audit_on_stderr(capsys: pytest.CaptureFixture[
         audit_logger.handlers[:] = saved[3]
         audit_logger.setLevel(saved[4])
         audit_logger.propagate = saved[5]
+        sys.excepthook = saved[6]
+        sys.unraisablehook = saved[7]
+        threading.excepthook = saved[8]
+        logging.captureWarnings(False)
     assert "hunter2" not in err
     lines = [line for line in err.splitlines() if line.strip()]
     assert len(lines) == 1
     assert json.loads(lines[0])["tool"] == "get_meta"
+
+
+def test_reasons_are_bounded_with_explicit_marker() -> None:
+    from pickfair_mcp.envelope import MAX_REASONS, failure
+    from pickfair_mcp.errors import ErrorCode, ToolError
+
+    many = tuple(f"CAPABILITY_MISSING:GET /v1/x{i}" for i in range(40))
+    body = failure(
+        "req_" + "0" * 32, "get_meta", ToolError(ErrorCode.CONTRACT_INCOMPATIBLE, reasons=many)
+    )
+    reasons = body["error"].details.reasons
+    assert len(reasons) == MAX_REASONS
+    assert reasons[0] == many[0]
+    assert reasons[-1] == "REASONS_TRUNCATED"
+    exact = many[:MAX_REASONS]
+    body = failure(
+        "req_" + "0" * 32, "get_meta", ToolError(ErrorCode.CONTRACT_INCOMPATIBLE, reasons=exact)
+    )
+    assert body["error"].details.reasons == exact

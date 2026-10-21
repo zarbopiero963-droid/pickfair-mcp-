@@ -58,6 +58,7 @@
         "tests/unit/test_contract_version.py",
         "tests/unit/test_handshake.py",
         "tests/unit/test_models_meta.py",
+        "tests/unit/test_network_guard.py",
         "tests/unit/test_registry_guard.py"
       ]
     }

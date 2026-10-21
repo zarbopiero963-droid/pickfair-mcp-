@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from collections.abc import Sequence
 
@@ -24,6 +25,9 @@ from pickfair_mcp.server import build_server
 from pickfair_mcp.tools import build_default_registry
 
 EXIT_USAGE = 2
+EXIT_INTERRUPTED = 130
+EXIT_TRANSPORT = 1
+STDOUT_FD = 1
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -86,6 +90,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     try:
         anyio.run(_serve, adapter, timeout_s)
-    finally:
-        audit_event("server_stop", server_version=__version__)
+    except KeyboardInterrupt:
+        return _abnormal_stop("interrupted", EXIT_INTERRUPTED)
+    except BaseException:  # noqa: BLE001 - es. pipe chiusa dal client: niente traceback
+        return _abnormal_stop("transport_error", EXIT_TRANSPORT)
+    audit_event("server_stop", server_version=__version__, outcome="ok")
     return 0
+
+
+def _abnormal_stop(outcome: str, code: int) -> int:
+    """Chiusura anomala: solo una riga di audit su stderr, stdout scollegato."""
+    audit_event("server_stop", server_version=__version__, outcome=outcome)
+    try:
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull, STDOUT_FD)  # evita errori di flush a fine processo
+    except (OSError, ValueError):
+        pass
+    return code

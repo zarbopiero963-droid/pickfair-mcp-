@@ -8,9 +8,11 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import subprocess
 import sys
 import threading
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -43,7 +45,10 @@ class RawServer:
     def read(self) -> dict[str, Any]:
         assert self.proc.stdout is not None
         result: list[str] = []
-        reader = threading.Thread(target=lambda: result.append(self.proc.stdout.readline()))  # type: ignore[union-attr]
+        reader = threading.Thread(
+            target=lambda: result.append(self.proc.stdout.readline()),  # type: ignore[union-attr]
+            daemon=True,
+        )
         reader.start()
         reader.join(TIMEOUT_S)
         assert result, "nessuna risposta entro il timeout"
@@ -55,21 +60,72 @@ class RawServer:
         out, err = self.proc.communicate(timeout=TIMEOUT_S)
         return out, err
 
+    def kill(self) -> None:
+        if self.proc.poll() is None:
+            self.proc.kill()
+            self.proc.wait(timeout=TIMEOUT_S)
 
-def test_stdout_is_pure_jsonrpc_and_stderr_has_no_client_input() -> None:
-    server = RawServer()
-    server.send(
-        {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2025-06-18",
-                "capabilities": {},
-                "clientInfo": {"name": "raw-test", "version": "0"},
-            },
-        }
+
+@pytest.fixture
+def server() -> Iterator[RawServer]:
+    raw = RawServer()
+    try:
+        yield raw
+    finally:
+        raw.kill()
+
+
+INIT = {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+        "protocolVersion": "2025-06-18",
+        "capabilities": {},
+        "clientInfo": {"name": "raw-test", "version": "0"},
+    },
+}
+
+
+def assert_stderr_is_audit_only(err: str) -> list[dict[str, Any]]:
+    records = []
+    for line in err.splitlines():
+        if line.strip():
+            records.append(json.loads(line))  # una riga non JSON fa fallire il test
+    assert all("event" in r for r in records)
+    return records
+
+
+def test_sigint_shutdown_writes_only_audit_to_stderr(server: RawServer) -> None:
+    server.send(INIT)
+    assert server.read()["id"] == 1
+    server.proc.send_signal(signal.SIGINT)
+    out, err = server.close()
+    assert out.strip() == "" or all(
+        json.loads(x)["jsonrpc"] == "2.0" for x in out.splitlines() if x.strip()
     )
+    records = assert_stderr_is_audit_only(err)
+    assert records[-1]["event"] == "server_stop"
+    assert records[-1]["outcome"] == "interrupted"
+    assert server.proc.returncode != 0
+
+
+def test_closed_stdout_writes_only_audit_to_stderr(server: RawServer) -> None:
+    server.send(INIT)
+    assert server.read()["id"] == 1
+    assert server.proc.stdout is not None
+    server.proc.stdout.close()  # il client sparisce: la scrittura successiva fallisce
+    server.send({"jsonrpc": "2.0", "method": "notifications/initialized"})
+    server.send({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+    assert server.proc.stdin is not None
+    server.proc.stdin.close()
+    server.proc.wait(timeout=TIMEOUT_S)
+    assert server.proc.stderr is not None
+    assert_stderr_is_audit_only(server.proc.stderr.read())
+
+
+def test_stdout_is_pure_jsonrpc_and_stderr_has_no_client_input(server: RawServer) -> None:
+    server.send(INIT)
     assert server.read()["id"] == 1
     server.send({"jsonrpc": "2.0", "method": "notifications/initialized"})
     server.send({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
@@ -92,9 +148,6 @@ def test_stdout_is_pure_jsonrpc_and_stderr_has_no_client_input() -> None:
     for line in out.splitlines():
         if line.strip():
             assert json.loads(line)["jsonrpc"] == "2.0"
-    for line in err.splitlines():
-        if line.strip():
-            record = json.loads(line)  # solo audit JSON
-            assert "event" in record
+    assert_stderr_is_audit_only(err)
     assert "hunter2" not in err
     assert "hunter2" not in out
