@@ -151,3 +151,28 @@ def test_stdout_is_pure_jsonrpc_and_stderr_has_no_client_input(server: RawServer
     assert_stderr_is_audit_only(err)
     assert "hunter2" not in err
     assert "hunter2" not in out
+
+
+SIGINT_RUNS = 40
+
+
+def test_sigint_never_hangs_the_server() -> None:
+    """F1: SIGINT subito dopo l'inizializzazione non deve mai bloccare il processo."""
+    outcomes = []
+    for _ in range(SIGINT_RUNS):
+        raw = RawServer()
+        try:
+            raw.send(INIT)
+            assert raw.read()["id"] == 1
+            raw.send({"jsonrpc": "2.0", "method": "notifications/initialized"})
+            raw.proc.send_signal(signal.SIGINT)
+            try:
+                raw.proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                pytest.fail("server bloccato dopo SIGINT")
+            assert raw.proc.stderr is not None
+            records = assert_stderr_is_audit_only(raw.proc.stderr.read())
+            outcomes.append((raw.proc.returncode, records[-1].get("outcome")))
+        finally:
+            raw.kill()
+    assert set(outcomes) == {(130, "interrupted")}
