@@ -1,0 +1,75 @@
+"""Audit strutturato su stderr (JSON per riga), con allowlist dei campi.
+
+stdout è riservato al protocollo MCP. Ogni campo non in allowlist viene scartato:
+nessun segreto può finire nel log anche se passato per errore. I valori sono
+solo primitivi, troncati e privi di caratteri di controllo.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import re
+import sys
+import time
+from typing import Final
+
+LOGGER_NAME: Final = "pickfair_mcp.audit"
+MAX_VALUE_LEN: Final = 160
+
+ALLOWED_EVENTS: Final = frozenset({"server_start", "server_stop", "tool_call", "handshake"})
+ALLOWED_FIELDS: Final = frozenset(
+    {
+        "request_id",
+        "tool",
+        "outcome",
+        "ok",
+        "error_code",
+        "handshake_status",
+        "epoch",
+        "duration_ms",
+        "adapter_kind",
+        "certified",
+        "server_version",
+        "contract_version",
+        "mutation_exposure",
+    }
+)
+_CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
+
+_logger = logging.getLogger(LOGGER_NAME)
+
+
+def _clean(value: object) -> object | None:
+    if isinstance(value, bool) or value is None:
+        return value
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return round(value, 3) if value == value and abs(value) != float("inf") else None
+    if isinstance(value, str):
+        return _CONTROL_RE.sub(" ", value)[:MAX_VALUE_LEN]
+    return None
+
+
+def audit_event(event: str, **fields: object) -> None:
+    record: dict[str, object] = {
+        "event": event if event in ALLOWED_EVENTS else "unknown_event",
+        "ts": round(time.time(), 3),
+    }
+    for key, value in fields.items():
+        if key not in ALLOWED_FIELDS:
+            continue
+        cleaned = _clean(value)
+        if cleaned is not None or value is None:
+            record[key] = cleaned
+    _logger.info(json.dumps(record, sort_keys=True, ensure_ascii=True))
+
+
+def configure_stderr_logging() -> None:
+    """Instrada l'audit su stderr; non tocca mai stdout."""
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    _logger.handlers[:] = [handler]
+    _logger.setLevel(logging.INFO)
+    _logger.propagate = False
