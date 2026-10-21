@@ -10,10 +10,12 @@ import json
 import os
 import signal
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from types import FrameType
+from typing import Any
 
 import anyio
+from mcp.server.lowlevel import Server
 from mcp.server.stdio import stdio_server
 
 from pickfair_mcp import __version__
@@ -48,8 +50,49 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-async def _serve(adapter: SimulatedControlApiAdapter, timeout_s: float) -> None:
+class InterruptTracker:
+    """Registra SIGINT senza sostituire la gestione del Runner di asyncio.
+
+    Il Runner installa il proprio gestore solo se trova ``default_int_handler`` e lo
+    rimuove solo se lo ritrova al suo posto: per questo il tracker si installa dentro
+    il loop, avvolge il gestore corrente e lo ripristina prima che il Runner chiuda.
+    Una disposizione ignorata o di default (SIG_IGN, SIG_DFL) resta invariata.
+    """
+
+    def __init__(self) -> None:
+        self.seen = False
+        self._previous: Callable[[int, FrameType | None], Any] | None = None
+
+    def install(self) -> None:
+        current = signal.getsignal(signal.SIGINT)
+        if not callable(current):
+            return
+        self._previous = current
+
+        def _record_and_delegate(signum: int, frame: FrameType | None) -> Any:
+            self.seen = True
+            return current(signum, frame)
+
+        signal.signal(signal.SIGINT, _record_and_delegate)
+
+    def uninstall(self) -> None:
+        if self._previous is not None:
+            signal.signal(signal.SIGINT, self._previous)
+            self._previous = None
+
+
+async def _serve(
+    adapter: SimulatedControlApiAdapter, timeout_s: float, tracker: InterruptTracker
+) -> None:
     server = build_server(adapter, timeout_s=timeout_s)
+    tracker.install()
+    try:
+        await _run_stdio(server)
+    finally:
+        tracker.uninstall()
+
+
+async def _run_stdio(server: Server[Any, Any]) -> None:
     async with stdio_server() as (read_stream, write_stream):
         await server.run(read_stream, write_stream, server.create_initialization_options())
 
@@ -90,26 +133,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         contract_version=SUPPORTED_CONTRACT_VERSION,
         mutation_exposure=MUTATION_EXPOSURE,
     )
-    # Se SIGINT arriva mentre il thread di lettura di stdin si chiude, il runtime può
-    # terminare con BrokenResourceError e perdere il KeyboardInterrupt: lo registriamo
-    # qui e deleghiamo al comportamento standard di Python.
-    interrupted = False
-    previous_handler = signal.getsignal(signal.SIGINT)
-
-    def _on_sigint(signum: int, frame: FrameType | None) -> None:
-        nonlocal interrupted
-        interrupted = True
-        signal.default_int_handler(signum, frame)
-
-    signal.signal(signal.SIGINT, _on_sigint)
+    tracker = InterruptTracker()
     try:
-        anyio.run(_serve, adapter, timeout_s)
+        anyio.run(_serve, adapter, timeout_s, tracker)
     except BaseException as exc:  # noqa: BLE001 - es. pipe chiusa dal client: niente traceback
-        if interrupted or _is_interrupt(exc):
+        if tracker.seen or _is_interrupt(exc):
             return _abnormal_stop("interrupted", EXIT_INTERRUPTED)
         return _abnormal_stop("transport_error", EXIT_TRANSPORT)
-    finally:
-        signal.signal(signal.SIGINT, previous_handler)
+    if tracker.seen:
+        return _abnormal_stop("interrupted", EXIT_INTERRUPTED)
     audit_event("server_stop", server_version=__version__, outcome="ok")
     return 0
 

@@ -265,7 +265,29 @@ MUTANTS: tuple[Mutant, ...] = (
     Mutant(
         "M30",
         "SIGINT perso classificato come errore di trasporto",
-        (("src/pickfair_mcp/cli.py", "        interrupted = True\n", "        pass\n"),),
+        (("src/pickfair_mcp/cli.py", "            self.seen = True\n", "            pass\n"),),
+    ),
+    Mutant(
+        "M31",
+        "SIGINT ignorato dal processo padre riattivato",
+        (
+            (
+                "src/pickfair_mcp/cli.py",
+                "        if not callable(current):\n            return\n",
+                "",
+            ),
+        ),
+    ),
+    Mutant(
+        "M32",
+        "gestore del Runner asyncio sostituito prima del loop",
+        (
+            (
+                "src/pickfair_mcp/cli.py",
+                "    tracker = InterruptTracker()\n",
+                "    tracker = InterruptTracker()\n    tracker.install()\n",
+            ),
+        ),
     ),
 )
 
