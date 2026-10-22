@@ -36,14 +36,14 @@ TOOL_SCOPES: Final = MappingProxyType(
         "replace_order": Scope.WRITE,
         "cashout": Scope.WRITE,
         "stop": Scope.WRITE,
-        "resume": Scope.WRITE,
+        "resume": Scope.OWNER,  # decisione owner 22/10 (C1): sempre owner-only
         "reconcile": Scope.WRITE,
         "patch_config": Scope.OWNER,
         "set_mode": Scope.OWNER,
     }
 )
 
-OWNER_ONLY_TOOLS: Final = frozenset({"set_mode", "patch_config"})
+OWNER_ONLY_TOOLS: Final = frozenset({"set_mode", "patch_config", "resume"})
 # Operazioni owner-only identificate da (tool, qualificatore) dichiarato dal codice.
 OWNER_ONLY_QUALIFIED: Final = frozenset({("stop", "EMERGENCY")})
 

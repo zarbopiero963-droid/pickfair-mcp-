@@ -158,7 +158,7 @@ hash (descrittore canonico comune ai due repository) e nomi delle capability.
 ## MCP-01c — Principal e scope
 
 - Scope: `read`, `write`, `admin`, `owner`. Sono **insiemi** espliciti: nessuna gerarchia implicita (un principal `owner` senza `read` non può leggere).
-- Mappa statica tool → scope minimo (`pickfair_mcp.auth.TOOL_SCOPES`, immutabile): le 14 letture → `read`; `preview_order`, `place_order`, `place_dutching`, `cancel_order`, `replace_order`, `cashout`, `stop`, `resume`, `reconcile` → `write`; `set_mode`, `patch_config` → `owner`. `stop` con qualificatore `EMERGENCY` → `owner`. `admin` non è richiesto da alcun tool del catalogo attuale.
+- Mappa statica tool → scope minimo (`pickfair_mcp.auth.TOOL_SCOPES`, immutabile): le 14 letture → `read`; `preview_order`, `place_order`, `place_dutching`, `cancel_order`, `replace_order`, `cashout`, `stop`, `reconcile` → `write`; `set_mode`, `patch_config`, `resume` → `owner` (`resume` sempre owner-only per ogni tipo di stop, decisione owner 22/10, finding C1). `stop` con qualificatore `EMERGENCY` → `owner`. `admin` non è richiesto da alcun tool del catalogo attuale.
 - Registrazione: ogni `ToolSpec` dichiara `scope`; scope assente (`SCOPE_UNDECLARED`) o diverso dalla mappa (`SCOPE_MISMATCH`) ⇒ registrazione rifiutata all'avvio.
 - Server: il controllo di scope avviene subito dopo la risoluzione del nome, **prima** della validazione input e di qualunque handler/adapter. Rifiuto ⇒ errore `FORBIDDEN` (reason `PRINCIPAL_MISSING`, `PRINCIPAL_INVALID` o `SCOPE_MISSING`), non retryable, audit `tool_call` con `outcome=forbidden` e `principal_id`, zero chiamate upstream.
 - Lo scope non è mai dedotto da argomenti della richiesta o da testo upstream.

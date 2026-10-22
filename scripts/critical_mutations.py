@@ -639,6 +639,11 @@ MUTANTS: tuple[Mutant, ...] = (
         "insieme di scope vuoto accettato",
         ((PRI, "and len(scopes) > 0", "and True"),),
     ),
+    Mutant(
+        "A15",
+        "resume declassato a write (revoca stop EMERGENCY da non-owner)",
+        ((APO, '"resume": Scope.OWNER', '"resume": Scope.WRITE'),),
+    ),
 )
 
 
