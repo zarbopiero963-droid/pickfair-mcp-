@@ -93,9 +93,9 @@ def test_blocking_line_fails() -> None:
     assert ev([c(body)]) == (False, "BLOCKING_FINDINGS:1")
 
 
-def test_blocking_must_start_line() -> None:
+def test_blocking_word_anywhere_fails_closed() -> None:
     body = review(extra="No BLOCKING: items found.\nNON-BLOCKING: nit\n")
-    assert ev([c(body)])[0] is True
+    assert ev([c(body)]) == (False, "BLOCKING_FINDINGS:1")
 
 
 def test_indented_blocking_counts() -> None:
@@ -252,8 +252,6 @@ def test_blocking_forms_detected(line: str) -> None:
         "NON-BLOCKING: nit",
         "- **NON-BLOCKING**: nit",
         "1. Non-blocking: nit",
-        "No blocking issues found.",
-        "Nothing BLOCKING: here",
     ],
 )
 def test_non_blocking_forms_ignored(line: str) -> None:
@@ -289,3 +287,73 @@ def test_workflow_never_runs_pr_code() -> None:
     assert code.count("uses: actions/checkout@") == 1
     assert "ref: ${{ github.event.repository.default_branch }}" in code
     assert "persist-credentials: false" in code
+
+
+# --- review 4a5b1c7: G1, G3 ------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "B1 BLOCKING: x",
+        "Finding (BLOCKING): x",
+        "| BLOCKING: x |",
+        "* [ ] BLOCKING: x",
+        "BLOCKING - x",
+        "BLOCKING x",
+        "BLOCKING findings:",
+        "## BLOCKING",
+        "<b>BLOCKING</b>: x",
+        "<span>BLOCK</span>ING: x",
+        "\u200bBLOCKING: x",
+        "BLOC\u200bKING: x",
+        "\ufeffBLOCKING: x",
+        "\u00a0BLOCKING: x",
+        "\uff22\uff2c\uff2f\uff23\uff2b\uff29\uff2e\uff27: x",
+        "BLOCKING\uff1a x",
+        "No blocking issues found.",
+        "blocking",
+    ],
+)
+def test_g1_blocking_word_anywhere(line: str) -> None:
+    assert ev([c(review(extra=line + "\n"))]) == (False, "BLOCKING_FINDINGS:1")
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "NON-BLOCKING: nit",
+        "non-blocking",
+        "NON BLOCKING: nit",
+        "NON_BLOCKING: nit",
+        "NONBLOCKING: x",
+        "NON\u2011BLOCKING: nit",
+        "nonblocking work",
+        "unblocking the queue",
+    ],
+)
+def test_g1_non_blocking_variants_allowed(line: str) -> None:
+    assert ev([c(review(extra=line + "\n"))])[0] is True
+
+
+def test_g1_mixed_line_still_fails() -> None:
+    body = review(extra="NON-BLOCKING: a, BLOCKING: b\n")
+    assert ev([c(body)]) == (False, "BLOCKING_FINDINGS:1")
+
+
+def test_g1_zero_width_in_verdict_normalised() -> None:
+    body = f"Independent review\nREVIEW-VERDICT: APP\u200bROVE\nREVIEWED-SHA: {HEAD}\n"
+    assert ev([c(body)])[0] is True
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        f"Independent review\n**REVIEW-VERDICT:** APPROVE\nREVIEWED-SHA: {HEAD}\n",
+        f"Independent review\nREVIEW-VERDICT: **APPROVE**\nREVIEWED-SHA: {HEAD}\n",
+        f"Independent review\nREVIEW-VERDICT: APPROVE\n**REVIEWED-SHA:** {HEAD}\n",
+        f"Independent review\n`REVIEW-VERDICT: APPROVE`\nREVIEWED-SHA: {HEAD}\n",
+    ],
+)
+def test_g3_decorated_verdict_lines_fail_closed(body: str) -> None:
+    assert ev([c(body)])[0] is False
