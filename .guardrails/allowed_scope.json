@@ -94,6 +94,15 @@
         "tests/unit/test_journal.py",
         "tests/unit/test_journal_hardening.py"
       ]
+    },
+    "mcp01c-principal-scopes": {
+      "issue": "pickfair-mcp- #5",
+      "scheda": "MCP-01c",
+      "files": [
+        "tests/unit/test_auth.py",
+        "tests/integration/test_auth_server.py",
+        "tests/e2e/test_auth_process.py"
+      ]
     }
   }
 }
