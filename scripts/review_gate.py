@@ -8,6 +8,12 @@ e nessuna riga che inizi con `BLOCKING:`. Un nuovo push cambia la head e invalid
 ogni verdetto precedente. Il parser è puro: nessuna rete; il workflow gli passa i
 commenti già scaricati.
 
+Formato (rigido, fail-closed): le righe `REVIEW-VERDICT: <VALORE>` e
+`REVIEWED-SHA: <40 hex>` vanno scritte in chiaro, senza grassetto, backtick o altra
+decorazione (G3): una riga decorata non è riconosciuta e il verdetto risulta
+MALFORMED. Il testo è normalizzato (NFKC, niente caratteri invisibili, niente tag HTML)
+prima dell'analisi.
+
 Uso: python scripts/review_gate.py --comments comments.json --head-sha <sha>
 Uscita 0 = PASS, 1 = FAIL; stampa il motivo.
 """
@@ -18,6 +24,7 @@ import argparse
 import json
 import re
 import sys
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -25,21 +32,39 @@ SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 TITLE_RE = re.compile(r"^[#*\s]*Independent review\b", re.IGNORECASE)
 VERDICT_RE = re.compile(r"^\s*REVIEW-VERDICT:\s*(\S*)\s*$")
 SHA_LINE_RE = re.compile(r"^\s*REVIEWED-SHA:\s*(\S*)\s*$")
-# Prefissi markdown ammessi (spazi, citazioni, elenchi puntati/numerati, titoli,
-# grassetto/codice/parentesi) e chiusure prima dei due punti; case-insensitive.
-# «NON-BLOCKING» non corrisponde: il prefisso non può contenere lettere.
-BLOCKING_RE = re.compile(r"^[\s>*+\-#\d.)(\[_`]*BLOCKING[*_`\])]*\s*:", re.IGNORECASE)
+# G1 (review 4a5b1c7): nessuna allow-list di prefissi. Dopo la normalizzazione
+# (NFKC, rimozione dei caratteri di formato invisibili e dei tag HTML) una riga che
+# contiene la parola BLOCKING, in qualsiasi forma o posizione e senza distinzione di
+# maiuscole, conta come finding bloccante; sono escluse solo le forme NON-BLOCKING.
+# Un falso positivo fa fallire il gate (fail-closed): il reviewer non deve usare la
+# parola in un APPROVE se non nella forma NON-BLOCKING.
+# Confini su lettere/cifre (non \b): «_» e «*» attorno alla parola non la nascondono.
+NON_BLOCKING_RE = re.compile(
+    r"(?<![A-Za-z0-9])NON[\s\-_\u2010-\u2015]*BLOCKING(?![A-Za-z0-9])", re.IGNORECASE
+)
+BLOCKING_WORD_RE = re.compile(r"(?<![A-Za-z0-9])BLOCKING(?![A-Za-z0-9])", re.IGNORECASE)
+HTML_TAG_RE = re.compile(r"<[^>]*>")
 # Repository pubblico: contano solo commenti di chi ha accesso al repository.
 TRUSTED_ASSOCIATIONS = frozenset({"OWNER", "MEMBER", "COLLABORATOR"})
 
 
+def normalize(body: str) -> str:
+    text = unicodedata.normalize("NFKC", body)
+    text = "".join(ch for ch in text if unicodedata.category(ch) != "Cf")
+    return HTML_TAG_RE.sub("", text)
+
+
+def is_blocking(line: str) -> bool:
+    return BLOCKING_WORD_RE.search(NON_BLOCKING_RE.sub(" ", line)) is not None
+
+
 def _parse(body: str) -> tuple[list[str], list[str], int] | None:
-    lines = body.replace("\r\n", "\n").split("\n")
+    lines = normalize(body).replace("\r\n", "\n").split("\n")
     if not lines or not TITLE_RE.match(lines[0]):
         return None
     verdicts = [m.group(1) for m in map(VERDICT_RE.match, lines) if m]
     shas = [m.group(1).lower() for m in map(SHA_LINE_RE.match, lines) if m]
-    blocking = sum(1 for line in lines if BLOCKING_RE.match(line))
+    blocking = sum(1 for line in lines if is_blocking(line))
     return verdicts, shas, blocking
 
 

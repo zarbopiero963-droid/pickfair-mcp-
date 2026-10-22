@@ -10,6 +10,8 @@ name: independent-review
 # di main; il codice della PR non viene mai estratto né eseguito, quindi una PR non può
 # modificare il gate che la valuta. Conseguenza: il gate non può approvare la PR che lo
 # introduce (vedi AGENTS.md §4, bootstrap).
+# G4: pull_request_target gira anche per PR da fork; resta sicuro solo perché nessun
+# codice della PR è estratto o eseguito. Non aggiungere MAI un checkout della PR.
 
 on:
   pull_request_target:

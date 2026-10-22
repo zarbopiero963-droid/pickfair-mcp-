@@ -86,6 +86,37 @@ Mandato owner vigente: PF-MCP-AUTONOMOUS-FACTORY-01 (22/10/2026), Fase A.
     e non sostituisce mai `independent-review`;
   - il workflow del gate esegue solo il codice del branch di default: una PR che lo
     introduce o lo modifica non può essere approvata dal gate nuovo che contiene.
+- Rischio residuo del gate (review 4a5b1c7, G2): una PR dello stesso repository può
+  aggiungere o modificare un altro workflow (es. `ci.yml` con `on: pull_request` e
+  `permissions: statuses: write`) che pubblica `independent-review=success` sulla propria
+  head. Lo status proviene da GitHub Actions (app 15368) e soddisfa il check richiesto.
+  Correzione definitiva (decisione owner pendente): status pubblicato da una GitHub App
+  o identità separata e check richiesto vincolato a quella app.
+- Regola compensativa vincolante finché il rischio resta aperto: una PR che aggiunge,
+  modifica o elimina file sotto `.github/**` o `scripts/review_gate.py` è fuori dallo
+  scope autonomo. Nessun merge automatico: stop e decisione esplicita dell'owner. Il
+  reviewer indipendente deve controllare il diff e segnalare ogni modifica a quei
+  percorsi come finding BLOCKING.
+- Formato del verdetto: righe `REVIEW-VERDICT:` e `REVIEWED-SHA:` in chiaro, senza
+  decorazioni; in un APPROVE la parola BLOCKING compare solo nella forma NON-BLOCKING
+  (qualsiasi altra occorrenza fa fallire il gate).
+
+### Bootstrap del gate (PR #34, una tantum)
+
+Il gate non può approvare la PR che lo introduce: il suo workflow esiste solo dopo il
+merge su `main`. Procedura approvata dall'owner il 22/10/2026 (16:59 Europe/Rome), con
+condizioni vincolanti:
+1. review indipendente completa sulla head esatta, 4 job CI verdi, nessun BLOCKING aperto;
+2. prima di toccare le protezioni: configurazione originale (JSON), motivo, SHA e
+   procedura di ripristino registrati su pickfair-mcp- #1;
+3. eccezione limitata alla rimozione del solo check `independent-review`; restano gli
+   altri check richiesti ed `enforce_admins`; usata solo per il merge di #34;
+4. ripristino immediato e verifica rileggendo la protezione; se il ripristino fallisce,
+   stop di tutti i merge e rapporto owner;
+5. dopo l'installazione, PR di prova per verificare che il gate su `main` blocchi
+   finding BLOCKING in forme diverse; ogni passo e SHA registrato su #1.
+Nessun altro uso dell'eccezione è autorizzato.
+
 - Dopo ogni merge: verifica della CI su `main`, checkpoint e roadmap aggiornati.
 - La scheda successiva si avvia solo dopo il completamento riuscito della precedente.
 - Stop immediato e rapporto owner in caso di blocker, nuova decisione owner necessaria,
