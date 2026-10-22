@@ -65,17 +65,38 @@ servizi esterni senza conferma per ordine.
 
 ## 4. Flusso di lavoro e serialità
 
-- Una sola PR attiva per repository: una PR in questo repository e una in Pickfair-nogui
-  possono coesistere; mai due PR aperte qui.
-- Mai lavorare su `main`. Nessun merge senza autorizzazione owner separata.
-  Vietato l'auto-merge in questo repository.
+Mandato owner vigente: PF-MCP-AUTONOMOUS-FACTORY-01 (22/10/2026), Fase A.
+
+- Una sola PR attiva per repository: una sola PR di codice aperta alla volta in questo
+  repository (una PR in Pickfair-nogui può coesistere); mai due PR aperte qui.
+- Sviluppo autonomo ammesso soltanto per le 18 schede autorizzate della Fase A:
+  MCP-01b, 01c, 04f, 02a, 02d, 02b, 02c, 02e, 05a, 03a, 03b, 04a, 04b, 04d, 04e, 05b,
+  05c, 07a. Le altre schede restano bloccate: nessuna autorizzazione implicita.
+- Mai lavorare su `main`. Nessun merge senza autorizzazione owner: per le schede della
+  Fase A l'autorizzazione è il mandato stesso, valida solo se tutti i gate sono PASS.
+- Merge automatico ammesso solo dopo: CI verde su tutti i check richiesti, status
+  `independent-review` verde (review indipendente favorevole sulla head esatta, senza
+  righe `BLOCKING:`), tutti i gate della scheda superati. Nessun bypass delle protezioni.
+- Limiti del gate `independent-review` (review 101ae4d, N8/N10):
+  - il controllo dell'autore (OWNER/MEMBER/COLLABORATOR) NON prova l'indipendenza:
+    autore della PR e reviewer pubblicano oggi dallo stesso account. L'indipendenza è
+    garantita dal processo (istanza di review separata designata dall'owner), non
+    dall'identità; limite noto e accettato dall'owner;
+  - il check `CodeRabbit` può risultare verde con «Review skipped»: non è una review
+    e non sostituisce mai `independent-review`;
+  - il workflow del gate esegue solo il codice del branch di default: una PR che lo
+    introduce o lo modifica non può essere approvata dal gate nuovo che contiene.
+- Dopo ogni merge: verifica della CI su `main`, checkpoint e roadmap aggiornati.
+- La scheda successiva si avvia solo dopo il completamento riuscito della precedente.
+- Stop immediato e rapporto owner in caso di blocker, nuova decisione owner necessaria,
+  dipendenza non disponibile (core, Control API, review o check richiesti).
+- Nessuna modifica a Pickfair-nogui da questo repository o da questo mandato.
 - Ogni PR: Gate A specifico → test RED → implementazione → RED → GREEN documentato →
   regressione completa → mutation testing sui controlli critici → review indipendente →
-  Gate B specifico → rapporto owner → attesa autorizzazione.
+  Gate B specifico → rapporto owner.
 - Il titolo PR e i commit portano il marker `[TASK: <chiave>]`; la chiave e l'elenco dei
   file sono registrati in `.guardrails/allowed_scope.json` nello stesso PR. Ogni file del
   repository deve appartenere allo scope di una task (test di guardia).
-- Nessun avvio automatico della scheda successiva: dopo ogni PR, rapporto e nuovo mandato.
 
 ## 5. Test e verifiche obbligatorie
 

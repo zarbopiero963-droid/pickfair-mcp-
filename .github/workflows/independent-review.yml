@@ -1,0 +1,62 @@
+name: independent-review
+
+# Gate richiesto su main: imposta lo status «independent-review» sulla head della PR.
+# PASS solo con un commento «Independent review» (autore OWNER/MEMBER/COLLABORATOR)
+# con REVIEW-VERDICT: APPROVE, REVIEWED-SHA = head corrente e nessuna riga BLOCKING:.
+# Ogni push (synchronize) rivaluta la nuova head: nessun verdetto vecchio vale.
+#
+# Sicurezza (review 101ae4d, B1): tutti gli eventi eseguono SOLO il codice del branch
+# di default. pull_request_target, issue_comment e pull_request_review usano il workflow
+# di main; il codice della PR non viene mai estratto né eseguito, quindi una PR non può
+# modificare il gate che la valuta. Conseguenza: il gate non può approvare la PR che lo
+# introduce (vedi AGENTS.md §4, bootstrap).
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+  issue_comment:
+    types: [created, edited, deleted]
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  statuses: write
+
+concurrency:
+  group: independent-review-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  evaluate:
+    name: review-gate evaluator
+    if: github.event_name != 'issue_comment' || github.event.issue.pull_request
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout gate dal branch di default (mai il codice della PR)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Valuta e pubblica lo status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number || github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          HEAD_SHA=$(gh api "repos/$REPO/pulls/$PR" --jq .head.sha)
+          gh api --paginate --slurp "repos/$REPO/issues/$PR/comments" > "$RUNNER_TEMP/comments.json"
+          set +e
+          RESULT=$(python3 scripts/review_gate.py --comments "$RUNNER_TEMP/comments.json" --head-sha "$HEAD_SHA")
+          CODE=$?
+          set -e
+          echo "head=$HEAD_SHA result=$RESULT"
+          STATE=failure
+          if [ "$CODE" -eq 0 ]; then STATE=success; fi
+          gh api -X POST "repos/$REPO/statuses/$HEAD_SHA" \
+            -f state="$STATE" -f context=independent-review \
+            -f description="${RESULT:0:140}" > /dev/null
