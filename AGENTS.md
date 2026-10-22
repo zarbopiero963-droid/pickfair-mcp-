@@ -92,11 +92,18 @@ Mandato owner vigente: PF-MCP-AUTONOMOUS-FACTORY-01 (22/10/2026), Fase A.
   head. Lo status proviene da GitHub Actions (app 15368) e soddisfa il check richiesto.
   Correzione definitiva (decisione owner pendente): status pubblicato da una GitHub App
   o identità separata e check richiesto vincolato a quella app.
-- Regola compensativa vincolante finché il rischio resta aperto: una PR che aggiunge,
-  modifica o elimina file sotto `.github/**` o `scripts/review_gate.py` è fuori dallo
-  scope autonomo. Nessun merge automatico: stop e decisione esplicita dell'owner. Il
-  reviewer indipendente deve controllare il diff e segnalare ogni modifica a quei
-  percorsi come finding BLOCKING.
+- Decisione owner 22/10/2026 17:30 (nessuna GitHub App, nessun nuovo servizio o chiave):
+  - file protetti: `.github/**` (workflow inclusi), `scripts/review_gate.py` e ogni
+    meccanismo che decide il merge, oltre alla configurazione delle protezioni di branch.
+    Una PR che li aggiunge, modifica o elimina richiede autorizzazione esplicita
+    dell'owner e non è MAI mergiata automaticamente: stop e decisione owner. Il reviewer
+    indipendente deve controllare il diff e segnalare ogni modifica a quei percorsi;
+  - PR ordinarie (nessun file protetto): merge automatico solo quando tutti i gate sono PASS;
+  - una sola PR attiva alla volta; massimo 10 cicli di correzione per PR, poi stop e
+    rapporto owner;
+  - il controllo dei percorsi deve usare protezioni native di GitHub non modificabili dalla
+    stessa PR. Finché non esiste una protezione nativa che lo garantisca, il merge
+    automatico NON è dichiarato sicuro contro uno status falsificato: vale la regola sopra.
 - Formato del verdetto: righe `REVIEW-VERDICT:` e `REVIEWED-SHA:` in chiaro, senza
   decorazioni; in un APPROVE la parola BLOCKING compare solo nella forma NON-BLOCKING
   (qualsiasi altra occorrenza fa fallire il gate).
