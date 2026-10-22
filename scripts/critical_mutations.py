@@ -35,9 +35,12 @@ class Mutant:
 H = "src/pickfair_mcp/policy/handshake.py"
 MO = "src/pickfair_mcp/contract/models.py"
 P = "src/pickfair_mcp/contract/parsing.py"
-R = "src/pickfair_mcp/tools/registry.py"
+R = REG = "src/pickfair_mcp/tools/registry.py"
 E = "src/pickfair_mcp/policy/exposure.py"
-S = "src/pickfair_mcp/server.py"
+S = SRV = "src/pickfair_mcp/server.py"
+APO = "src/pickfair_mcp/auth/policy.py"
+PRI = "src/pickfair_mcp/auth/principal.py"
+CLI = "src/pickfair_mcp/cli.py"
 C = "src/pickfair_mcp/config.py"
 A = "src/pickfair_mcp/audit.py"
 ME = "src/pickfair_mcp/tools/meta.py"
@@ -450,8 +453,8 @@ MUTANTS: tuple[Mutant, ...] = (
             ),
             (
                 "src/pickfair_mcp/cli.py",
-                "        server = build_server(adapter, timeout_s=timeout_s)\n",
-                "        server = build_server(adapter, timeout_s=timeout_s)\n        tracker.install()\n",
+                "        server = build_server(adapter,",
+                "        tracker.install()\n        server = build_server(adapter,",
             ),
         ),
     ),
@@ -547,6 +550,94 @@ MUTANTS: tuple[Mutant, ...] = (
         "J13",
         "retry di lettura senza limite",
         ((JR, "if not 1 <= attempts <= MAX_READ_ATTEMPTS:", "if False:"),),
+    ),
+    Mutant(
+        "A01",
+        "controllo di scope rimosso dal server",
+        ((SRV, "authorize(self._principal, spec.name)", "pass"),),
+    ),
+    Mutant(
+        "A02",
+        "condizione di scope invertita",
+        ((APO, "not in principal.scopes:", "in principal.scopes:"),),
+    ),
+    Mutant(
+        "A03",
+        "principal assente accettato",
+        ((APO, 'raise AuthorizationDenied("PRINCIPAL_MISSING")', "return"),),
+    ),
+    Mutant(
+        "A04",
+        "principal non valido accettato",
+        ((APO, 'raise AuthorizationDenied("PRINCIPAL_INVALID")', "pass"),),
+    ),
+    Mutant(
+        "A05",
+        "EMERGENCY non riservato all'owner",
+        ((APO, "        return Scope.OWNER\n", "        return scope\n"),),
+    ),
+    Mutant(
+        "A06",
+        "set_mode declassato a write",
+        ((APO, '"set_mode": Scope.OWNER', '"set_mode": Scope.WRITE'),),
+    ),
+    Mutant(
+        "A07",
+        "place_order declassato a read",
+        ((APO, '"place_order": Scope.WRITE', '"place_order": Scope.READ'),),
+    ),
+    Mutant(
+        "A08",
+        "registrazione senza scope accettata",
+        ((REG, 'raise RegistryViolation(f"SCOPE_UNDECLARED:{spec.name}")', "pass"),),
+    ),
+    Mutant(
+        "A09",
+        "scope dichiarato diverso dal catalogo accettato",
+        ((REG, "if spec.scope is not declared:", "if False:"),),
+    ),
+    Mutant(
+        "A10",
+        "validazione input prima dell'autorizzazione",
+        (
+            (
+                SRV,
+                "            try:\n                authorize(self._principal, spec.name)\n"
+                "            except AuthorizationDenied as denied:\n"
+                "                raise denied.to_tool_error() from None\n"
+                "            try:\n"
+                "                spec.input_model.model_validate(arguments if arguments is not None else {})\n"
+                "            except ValidationError:\n"
+                '                raise ToolError(ErrorCode.INVALID_REQUEST, reasons=("INPUT_SCHEMA",)) from None\n',
+                "            try:\n"
+                "                spec.input_model.model_validate(arguments if arguments is not None else {})\n"
+                "            except ValidationError:\n"
+                '                raise ToolError(ErrorCode.INVALID_REQUEST, reasons=("INPUT_SCHEMA",)) from None\n'
+                "            try:\n                authorize(self._principal, spec.name)\n"
+                "            except AuthorizationDenied as denied:\n"
+                "                raise denied.to_tool_error() from None\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "A11",
+        "scope forgiati (stringhe) accettati",
+        ((PRI, "and all(type(s) is Scope for s in scopes)", "and True"),),
+    ),
+    Mutant(
+        "A12",
+        "chiavi extra (credenziali) accettate nel principal",
+        ((PRI, "or set(raw) != _PRINCIPAL_KEYS", "or not _PRINCIPAL_KEYS <= set(raw)"),),
+    ),
+    Mutant(
+        "A13",
+        "principal del processo stdio elevato a owner",
+        ((CLI, "scopes=frozenset({Scope.READ})", "scopes=frozenset(Scope)"),),
+    ),
+    Mutant(
+        "A14",
+        "insieme di scope vuoto accettato",
+        ((PRI, "and len(scopes) > 0", "and True"),),
     ),
 )
 

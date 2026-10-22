@@ -22,12 +22,18 @@ from mcp.server.stdio import stdio_server
 from pickfair_mcp import __version__
 from pickfair_mcp.adapters.simulated import Scenario, SimulatedControlApiAdapter
 from pickfair_mcp.audit import audit_event, configure_stderr_logging
+from pickfair_mcp.auth import Principal, Scope
 from pickfair_mcp.config import BLOCKED_CORE_MESSAGE, ConfigError, validate_timeout
 from pickfair_mcp.contract.routes import APPROVED_ROUTES
 from pickfair_mcp.contract.version import SUPPORTED_CONTRACT_VERSION, contract_schema_hash
 from pickfair_mcp.policy.exposure import LIVE_COMMANDS, MUTATION_EXPOSURE
 from pickfair_mcp.server import build_server
 from pickfair_mcp.tools import build_default_registry
+
+# Principal del processo stdio locale: solo `read`. Nessun flag, variabile
+# d'ambiente o file può elevarlo (come per l'esposizione dei comandi); il modello
+# di autenticazione MCP <-> Control API è la decisione aperta D-11 (MCP-01d).
+LOCAL_STDIO_PRINCIPAL = Principal(principal_id="local-stdio", scopes=frozenset({Scope.READ}))
 
 EXIT_USAGE = 2
 EXIT_INTERRUPTED = 130
@@ -143,7 +149,7 @@ async def _serve(
             contract_version=SUPPORTED_CONTRACT_VERSION,
             mutation_exposure=MUTATION_EXPOSURE,
         )
-        server = build_server(adapter, timeout_s=timeout_s)
+        server = build_server(adapter, timeout_s=timeout_s, principal=LOCAL_STDIO_PRINCIPAL)
         await _run_stdio(server)
     finally:
         tracker.uninstall()

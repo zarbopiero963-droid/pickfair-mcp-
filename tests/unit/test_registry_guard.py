@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from pickfair_mcp.auth import TOOL_SCOPES, Scope
 from pickfair_mcp.contract.models import StrictModel
 from pickfair_mcp.contract.routes import APPROVED_ROUTES, route_key
 from pickfair_mcp.policy import exposure
@@ -27,6 +28,7 @@ def spec(name: str, route: str) -> ToolSpec:
     return ToolSpec(
         name=name,
         route=route,
+        scope=TOOL_SCOPES.get(name, Scope.READ),
         description="test",
         input_model=NoInput,
         data_model=NoData,

@@ -149,7 +149,16 @@ async def test_prompt_injection_in_arguments_never_escalates(
 
 
 @pytest.mark.parametrize(
-    "name", ["PLACE_ORDER", "place_order ", "place_order\u200b", "place-order", "ｐlace_order", None, 7]
+    "name",
+    [
+        "PLACE_ORDER",
+        "place_order ",
+        "place_order\u200b",
+        "place-order",
+        "\uff50lace_order",
+        None,
+        7,
+    ],
 )
 async def test_altered_tool_names_are_unknown_and_never_reach_upstream(
     full_registry: tuple[ToolRegistry, Upstream], name: Any

@@ -40,6 +40,7 @@ ALLOWED_FIELDS: Final = frozenset(
         "correlation_id",
         "journal_writable",
         "pending_ambiguous",
+        "principal_id",
     }
 )
 _CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")

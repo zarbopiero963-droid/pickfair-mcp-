@@ -15,6 +15,7 @@ from pydantic import ValidationError
 from pickfair_mcp import __version__
 from pickfair_mcp.adapters.base import ControlApiAdapter
 from pickfair_mcp.audit import audit_event
+from pickfair_mcp.auth import AuthorizationDenied, Principal, authorize
 from pickfair_mcp.contract.models import StrictModel
 from pickfair_mcp.contract.routes import ROUTES_BY_KEY, RouteKind
 from pickfair_mcp.envelope import Envelope, failure, internal_error, success
@@ -64,10 +65,18 @@ class PickfairMcpApp:
         self,
         registry: ToolRegistry,
         *,
+        principal: Principal | None,
         request_id_factory: Callable[[], str] = new_request_id,
     ) -> None:
         self._registry = registry
+        self._principal = principal
         self._new_id = request_id_factory
+
+    def _principal_label(self) -> str | None:
+        principal = self._principal
+        if type(principal) is not Principal:
+            return None
+        return principal.principal_id
 
     def list_tools(self) -> list[types.Tool]:
         return [_tool_definition(spec) for spec in self._registry.specs()]
@@ -91,6 +100,12 @@ class PickfairMcpApp:
         try:
             if spec is None:
                 raise ToolError(ErrorCode.UNKNOWN_TOOL, reasons=("UNKNOWN_TOOL",))
+            # Invariante MCP-01c: nessun percorso raggiunge validazione o handler
+            # (e quindi l'adapter) prima del controllo di scope.
+            try:
+                authorize(self._principal, spec.name)
+            except AuthorizationDenied as denied:
+                raise denied.to_tool_error() from None
             try:
                 spec.input_model.model_validate(arguments if arguments is not None else {})
             except ValidationError:
@@ -118,7 +133,8 @@ class PickfairMcpApp:
             request_id=payload["request_id"],
             tool=payload["tool"] or "unknown",
             ok=payload["ok"],
-            outcome="ok" if payload["ok"] else "error",
+            outcome=_outcome(payload),
+            principal_id=self._principal_label(),
             error_code=error["code"] if error else None,
             handshake_status=error["details"]["handshake_status"] if error else None,
             duration_ms=(time.monotonic() - started) * 1000,
@@ -128,6 +144,12 @@ class PickfairMcpApp:
             structuredContent=payload,
             isError=not payload["ok"],
         )
+
+
+def _outcome(payload: dict[str, Any]) -> str:
+    if payload["ok"]:
+        return "ok"
+    return "forbidden" if payload["error"]["code"] == ErrorCode.FORBIDDEN.value else "error"
 
 
 def recover_journal(journal: Journal) -> None:
@@ -149,6 +171,7 @@ def build_server(
     adapter: ControlApiAdapter,
     *,
     timeout_s: float,
+    principal: Principal | None,
     registry: ToolRegistry | None = None,
     request_id_factory: Callable[[], str] = new_request_id,
     journal: Journal | None = None,
@@ -159,7 +182,7 @@ def build_server(
         guard = HandshakeGuard(adapter, timeout_s=timeout_s)
         registry = ToolRegistry()
         registry.register(make_get_meta(adapter, guard))
-    app = PickfairMcpApp(registry, request_id_factory=request_id_factory)
+    app = PickfairMcpApp(registry, principal=principal, request_id_factory=request_id_factory)
     server: Server[Any, Any] = Server(SERVER_NAME, version=__version__, instructions=INSTRUCTIONS)
 
     @server.list_tools()  # type: ignore[no-untyped-call, misc]

@@ -15,6 +15,7 @@ class ErrorCode(Enum):
     UPSTREAM_INVALID_RESPONSE = "UPSTREAM_INVALID_RESPONSE"
     INTERNAL_ERROR = "INTERNAL_ERROR"
     JOURNAL_UNAVAILABLE = "JOURNAL_UNAVAILABLE"
+    FORBIDDEN = "FORBIDDEN"
 
 
 # Messaggi fissi: nessun testo proveniente da eccezioni o dall'upstream.
@@ -31,6 +32,7 @@ MESSAGES: Final[dict[ErrorCode, str]] = {
     ErrorCode.JOURNAL_UNAVAILABLE: (
         "Request journal unavailable; mutations are blocked, reads are still allowed."
     ),
+    ErrorCode.FORBIDDEN: "Caller is not authorized for this tool; nothing was performed.",
 }
 
 # Solo letture idempotenti possono essere ripetute dal client. I comandi

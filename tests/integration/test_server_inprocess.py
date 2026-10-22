@@ -15,6 +15,8 @@ from mcp import ClientSession
 from mcp.shared.memory import create_connected_server_and_client_session
 
 from pickfair_mcp.adapters.simulated import Scenario, SimulatedControlApiAdapter
+from pickfair_mcp.auth import Scope
+from pickfair_mcp.cli import LOCAL_STDIO_PRINCIPAL as LOCAL
 from pickfair_mcp.contract.models import StrictModel
 from pickfair_mcp.contract.version import SUPPORTED_CONTRACT_VERSION, contract_schema_hash
 from pickfair_mcp.server import build_server
@@ -38,7 +40,9 @@ def counter_ids() -> Callable[[], str]:
 async def session_for(
     adapter: SimulatedControlApiAdapter, **kwargs: Any
 ) -> AsyncIterator[ClientSession]:
-    server = build_server(adapter, timeout_s=0.1, request_id_factory=counter_ids(), **kwargs)
+    server = build_server(
+        adapter, timeout_s=0.1, principal=LOCAL, request_id_factory=counter_ids(), **kwargs
+    )
     with anyio.fail_after(15):  # una regressione non deve bloccare la CI
         async with create_connected_server_and_client_session(server) as session:
             yield session
@@ -163,6 +167,7 @@ async def test_internal_errors_do_not_leak_exception_text() -> None:
         ToolSpec(
             name="get_status",
             route="GET /v1/status",
+            scope=Scope.READ,
             description="test",
             input_model=NoInput,
             data_model=NoData,
@@ -234,6 +239,7 @@ async def test_output_not_matching_declared_model_becomes_internal_error() -> No
         ToolSpec(
             name="get_status",
             route="GET /v1/status",
+            scope=Scope.READ,
             description="test",
             input_model=NoInput,
             data_model=Declared,

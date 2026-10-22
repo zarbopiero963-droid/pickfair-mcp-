@@ -12,6 +12,7 @@ from mcp.shared.memory import create_connected_server_and_client_session
 
 from pickfair_mcp.adapters.simulated import SimulatedControlApiAdapter
 from pickfair_mcp.audit import LOGGER_NAME
+from pickfair_mcp.cli import LOCAL_STDIO_PRINCIPAL as LOCAL
 from pickfair_mcp.journal import Journal, UpstreamAck
 from pickfair_mcp.server import build_server
 
@@ -41,7 +42,7 @@ async def test_server_recovers_journal_and_audits_pending(
     p = tmp_path / "j.jsonl"
     await _ambiguous_journal(p)
     j = Journal.open(p)
-    server = build_server(SimulatedControlApiAdapter(), timeout_s=0.1, journal=j)
+    server = build_server(SimulatedControlApiAdapter(), timeout_s=0.1, principal=LOCAL, journal=j)
     with anyio.fail_after(15):
         async with create_connected_server_and_client_session(server) as session:
             res = await session.call_tool("get_meta", {})
@@ -61,7 +62,7 @@ async def test_corrupt_journal_reads_still_served(
     p = tmp_path / "j.jsonl"
     p.write_text("{broken\n")
     j = Journal.open(p)
-    server = build_server(SimulatedControlApiAdapter(), timeout_s=0.1, journal=j)
+    server = build_server(SimulatedControlApiAdapter(), timeout_s=0.1, principal=LOCAL, journal=j)
     with anyio.fail_after(15):
         async with create_connected_server_and_client_session(server) as session:
             res = await session.call_tool("get_meta", {})

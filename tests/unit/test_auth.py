@@ -1,4 +1,4 @@
-"""MCP-01c: principal, scope e matrice completa principal × tool."""
+"""MCP-01c: principal, scope e matrice completa principal x tool."""
 
 from __future__ import annotations
 
@@ -23,9 +23,7 @@ from pickfair_mcp.errors import ErrorCode
 from pickfair_mcp.tools.catalog import APPROVED_TOOL_ROUTES
 
 ALL_SCOPE_SETS = [
-    frozenset(c)
-    for n in range(1, len(Scope) + 1)
-    for c in itertools.combinations(list(Scope), n)
+    frozenset(c) for n in range(1, len(Scope) + 1) for c in itertools.combinations(list(Scope), n)
 ]
 
 
@@ -65,7 +63,9 @@ def test_unknown_tool_has_no_scope() -> None:
     assert exc.value.reason == "SCOPE_UNDECLARED"
 
 
-@pytest.mark.parametrize("scopes", ALL_SCOPE_SETS, ids=lambda s: "+".join(sorted(x.value for x in s)))
+@pytest.mark.parametrize(
+    "scopes", ALL_SCOPE_SETS, ids=lambda s: "+".join(sorted(x.value for x in s))
+)
 @pytest.mark.parametrize("tool", sorted(APPROVED_TOOL_ROUTES))
 def test_full_principal_by_tool_matrix(scopes: frozenset[Scope], tool: str) -> None:
     principal = Principal(principal_id="p1", scopes=scopes)
@@ -137,7 +137,7 @@ def test_principal_rejects_forged_or_malformed_scopes(bad_scopes: object) -> Non
 
 
 @pytest.mark.parametrize(
-    "bad_id", ["", "A", "x" * 33, "p 1", "p\n1", "p1\u200b", "ｐ1", None, 1, b"p1", "-p", "p:1"]
+    "bad_id", ["", "A", "x" * 33, "p 1", "p\n1", "p1\u200b", "\uff501", None, 1, b"p1", "-p", "p:1"]
 )
 def test_principal_rejects_malformed_ids(bad_id: object) -> None:
     with pytest.raises(PrincipalInvalid):
@@ -219,3 +219,18 @@ def test_forbidden_error_code_is_not_retryable() -> None:
     assert ErrorCode.FORBIDDEN.value == "FORBIDDEN"
     assert ErrorCode.FORBIDDEN in MESSAGES
     assert ErrorCode.FORBIDDEN not in RETRYABLE_FOR_READS
+
+
+def test_local_stdio_principal_is_read_only() -> None:
+    from pickfair_mcp.cli import LOCAL_STDIO_PRINCIPAL
+
+    assert LOCAL_STDIO_PRINCIPAL.scopes == frozenset({Scope.READ})
+
+
+def test_exception_texts_are_the_fixed_reasons() -> None:
+    with pytest.raises(PrincipalInvalid) as exc:
+        parse_principal(None)
+    assert str(exc.value) == exc.value.reason == "PRINCIPAL_INVALID"
+    with pytest.raises(AuthorizationDenied) as denied:
+        authorize(None, "get_meta")
+    assert str(denied.value) == "PRINCIPAL_MISSING"

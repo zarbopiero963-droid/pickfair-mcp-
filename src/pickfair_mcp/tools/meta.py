@@ -7,6 +7,7 @@ from typing import Annotated, Literal
 from pydantic import Field, StringConstraints
 
 from pickfair_mcp.adapters.base import ControlApiAdapter
+from pickfair_mcp.auth import Scope
 from pickfair_mcp.contract.models import Capability, StrictModel
 from pickfair_mcp.contract.version import (
     GIT_SHA_PATTERN,
@@ -81,6 +82,7 @@ def make_get_meta(adapter: ControlApiAdapter, guard: HandshakeGuard) -> ToolSpec
     return ToolSpec(
         name="get_meta",
         route="GET /v1/meta",
+        scope=Scope.READ,
         description=DESCRIPTION,
         input_model=GetMetaInput,
         data_model=GetMetaData,

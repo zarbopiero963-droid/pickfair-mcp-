@@ -154,3 +154,14 @@ hash (descrittore canonico comune ai due repository) e nomi delle capability.
   recovery all'avvio se riceve un journal (`build_server(..., journal=...)`); il cablaggio
   da CLI (percorso configurabile) non fa parte di questa scheda.
 - Prove: adapter/upstream simulato deterministico. Non è integrazione Pickfair reale.
+
+## MCP-01c — Principal e scope
+
+- Scope: `read`, `write`, `admin`, `owner`. Sono **insiemi** espliciti: nessuna gerarchia implicita (un principal `owner` senza `read` non può leggere).
+- Mappa statica tool → scope minimo (`pickfair_mcp.auth.TOOL_SCOPES`, immutabile): le 14 letture → `read`; `preview_order`, `place_order`, `place_dutching`, `cancel_order`, `replace_order`, `cashout`, `stop`, `resume`, `reconcile` → `write`; `set_mode`, `patch_config` → `owner`. `stop` con qualificatore `EMERGENCY` → `owner`. `admin` non è richiesto da alcun tool del catalogo attuale.
+- Registrazione: ogni `ToolSpec` dichiara `scope`; scope assente (`SCOPE_UNDECLARED`) o diverso dalla mappa (`SCOPE_MISMATCH`) ⇒ registrazione rifiutata all'avvio.
+- Server: il controllo di scope avviene subito dopo la risoluzione del nome, **prima** della validazione input e di qualunque handler/adapter. Rifiuto ⇒ errore `FORBIDDEN` (reason `PRINCIPAL_MISSING`, `PRINCIPAL_INVALID` o `SCOPE_MISSING`), non retryable, audit `tool_call` con `outcome=forbidden` e `principal_id`, zero chiamate upstream.
+- Lo scope non è mai dedotto da argomenti della richiesta o da testo upstream.
+- Principal: `id` `[a-z0-9][a-z0-9_-]{0,31}`, scope non vuoti; `parse_principal` accetta solo le chiavi `id` e `scopes` (chiavi extra, es. credenziali, ⇒ rifiuto); nessun campo credenziale esiste, quindi nessuna credenziale può comparire in stdout, stderr, audit o journal.
+- Processo stdio (`pickfair-mcp serve`): principal fisso `local-stdio` con solo `read`; nessun flag/variabile/file lo eleva.
+- Aperti: D-11 (autenticazione MCP ↔ Control API, MCP-01d); conferma MANUAL owner-only da agganciare quando il relativo tool sarà definito.

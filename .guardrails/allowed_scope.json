@@ -99,9 +99,25 @@
       "issue": "pickfair-mcp- #5",
       "scheda": "MCP-01c",
       "files": [
-        "tests/unit/test_auth.py",
+        ".guardrails/allowed_scope.json",
+        "docs/contract_v1.md",
+        "scripts/critical_mutations.py",
+        "src/pickfair_mcp/audit.py",
+        "src/pickfair_mcp/auth/__init__.py",
+        "src/pickfair_mcp/auth/policy.py",
+        "src/pickfair_mcp/auth/principal.py",
+        "src/pickfair_mcp/cli.py",
+        "src/pickfair_mcp/errors.py",
+        "src/pickfair_mcp/server.py",
+        "src/pickfair_mcp/tools/meta.py",
+        "src/pickfair_mcp/tools/registry.py",
+        "tests/e2e/test_auth_process.py",
         "tests/integration/test_auth_server.py",
-        "tests/e2e/test_auth_process.py"
+        "tests/integration/test_journal_server.py",
+        "tests/integration/test_review_findings.py",
+        "tests/integration/test_server_inprocess.py",
+        "tests/unit/test_auth.py",
+        "tests/unit/test_registry_guard.py"
       ]
     }
   }
