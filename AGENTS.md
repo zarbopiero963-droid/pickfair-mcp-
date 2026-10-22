@@ -65,17 +65,76 @@ servizi esterni senza conferma per ordine.
 
 ## 4. Flusso di lavoro e serialità
 
-- Una sola PR attiva per repository: una PR in questo repository e una in Pickfair-nogui
-  possono coesistere; mai due PR aperte qui.
-- Mai lavorare su `main`. Nessun merge senza autorizzazione owner separata.
-  Vietato l'auto-merge in questo repository.
+Mandato owner vigente: PF-MCP-AUTONOMOUS-FACTORY-01 (22/10/2026), Fase A.
+
+- Una sola PR attiva per repository: una sola PR di codice aperta alla volta in questo
+  repository (una PR in Pickfair-nogui può coesistere); mai due PR aperte qui.
+- Sviluppo autonomo ammesso soltanto per le 18 schede autorizzate della Fase A:
+  MCP-01b, 01c, 04f, 02a, 02d, 02b, 02c, 02e, 05a, 03a, 03b, 04a, 04b, 04d, 04e, 05b,
+  05c, 07a. Le altre schede restano bloccate: nessuna autorizzazione implicita.
+- Mai lavorare su `main`. Nessun merge senza autorizzazione owner: per le schede della
+  Fase A l'autorizzazione è il mandato stesso, valida solo se tutti i gate sono PASS.
+- Merge automatico ammesso solo dopo: CI verde su tutti i check richiesti, status
+  `independent-review` verde (review indipendente favorevole sulla head esatta, senza
+  righe `BLOCKING:`), tutti i gate della scheda superati. Nessun bypass delle protezioni.
+- Limiti del gate `independent-review` (review 101ae4d, N8/N10):
+  - il controllo dell'autore (OWNER/MEMBER/COLLABORATOR) NON prova l'indipendenza:
+    autore della PR e reviewer pubblicano oggi dallo stesso account. L'indipendenza è
+    garantita dal processo (istanza di review separata designata dall'owner), non
+    dall'identità; limite noto e accettato dall'owner;
+  - il check `CodeRabbit` può risultare verde con «Review skipped»: non è una review
+    e non sostituisce mai `independent-review`;
+  - il workflow del gate esegue solo il codice del branch di default: una PR che lo
+    introduce o lo modifica non può essere approvata dal gate nuovo che contiene.
+- Rischio residuo del gate (review 4a5b1c7, G2): una PR dello stesso repository può
+  aggiungere o modificare un altro workflow (es. `ci.yml` con `on: pull_request` e
+  `permissions: statuses: write`) che pubblica `independent-review=success` sulla propria
+  head. Lo status proviene da GitHub Actions (app 15368) e soddisfa il check richiesto.
+  Correzione definitiva (decisione owner pendente): status pubblicato da una GitHub App
+  o identità separata e check richiesto vincolato a quella app.
+- Decisione owner 22/10/2026 17:30 (nessuna GitHub App, nessun nuovo servizio o chiave):
+  - file protetti: `.github/**` (workflow inclusi), `scripts/review_gate.py` e ogni
+    meccanismo che decide il merge, oltre alla configurazione delle protezioni di branch.
+    Una PR che li aggiunge, modifica o elimina richiede autorizzazione esplicita
+    dell'owner e non è MAI mergiata automaticamente: stop e decisione owner. Il reviewer
+    indipendente deve controllare il diff e segnalare ogni modifica a quei percorsi;
+  - PR ordinarie (nessun file protetto): merge automatico solo quando tutti i gate sono PASS;
+  - una sola PR attiva alla volta; massimo 10 cicli di correzione per PR, poi stop e
+    rapporto owner;
+  - il controllo dei percorsi deve usare protezioni native di GitHub non modificabili dalla
+    stessa PR. Finché non esiste una protezione nativa che lo garantisca, il merge
+    automatico NON è dichiarato sicuro contro uno status falsificato: vale la regola sopra.
+- Formato del verdetto: righe `REVIEW-VERDICT:` e `REVIEWED-SHA:` in chiaro, senza
+  decorazioni; in un APPROVE la parola BLOCKING compare solo nella forma NON-BLOCKING
+  (qualsiasi altra occorrenza fa fallire il gate).
+
+### Bootstrap del gate (PR #34, una tantum)
+
+Il gate non può approvare la PR che lo introduce: il suo workflow esiste solo dopo il
+merge su `main`. Procedura approvata dall'owner il 22/10/2026 (16:59 Europe/Rome), con
+condizioni vincolanti:
+1. review indipendente completa sulla head esatta, 4 job CI verdi, nessun BLOCKING aperto;
+2. prima di toccare le protezioni: configurazione originale (JSON), motivo, SHA e
+   procedura di ripristino registrati su pickfair-mcp- #1;
+3. eccezione limitata alla rimozione del solo check `independent-review`; restano gli
+   altri check richiesti ed `enforce_admins`; usata solo per il merge di #34;
+4. ripristino immediato e verifica rileggendo la protezione; se il ripristino fallisce,
+   stop di tutti i merge e rapporto owner;
+5. dopo l'installazione, PR di prova per verificare che il gate su `main` blocchi
+   finding BLOCKING in forme diverse; ogni passo e SHA registrato su #1.
+Nessun altro uso dell'eccezione è autorizzato.
+
+- Dopo ogni merge: verifica della CI su `main`, checkpoint e roadmap aggiornati.
+- La scheda successiva si avvia solo dopo il completamento riuscito della precedente.
+- Stop immediato e rapporto owner in caso di blocker, nuova decisione owner necessaria,
+  dipendenza non disponibile (core, Control API, review o check richiesti).
+- Nessuna modifica a Pickfair-nogui da questo repository o da questo mandato.
 - Ogni PR: Gate A specifico → test RED → implementazione → RED → GREEN documentato →
   regressione completa → mutation testing sui controlli critici → review indipendente →
-  Gate B specifico → rapporto owner → attesa autorizzazione.
+  Gate B specifico → rapporto owner.
 - Il titolo PR e i commit portano il marker `[TASK: <chiave>]`; la chiave e l'elenco dei
   file sono registrati in `.guardrails/allowed_scope.json` nello stesso PR. Ogni file del
   repository deve appartenere allo scope di una task (test di guardia).
-- Nessun avvio automatico della scheda successiva: dopo ogni PR, rapporto e nuovo mandato.
 
 ## 5. Test e verifiche obbligatorie
 

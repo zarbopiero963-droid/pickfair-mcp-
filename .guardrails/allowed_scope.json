@@ -61,6 +61,17 @@
         "tests/unit/test_network_guard.py",
         "tests/unit/test_registry_guard.py"
       ]
+    },
+    "mcp-gate-independent-review": {
+      "issue": "pickfair-mcp- #1; decisione owner 22/10/2026 15:57 (gate independent-review) e bootstrap approvato 16:59",
+      "scheda": "governance (bootstrap gate, fuori dalle 18 schede)",
+      "files": [
+        ".github/workflows/independent-review.yml",
+        ".guardrails/allowed_scope.json",
+        "AGENTS.md",
+        "scripts/review_gate.py",
+        "tests/guards/test_review_gate.py"
+      ]
     }
   }
 }
