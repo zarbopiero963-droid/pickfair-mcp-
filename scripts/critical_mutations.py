@@ -399,6 +399,44 @@ MUTANTS: tuple[Mutant, ...] = (
             ),
         ),
     ),
+    Mutant(
+        "M44",
+        "raffica di SIGINT: ogni segnale delegato al Runner",
+        (
+            (
+                "src/pickfair_mcp/cli.py",
+                "            else:\n                signal.signal(signal.SIGINT, signal.SIG_IGN)\n",
+                "",
+            ),
+        ),
+    ),
+    Mutant(
+        "M45",
+        "a fine loop SIGINT ancora delegato al Runner",
+        (("src/pickfair_mcp/cli.py", "        self._delegate = None\n", "        pass\n"),),
+    ),
+    Mutant(
+        "M46",
+        "SIGINT tardivo dopo una chiusura regolare termina con -2",
+        (
+            (
+                "src/pickfair_mcp/cli.py",
+                "    _ignore_late_sigint()\n    if tracker.seen:\n",
+                "    if tracker.seen:\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "M47",
+        "SIGINT tardivo dopo un errore di trasporto termina con -2",
+        (
+            (
+                "src/pickfair_mcp/cli.py",
+                "        _ignore_late_sigint()\n        if tracker.seen or",
+                "        if tracker.seen or",
+            ),
+        ),
+    ),
 )
 
 

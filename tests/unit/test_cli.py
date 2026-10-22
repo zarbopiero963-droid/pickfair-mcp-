@@ -166,7 +166,7 @@ def test_inherited_ignored_sigint_stays_ignored(monkeypatch: pytest.MonkeyPatch)
     assert after is signal_module.SIG_IGN
 
 
-def test_tracker_records_delegates_and_restores() -> None:
+def test_tracker_records_and_delegates_the_first_sigint() -> None:
     import signal as signal_module
 
     from pickfair_mcp.cli import InterruptTracker
@@ -185,8 +185,6 @@ def test_tracker_records_delegates_and_restores() -> None:
         handler(signal_module.SIGINT, None)  # type: ignore[operator]
         assert tracker.seen is True
         assert calls == [signal_module.SIGINT]  # delega al gestore del Runner
-        tracker.uninstall()
-        assert signal_module.getsignal(signal_module.SIGINT) is runner_handler
     finally:
         tracker.disarm()
         signal_module.signal(signal_module.SIGINT, previous)
@@ -449,3 +447,78 @@ def test_stop_from_the_watchdog_thread_leaves_signals_alone() -> None:
     worker.join(5)
     assert (calls, errors) == ([True], [])
     assert signal.getsignal(signal.SIGINT) is before
+
+
+def test_second_sigint_ignores_further_signals_before_delegating() -> None:
+    """N4: dal secondo SIGINT in poi al più un altro KeyboardInterrupt del Runner;
+    una raffica non deve più raggiungere un gestore che solleva."""
+    from pickfair_mcp.cli import InterruptTracker
+
+    seen_at_call: list[object] = []
+
+    def runner_handler(signum: int, frame: object) -> None:
+        seen_at_call.append(signal.getsignal(signal.SIGINT))
+
+    signal.signal(signal.SIGINT, runner_handler)
+    tracker = InterruptTracker(lambda: None, grace_s=30)
+    try:
+        tracker.install()
+        wrapper = signal.getsignal(signal.SIGINT)
+        wrapper(signal.SIGINT, None)  # type: ignore[operator]
+        assert signal.getsignal(signal.SIGINT) is wrapper
+        wrapper(signal.SIGINT, None)  # type: ignore[operator]
+        assert seen_at_call == [wrapper, signal.SIG_IGN]
+        assert signal.getsignal(signal.SIGINT) is signal.SIG_IGN
+    finally:
+        tracker.disarm()
+
+
+def test_after_the_loop_sigint_is_recorded_without_raising() -> None:
+    """N4: a fine loop il gestore resta installato ma non delega più al Runner (che
+    solleverebbe KeyboardInterrupt e ripristinerebbe default_int_handler)."""
+    from pickfair_mcp.cli import InterruptTracker
+
+    class Delegated(Exception):
+        """Al posto del KeyboardInterrupt del Runner, che interromperebbe pytest."""
+
+    def runner_handler(signum: int, frame: object) -> None:
+        raise Delegated
+
+    signal.signal(signal.SIGINT, runner_handler)
+    tracker = InterruptTracker(lambda: None, grace_s=30)
+    try:
+        tracker.install()
+        wrapper = signal.getsignal(signal.SIGINT)
+        tracker.uninstall()
+        assert signal.getsignal(signal.SIGINT) is wrapper
+        delegated = 0
+        for _ in range(3):
+            current = signal.getsignal(signal.SIGINT)
+            if callable(current):
+                try:
+                    current(signal.SIGINT, None)
+                except Delegated:
+                    delegated += 1
+        assert delegated == 0
+        assert tracker.seen is True
+    finally:
+        tracker.disarm()
+
+
+@pytest.mark.parametrize("outcome", ["ok", "transport"])
+def test_main_ignores_late_sigint_before_deciding_the_exit(
+    outcome: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """N4: dopo il loop un SIGINT non deve più poter terminare il processo con -2 (in
+    finalizzazione CPython riporta i gestori Python a SIG_DFL)."""
+    from pickfair_mcp import cli
+
+    def fake_run(*_: object) -> None:
+        if outcome == "transport":
+            raise BaseExceptionGroup("task group", [BrokenPipeError()])
+
+    monkeypatch.setattr(cli.anyio, "run", fake_run)
+    _patch_serve_env(monkeypatch)
+    signal.signal(signal.SIGINT, signal.default_int_handler)
+    assert main(["serve"]) == (0 if outcome == "ok" else 1)
+    assert signal.getsignal(signal.SIGINT) is signal.SIG_IGN

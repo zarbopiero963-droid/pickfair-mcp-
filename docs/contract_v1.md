@@ -112,7 +112,13 @@ hash (descrittore canonico comune ai due repository) e nomi delle capability.
   ogni chiusura `interrupted` ignora i SIGINT successivi, scrive una sola riga di audit ed
   esce con `os._exit(130)` senza attendere stdin: subito se SIGINT ripetuti interrompono il
   Runner, altrimenti dopo il watchdog di 2 s (`INTERRUPT_GRACE_S`) armato dal primo SIGINT.
-  Un SIGINT che interrompe `main` prima dell'uscita lascia il watchdog armato. A riposo il
+  Un SIGINT che interrompe `main` prima dell'uscita lascia il watchdog armato. Raffiche di
+  SIGINT: dal secondo SIGINT i successivi sono ignorati (al più un altro KeyboardInterrupt
+  del Runner); a fine loop il gestore resta installato ma non delega più al Runner, e appena
+  `anyio.run` termina SIGINT è ignorato prima di decidere l'esito, perché in finalizzazione
+  CPython riporterebbe il gestore a SIG_DFL (exit -2 senza riga di audit). Un SIGINT prima
+  della riga `server_start` (avvio dell'interprete e import) resta gestito da Python, con
+  traceback su stderr ed exit -2: limite di piattaforma, nessun audit possibile. A riposo il
   watchdog è il percorso normale, quindi un singolo SIGINT chiude in circa 2 s. L'uscita non
   svuota buffer pendenti: una risposta JSON-RPC in scrittura in quel momento può restare
   troncata (caso teorico, mai osservato). Un SIGINT ignorato dal processo padre resta

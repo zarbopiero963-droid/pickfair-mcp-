@@ -55,10 +55,14 @@ def _parser() -> argparse.ArgumentParser:
 class InterruptTracker:
     """Registra SIGINT senza sostituire la gestione del Runner di asyncio.
 
-    Il Runner installa il proprio gestore solo se trova ``default_int_handler`` e lo
-    rimuove solo se lo ritrova al suo posto: per questo il tracker si installa dentro
-    il loop, avvolge il gestore corrente e lo ripristina prima che il Runner chiuda.
-    Una disposizione ignorata o di default (SIG_IGN, SIG_DFL) resta invariata.
+    Il Runner installa il proprio gestore solo se trova ``default_int_handler``: per questo
+    il tracker si installa dentro il loop e avvolge il gestore corrente. Il primo SIGINT
+    viene delegato al Runner; dal secondo SIGINT è impostato SIG_IGN prima di delegare,
+    così una raffica produce al più un altro KeyboardInterrupt. A fine loop il tracker
+    resta installato ma smette di delegare: durante chiusura e finalizzazione SIGINT viene
+    solo registrato, senza KeyboardInterrupt e senza che il Runner ripristini
+    ``default_int_handler`` (raffiche di SIGINT, N4). Una disposizione ignorata o di
+    default (SIG_IGN, SIG_DFL) resta invariata.
 
     SIGINT arma anche un watchdog: l'SDK legge stdin in un thread non cancellabile e
     non daemon, quindi a riposo, con stdin aperto, né il Runner né la finalizzazione
@@ -71,7 +75,7 @@ class InterruptTracker:
 
     def __init__(self, on_expire: Callable[[], None], grace_s: float = INTERRUPT_GRACE_S) -> None:
         self.seen = False
-        self._previous: Callable[[int, FrameType | None], Any] | None = None
+        self._delegate: Callable[[int, FrameType | None], Any] | None = None
         self._on_expire = on_expire
         self._grace_s = grace_s
         self._signalled = threading.Event()
@@ -82,21 +86,23 @@ class InterruptTracker:
         current = signal.getsignal(signal.SIGINT)
         if not callable(current):
             return
-        self._previous = current
+        self._delegate = current
 
         def _record_and_delegate(signum: int, frame: FrameType | None) -> Any:
             if not self.seen:  # un secondo SIGINT non rientra in Event.set
                 self.seen = True
                 self._signalled.set()
-            return current(signum, frame)
+            else:
+                signal.signal(signal.SIGINT, signal.SIG_IGN)
+            delegate = self._delegate
+            return None if delegate is None else delegate(signum, frame)
 
         threading.Thread(target=self._watch, name="sigint-watchdog", daemon=True).start()
         signal.signal(signal.SIGINT, _record_and_delegate)
 
     def uninstall(self) -> None:
-        if self._previous is not None:
-            signal.signal(signal.SIGINT, self._previous)
-            self._previous = None
+        """Fine del loop: il gestore resta installato ma non delega più al Runner."""
+        self._delegate = None
 
     def _watch(self) -> None:
         self._signalled.wait()
@@ -180,17 +186,25 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         anyio.run(_serve, adapter, timeout_s, tracker)
     except BaseException as exc:  # noqa: BLE001 - es. pipe chiusa dal client: niente traceback
+        _ignore_late_sigint()
         if tracker.seen or _is_interrupt(exc):
             tracker.stop_interrupted()  # non ritorna: il thread di stdin può essere ancora vivo
             return EXIT_INTERRUPTED
         tracker.disarm()
         return _abnormal_stop("transport_error", EXIT_TRANSPORT)
+    _ignore_late_sigint()
     if tracker.seen:
         tracker.stop_interrupted()
         return EXIT_INTERRUPTED
     tracker.disarm()
     audit_event("server_stop", server_version=__version__, outcome="ok")
     return 0
+
+
+def _ignore_late_sigint() -> None:
+    """Chiusura in corso: l'esito si decide ora. In finalizzazione CPython riporta a SIG_DFL
+    ogni gestore Python, e un SIGINT tardivo terminerebbe il processo con -2 (N4)."""
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 
 def _is_interrupt(exc: BaseException) -> bool:

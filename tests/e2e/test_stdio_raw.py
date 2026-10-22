@@ -270,3 +270,79 @@ def test_late_sigint_during_the_interrupted_exit_never_hangs() -> None:
         finally:
             raw.kill()
     assert failures == []
+
+
+STORM_RUNS = 8
+
+
+def _storm(raw: RawServer, count: int, max_gap_s: float) -> None:
+    for _ in range(count):
+        if raw.proc.poll() is not None:
+            return
+        raw.proc.send_signal(signal.SIGINT)
+        end = time.perf_counter() + max_gap_s
+        while time.perf_counter() < end:
+            pass
+
+
+def _single_clean_stop(raw: RawServer, allowed: set[tuple[int, str]]) -> object:
+    try:
+        raw.proc.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        return "blocco"
+    assert raw.proc.stderr is not None
+    err = raw.proc.stderr.read()
+    try:
+        records = assert_stderr_is_audit_only(err)
+    except ValueError:
+        return ("stderr non JSON", err[-300:])
+    stops = [r["outcome"] for r in records if r["event"] == "server_stop"]
+    if len(stops) != 1 or (raw.proc.returncode, stops[0]) not in allowed:
+        return (raw.proc.returncode, stops)
+    return None
+
+
+def test_sigint_storm_after_stdin_close_keeps_the_exit_contract() -> None:
+    """N4: raffica di SIGINT durante la chiusura dopo EOF: niente -2, una sola riga."""
+    failures = []
+    for run in range(STORM_RUNS):
+        raw = RawServer()
+        try:
+            raw.send(INIT)
+            assert raw.read()["id"] == 1
+            raw.send({"jsonrpc": "2.0", "method": "notifications/initialized"})
+            time.sleep(0.2)
+            assert raw.proc.stdin is not None
+            raw.proc.stdin.close()
+            end = time.perf_counter() + 0.004 * run  # 0-28 ms: chiusura e finalizzazione
+            while time.perf_counter() < end:
+                pass
+            _storm(raw, 50, 0.0005)
+            problem = _single_clean_stop(raw, {(0, "ok"), (130, "interrupted")})
+            if problem is not None:
+                failures.append((run, problem))
+        finally:
+            raw.kill()
+    assert failures == []
+
+
+@pytest.mark.parametrize("pause_s", [0.0, 0.3])
+def test_sigint_storm_with_stdin_open_never_hangs_or_aborts(pause_s: float) -> None:
+    """N4: primo SIGINT e raffica di 100 SIGINT a meno di 1 ms con stdin aperto."""
+    failures = []
+    for run in range(STORM_RUNS):
+        raw = RawServer()
+        try:
+            raw.send(INIT)
+            assert raw.read()["id"] == 1
+            raw.send({"jsonrpc": "2.0", "method": "notifications/initialized"})
+            time.sleep(0.2)
+            raw.proc.send_signal(signal.SIGINT)
+            time.sleep(pause_s)
+            _storm(raw, 100, 0.0002)
+            problem = _single_clean_stop(raw, {(130, "interrupted")})
+            if problem is not None:
+                failures.append((run, problem))
+        finally:
+            raw.kill()
+    assert failures == []
