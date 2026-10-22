@@ -302,3 +302,33 @@ async def test_forbidden_handler_exception_path_is_not_reached(
     app = PickfairMcpApp(monkey, principal=READ)
     out = await _call(app, "cashout")
     assert out["error"]["code"] == "FORBIDDEN"
+
+
+AUTOMATION = Principal(
+    principal_id="automation", scopes=frozenset({Scope.READ, Scope.WRITE, Scope.ADMIN})
+)
+ADMIN = Principal(principal_id="admin", scopes=frozenset({Scope.ADMIN}))
+
+
+@pytest.mark.parametrize("principal", [WRITE, ADMIN, AUTOMATION], ids=lambda p: p.principal_id)
+async def test_resume_forbidden_through_server_for_non_owner(
+    full_registry: tuple[ToolRegistry, Upstream], principal: Principal
+) -> None:
+    """Decisione owner 22/10 (C1): resume sempre owner-only, zero chiamate upstream."""
+    reg, up = full_registry
+    app = PickfairMcpApp(reg, principal=principal)
+    out = await _call(app, "resume")
+    assert out["ok"] is False
+    assert out["error"]["code"] == "FORBIDDEN"
+    assert out["error"]["details"]["reasons"] == ["SCOPE_MISSING"]
+    assert up.calls == 0
+
+
+async def test_resume_allowed_through_server_for_owner(
+    full_registry: tuple[ToolRegistry, Upstream],
+) -> None:
+    reg, up = full_registry
+    app = PickfairMcpApp(reg, principal=OWNER)
+    out = await _call(app, "resume")
+    assert out["ok"] is True
+    assert up.calls == 1

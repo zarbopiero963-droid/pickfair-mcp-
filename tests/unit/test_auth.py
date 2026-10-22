@@ -43,7 +43,7 @@ def test_read_routes_need_read_and_commands_never_need_read() -> None:
 
 
 def test_owner_only_operations() -> None:
-    assert OWNER_ONLY_TOOLS == frozenset({"set_mode", "patch_config"})
+    assert OWNER_ONLY_TOOLS == frozenset({"set_mode", "patch_config", "resume"})
     for tool in OWNER_ONLY_TOOLS:
         assert TOOL_SCOPES[tool] is Scope.OWNER
     assert required_scope("stop", qualifier="EMERGENCY") is Scope.OWNER
@@ -234,3 +234,36 @@ def test_exception_texts_are_the_fixed_reasons() -> None:
     with pytest.raises(AuthorizationDenied) as denied:
         authorize(None, "get_meta")
     assert str(denied.value) == "PRINCIPAL_MISSING"
+
+
+NON_OWNER_SCOPE_SETS = [s for s in ALL_SCOPE_SETS if Scope.OWNER not in s]
+
+
+@pytest.mark.parametrize(
+    "scopes", NON_OWNER_SCOPE_SETS, ids=lambda s: "+".join(sorted(x.value for x in s))
+)
+@pytest.mark.parametrize("qualifier", [None, "EMERGENCY", "PAUSE", "ORDINARY"])
+def test_resume_rejected_for_every_non_owner_principal(
+    scopes: frozenset[Scope], qualifier: str | None
+) -> None:
+    """Decisione owner 22/10 (C1): resume e' sempre owner-only, per ogni tipo di stop.
+
+    Copre write, admin e principal di automazione (read+write+admin senza owner).
+    """
+    principal = Principal(principal_id="auto-1", scopes=scopes)
+    with pytest.raises(AuthorizationDenied) as exc:
+        authorize(principal, "resume", qualifier=qualifier)
+    assert exc.value.reason == "SCOPE_MISSING"
+    assert exc.value.to_tool_error().code is ErrorCode.FORBIDDEN
+
+
+@pytest.mark.parametrize("qualifier", [None, "EMERGENCY", "PAUSE", "ORDINARY"])
+def test_resume_accepted_for_owner(qualifier: str | None) -> None:
+    owner = Principal(principal_id="o", scopes=frozenset({Scope.OWNER}))
+    authorize(owner, "resume", qualifier=qualifier)
+    assert required_scope("resume", qualifier=qualifier) is Scope.OWNER
+
+
+def test_resume_has_same_scope_as_emergency_stop() -> None:
+    assert TOOL_SCOPES["resume"] is Scope.OWNER
+    assert required_scope("resume") is required_scope("stop", qualifier="EMERGENCY")
