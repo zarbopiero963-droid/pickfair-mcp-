@@ -18,7 +18,9 @@ from typing import Final
 LOGGER_NAME: Final = "pickfair_mcp.audit"
 MAX_VALUE_LEN: Final = 160
 
-ALLOWED_EVENTS: Final = frozenset({"server_start", "server_stop", "tool_call", "handshake"})
+ALLOWED_EVENTS: Final = frozenset(
+    {"server_start", "server_stop", "tool_call", "handshake", "journal", "journal_entry"}
+)
 ALLOWED_FIELDS: Final = frozenset(
     {
         "request_id",
@@ -34,6 +36,10 @@ ALLOWED_FIELDS: Final = frozenset(
         "server_version",
         "contract_version",
         "mutation_exposure",
+        "operation_id",
+        "correlation_id",
+        "journal_writable",
+        "pending_ambiguous",
     }
 )
 _CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")

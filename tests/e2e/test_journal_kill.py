@@ -34,11 +34,12 @@ print("READY", flush=True)
 async def up(request_id):
     with open(sends, "a") as f:
         f.write(request_id + "\n"); f.flush(); os.fsync(f.fileno())
-    return UpstreamAck(operation_id="op_" + request_id[4:12], correlation_id="c_" + request_id[4:12])
+    tag = request_id[4:12]
+    return UpstreamAck(operation_id="op_" + tag, correlation_id="c_" + tag)
 async def main():
     i = start
     while True:
-        await j.execute(f"key{i % 40}", up, timeout_s=5)
+        await j.execute(f"key{i % 1500}", up, timeout_s=5)
         i += 1
 anyio.run(main)
 """
@@ -65,12 +66,12 @@ def test_random_sigkill_200_no_loss_no_duplicate(tmp_path: Path) -> None:
     sends.touch()
     rng = random.Random(1337)
     kills = int(os.environ.get("PF_MCP_KILLS", "200"))
-    for n in range(kills):
-        proc = _spawn(jp, sends, rng.randrange(1000))
+    for _ in range(kills):
+        proc = _spawn(jp, sends, rng.randrange(1500))
         assert proc.stdout is not None
         line = proc.stdout.readline().strip()
         assert line == "READY", line
-        time.sleep(rng.uniform(0, 0.004))
+        time.sleep(rng.uniform(0.002, 0.06))
         proc.send_signal(signal.SIGKILL)
         proc.wait(timeout=10)
         proc.stdout.close()
@@ -85,14 +86,21 @@ def test_random_sigkill_200_no_loss_no_duplicate(tmp_path: Path) -> None:
     assert all(v == 1 for v in by_key.values()), "chiave logica duplicata"
     # ogni invio upstream ha una voce; nessun invio duplicato (nessun replay)
     assert len(sent_ids) == len(set(sent_ids))
+    statuses: dict[EntryStatus, int] = {}
     known = {e.request_id: e for e in entries}
     for rid in sent_ids:
         assert rid in known, "invio senza voce persistita"
         assert known[rid].status in {EntryStatus.ACCEPTED, EntryStatus.AMBIGUOUS}
     for e in entries:
+        statuses[e.status] = statuses.get(e.status, 0) + 1
         if e.status is EntryStatus.ACCEPTED:
             assert e.request_id in sent_ids
         assert e.status is not EntryStatus.IN_FLIGHT
+    # le uccisioni hanno davvero colpito sia esiti completi sia invii in corso
+    assert statuses.get(EntryStatus.ACCEPTED, 0) > 0, statuses
+    interrupted = statuses.get(EntryStatus.AMBIGUOUS, 0) + statuses.get(EntryStatus.NOT_SENT, 0)
+    assert interrupted > 0, statuses
+    print("kill statuses:", {k.value: v for k, v in statuses.items()}, "sends:", len(sent_ids))
     j.close()
 
 

@@ -129,3 +129,28 @@ hash (descrittore canonico comune ai due repository) e nomi delle capability.
   ignorato. SIGTERM termina subito, senza riga di audit `server_stop`.
 - **Handshake serializzato**: chiamate concorrenti a `get_meta` attendono in coda; con
   upstream lento l'attesa può arrivare a N × timeout, sempre fail-closed.
+
+## MCP-01b — Identità delle richieste e journal (pickfair-mcp- #4)
+
+- `request_id` (`req_` + 32 hex) generato dal MCP per ogni chiamata; `operation_id` e
+  `correlation_id` sono quelli restituiti dall'upstream (formato accettato
+  `[A-Za-z0-9_-]{1,64}`; la semantica definitiva resta da allineare in PF-API-0 / MCP-01d).
+- Journal append-only JSON Lines (`src/pickfair_mcp/journal/`), nessun database. Record
+  versionati (`v=1`), `seq` contiguo, checksum SHA-256 per riga; tipi `header`, `begin`,
+  `sent`, `outcome`. `begin` e `sent` sono scritti con `fsync` prima dell'invio, `outcome`
+  dopo l'esito. Il journal contiene solo identificativi e l'hash della chiave logica.
+- Deduplica: stessa chiave logica ⇒ stessa voce, zero chiamate upstream aggiuntive (anche
+  in parallelo e dopo il riavvio). La chiave è ancora interna (D-10 aperta: chiave fornita
+  dal client non implementata).
+- Recovery senza replay: `begin` senza `sent` ⇒ `NOT_SENT`; `sent` senza esito ⇒
+  `AMBIGUOUS`, da verificare solo con letture (`get_operation`, MCP-02d). Timeout, errore
+  o risposta non valida dopo l'invio ⇒ `AMBIGUOUS`, mai retry.
+- Fail-closed (`JOURNAL_UNAVAILABLE`): file corrotto/troncato/manomesso, sostituito, lock
+  detenuto da un altro processo, path non assoluto o con `..`, symlink, permessi, disco
+  pieno o `fsync` fallito. Le letture restano consentite. Una scrittura parziale lascia
+  una riga troncata: al riavvio il journal resta fail-closed fino a intervento owner.
+- Retry solo per letture idempotenti (`read_with_retry`, max 5 tentativi).
+- Nessun tool nuovo esposto: `MCP_MUTATION_EXPOSURE` invariato. Il server esegue la
+  recovery all'avvio se riceve un journal (`build_server(..., journal=...)`); il cablaggio
+  da CLI (percorso configurabile) non fa parte di questa scheda.
+- Prove: adapter/upstream simulato deterministico. Non è integrazione Pickfair reale.

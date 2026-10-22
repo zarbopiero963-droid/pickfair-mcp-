@@ -125,9 +125,7 @@ async def test_different_keys_distinct_request_ids(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("mode", ["timeout", "unavailable", "boom", "bad_ack"])
-async def test_failure_after_send_is_ambiguous_and_never_retried(
-    tmp_path: Path, mode: str
-) -> None:
+async def test_failure_after_send_is_ambiguous_and_never_retried(tmp_path: Path, mode: str) -> None:
     j = Journal.open(jpath(tmp_path))
     up = FakeUpstream(mode)
     entry = await j.execute("m", up, timeout_s=0.05)
@@ -405,3 +403,18 @@ async def test_read_retry_only_for_transient_errors() -> None:
 def test_read_retry_attempts_bounded() -> None:
     with pytest.raises(ValueError):
         anyio.run(lambda: read_with_retry(_ok_read, attempts=0, timeout_s=1))
+
+
+def test_checksum_detects_structurally_valid_tampering(tmp_path: Path) -> None:
+    """Un esito alterato ma coerente (operation_id diverso) è rilevato solo dal checksum."""
+    p = _prepare(tmp_path)
+    rows = p.read_text().splitlines()
+    rec = json.loads(rows[3])
+    assert rec["kind"] == "outcome"
+    rec["operation_id"] = "op_forged"
+    rows[3] = json.dumps(rec, sort_keys=True)
+    p.write_text("\n".join(rows) + "\n")
+    j = Journal.open(p)
+    assert not j.writable and j.failure_reason == "JOURNAL_CORRUPT"
+    assert j.entries() == ()
+    j.close()
