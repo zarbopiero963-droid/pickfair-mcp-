@@ -6,6 +6,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
+from pickfair_mcp.auth import TOOL_SCOPES, Scope
 from pickfair_mcp.contract.models import StrictModel
 from pickfair_mcp.contract.routes import ROUTES_BY_KEY, RouteKind
 from pickfair_mcp.policy import exposure
@@ -28,6 +29,7 @@ Handler = Callable[[ToolContext], Awaitable[StrictModel]]
 class ToolSpec:
     name: str
     route: str
+    scope: Scope
     description: str
     input_model: type[StrictModel]
     data_model: type[StrictModel]
@@ -49,6 +51,11 @@ class ToolRegistry:
             raise RegistryViolation(f"ROUTE_NOT_APPROVED:{spec.route}")
         if spec.route != expected_route:
             raise RegistryViolation(f"ROUTE_MISMATCH:{spec.name}")
+        declared = TOOL_SCOPES.get(spec.name)
+        if declared is None or spec.scope is None:
+            raise RegistryViolation(f"SCOPE_UNDECLARED:{spec.name}")
+        if spec.scope is not declared:
+            raise RegistryViolation(f"SCOPE_MISMATCH:{spec.name}")
         if route.kind is not RouteKind.READ and not exposure.commands_exposed():
             raise RegistryViolation(f"COMMAND_EXPOSURE_BLOCKED:{spec.name}")
         if spec.name in self._specs:

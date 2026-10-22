@@ -13,6 +13,7 @@ import pytest
 from mcp.shared.memory import create_connected_server_and_client_session
 
 from pickfair_mcp.adapters.simulated import SimulatedControlApiAdapter
+from pickfair_mcp.cli import LOCAL_STDIO_PRINCIPAL as LOCAL
 from pickfair_mcp.contract.parsing import UpstreamInvalidResponse, parse_json_object
 from pickfair_mcp.contract.version import SUPPORTED_CONTRACT_VERSION, contract_schema_hash
 from pickfair_mcp.errors import ErrorCode
@@ -53,7 +54,7 @@ def meta_body(**overrides: Any) -> bytes:
 
 
 async def call_get_meta(adapter: SimulatedControlApiAdapter) -> Any:
-    server = build_server(adapter, timeout_s=0.5)
+    server = build_server(adapter, timeout_s=0.5, principal=LOCAL)
     with anyio.fail_after(10):
         async with create_connected_server_and_client_session(server) as session:
             return await session.call_tool("get_meta", {})
