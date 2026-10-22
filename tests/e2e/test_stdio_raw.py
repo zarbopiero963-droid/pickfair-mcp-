@@ -232,3 +232,41 @@ def test_repeated_sigint_never_waits_for_stdin(gaps: tuple[float, ...]) -> None:
         assert (raw.proc.returncode, stops) == (130, ["interrupted"])
     finally:
         raw.kill()
+
+
+LATE_SIGINT_RUNS = 25
+
+
+def test_late_sigint_during_the_interrupted_exit_never_hangs() -> None:
+    """B2: un SIGINT che arriva mentre main sta già uscendo non deve riaprire l'attesa
+    del thread di stdin né far perdere la riga di audit."""
+    failures = []
+    for run in range(LATE_SIGINT_RUNS):
+        raw = RawServer()
+        try:
+            raw.send(INIT)
+            assert raw.read()["id"] == 1
+            raw.send({"jsonrpc": "2.0", "method": "notifications/initialized"})
+            time.sleep(0.2)
+            raw.proc.send_signal(signal.SIGINT)
+            time.sleep(0.3)
+            raw.proc.send_signal(signal.SIGINT)
+            gap = 0.001 + 0.002 * (run % 11) / 10
+            start = time.perf_counter()
+            while time.perf_counter() - start < gap:
+                pass
+            if raw.proc.poll() is None:
+                raw.proc.send_signal(signal.SIGINT)
+            try:
+                raw.proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                failures.append((run, "blocco"))
+                continue
+            assert raw.proc.stderr is not None
+            records = assert_stderr_is_audit_only(raw.proc.stderr.read())
+            stops = [r["outcome"] for r in records if r["event"] == "server_stop"]
+            if (raw.proc.returncode, stops) != (130, ["interrupted"]):
+                failures.append((run, (raw.proc.returncode, stops)))
+        finally:
+            raw.kill()
+    assert failures == []

@@ -104,7 +104,15 @@ class InterruptTracker:
             self.stop_interrupted()
 
     def stop_interrupted(self) -> None:
-        """Esegue ``on_expire`` al più una volta; il lock resta tenuto fino all'uscita."""
+        """Esegue ``on_expire`` al più una volta; il lock resta tenuto fino all'uscita.
+
+        Sul thread principale SIGINT viene ignorato prima di tutto: un segnale tardivo
+        interromperebbe l'uscita dopo ``_finished``, disattivando anche il watchdog. Se
+        arriva prima di questa riga, ``_finished`` non è ancora impostato e il watchdog
+        resta armato.
+        """
+        if threading.current_thread() is threading.main_thread():
+            signal.signal(signal.SIGINT, signal.SIG_IGN)
         with self._lock:
             if not self._finished.is_set():
                 self._finished.set()

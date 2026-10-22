@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import signal
+from collections.abc import Iterator
 
 import pytest
 
@@ -13,11 +15,14 @@ REAL_FORCED_EXIT = cli_module._force_interrupted_exit
 
 
 @pytest.fixture(autouse=True)
-def forced_exits(monkeypatch: pytest.MonkeyPatch) -> list[bool]:
-    """Nessun test in-process può raggiungere il vero os._exit."""
+def forced_exits(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[bool]]:
+    """Nessun test in-process può raggiungere il vero os._exit; la disposizione di SIGINT
+    (che stop_interrupted imposta a SIG_IGN) torna quella di pytest."""
     calls: list[bool] = []
     monkeypatch.setattr(cli_module, "_force_interrupted_exit", lambda: calls.append(True))
-    return calls
+    previous = signal.getsignal(signal.SIGINT)
+    yield calls
+    signal.signal(signal.SIGINT, previous)
 
 
 def test_contract_info(capsys: pytest.CaptureFixture[str]) -> None:
@@ -410,3 +415,37 @@ def test_interrupt_grace_is_short() -> None:
     from pickfair_mcp.cli import INTERRUPT_GRACE_S
 
     assert 0 < INTERRUPT_GRACE_S <= 5
+
+
+def test_stop_ignores_sigint_on_the_main_thread_before_exiting() -> None:
+    """B2: un SIGINT tardivo durante l'uscita non deve interromperla."""
+    from pickfair_mcp.cli import InterruptTracker
+
+    seen: list[object] = []
+    tracker = InterruptTracker(lambda: seen.append(signal.getsignal(signal.SIGINT)))
+    tracker.stop_interrupted()
+    assert seen == [signal.SIG_IGN]
+
+
+def test_stop_from_the_watchdog_thread_leaves_signals_alone() -> None:
+    """signal.signal fuori dal thread principale solleva ValueError: il watchdog non lo usa."""
+    import threading
+
+    from pickfair_mcp.cli import InterruptTracker
+
+    before = signal.getsignal(signal.SIGINT)
+    calls: list[bool] = []
+    errors: list[BaseException] = []
+    tracker = InterruptTracker(lambda: calls.append(True))
+
+    def run() -> None:
+        try:
+            tracker.stop_interrupted()
+        except BaseException as exc:  # noqa: BLE001
+            errors.append(exc)
+
+    worker = threading.Thread(target=run)
+    worker.start()
+    worker.join(5)
+    assert (calls, errors) == ([True], [])
+    assert signal.getsignal(signal.SIGINT) is before

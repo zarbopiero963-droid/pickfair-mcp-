@@ -377,6 +377,28 @@ MUTANTS: tuple[Mutant, ...] = (
         "margine del watchdog di un'ora",
         (("src/pickfair_mcp/cli.py", "INTERRUPT_GRACE_S = 2.0\n", "INTERRUPT_GRACE_S = 3600.0\n"),),
     ),
+    Mutant(
+        "M42",
+        "SIGINT tardivo interrompe l'uscita interrupted",
+        (
+            (
+                "src/pickfair_mcp/cli.py",
+                "            signal.signal(signal.SIGINT, signal.SIG_IGN)\n        with self._lock:\n",
+                "            pass\n        with self._lock:\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "M43",
+        "SIGINT ignorato anche dal thread del watchdog",
+        (
+            (
+                "src/pickfair_mcp/cli.py",
+                "        if threading.current_thread() is threading.main_thread():\n",
+                "        if True:\n",
+            ),
+        ),
+    ),
 )
 
 

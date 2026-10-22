@@ -109,12 +109,13 @@ hash (descrittore canonico comune ai due repository) e nomi delle capability.
   con `server_stop` `interrupted`. Il thread di lettura di stdin dell'SDK non è
   interrompibile e non è daemon: con stdin lasciato aperto dal client né il Runner né la
   finalizzazione dell'interprete terminano prima della riga successiva o di EOF. Per questo
-  ogni chiusura `interrupted` scrive una sola riga di audit ed esce con `os._exit(130)`,
-  senza attendere stdin: subito se SIGINT ripetuti interrompono il Runner, altrimenti dopo il
-  watchdog di 2 s (`INTERRUPT_GRACE_S`) armato dal primo SIGINT. A riposo il watchdog è il
-  percorso normale, quindi un singolo SIGINT chiude in circa 2 s. L'uscita non svuota buffer
-  pendenti: una risposta JSON-RPC in scrittura in quel momento può restare troncata (caso
-  teorico, mai osservato). Un SIGINT ignorato dal processo padre resta ignorato. SIGTERM
-  termina subito, senza riga di audit `server_stop`.
+  ogni chiusura `interrupted` ignora i SIGINT successivi, scrive una sola riga di audit ed
+  esce con `os._exit(130)` senza attendere stdin: subito se SIGINT ripetuti interrompono il
+  Runner, altrimenti dopo il watchdog di 2 s (`INTERRUPT_GRACE_S`) armato dal primo SIGINT.
+  Un SIGINT che interrompe `main` prima dell'uscita lascia il watchdog armato. A riposo il
+  watchdog è il percorso normale, quindi un singolo SIGINT chiude in circa 2 s. L'uscita non
+  svuota buffer pendenti: una risposta JSON-RPC in scrittura in quel momento può restare
+  troncata (caso teorico, mai osservato). Un SIGINT ignorato dal processo padre resta
+  ignorato. SIGTERM termina subito, senza riga di audit `server_stop`.
 - **Handshake serializzato**: chiamate concorrenti a `get_meta` attendono in coda; con
   upstream lento l'attesa può arrivare a N × timeout, sempre fail-closed.
