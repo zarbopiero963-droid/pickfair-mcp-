@@ -19,6 +19,7 @@ from pickfair_mcp.contract.models import StrictModel
 from pickfair_mcp.contract.routes import ROUTES_BY_KEY, RouteKind
 from pickfair_mcp.envelope import Envelope, failure, internal_error, success
 from pickfair_mcp.errors import ErrorCode, ToolError
+from pickfair_mcp.journal import Journal
 from pickfair_mcp.policy.handshake import HandshakeGuard
 from pickfair_mcp.tools.meta import make_get_meta
 from pickfair_mcp.tools.registry import ToolContext, ToolRegistry, ToolSpec
@@ -129,13 +130,31 @@ class PickfairMcpApp:
         )
 
 
+def recover_journal(journal: Journal) -> None:
+    """Recovery all'avvio: nessun replay; voci senza esito chiuse NOT_SENT/AMBIGUOUS.
+
+    Un journal non scrivibile non blocca le letture: le mutazioni (non esposte in
+    MCP-01b) restano rifiutate con JOURNAL_UNAVAILABLE.
+    """
+    pending = journal.recover()
+    audit_event(
+        "journal",
+        journal_writable=journal.writable,
+        pending_ambiguous=len(pending),
+        error_code=None if journal.writable else ErrorCode.JOURNAL_UNAVAILABLE.value,
+    )
+
+
 def build_server(
     adapter: ControlApiAdapter,
     *,
     timeout_s: float,
     registry: ToolRegistry | None = None,
     request_id_factory: Callable[[], str] = new_request_id,
+    journal: Journal | None = None,
 ) -> Server[Any, Any]:
+    if journal is not None:
+        recover_journal(journal)
     if registry is None:
         guard = HandshakeGuard(adapter, timeout_s=timeout_s)
         registry = ToolRegistry()

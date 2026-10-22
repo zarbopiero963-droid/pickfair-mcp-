@@ -41,6 +41,8 @@ S = "src/pickfair_mcp/server.py"
 C = "src/pickfair_mcp/config.py"
 A = "src/pickfair_mcp/audit.py"
 ME = "src/pickfair_mcp/tools/meta.py"
+J = "src/pickfair_mcp/journal/store.py"
+JR = "src/pickfair_mcp/journal/retry.py"
 
 MUTANTS: tuple[Mutant, ...] = (
     Mutant(
@@ -452,6 +454,99 @@ MUTANTS: tuple[Mutant, ...] = (
                 "        server = build_server(adapter, timeout_s=timeout_s)\n        tracker.install()\n",
             ),
         ),
+    ),
+    # MCP-01b: journal, dedupe, fsync, lock, AMBIGUOUS
+    Mutant(
+        "J01",
+        "deduplica disattivata: stessa chiave rimandata upstream",
+        ((J, "        existing = self._by_key.get(kh)\n", "        existing = None\n"),),
+    ),
+    Mutant("J02", "fsync rimosso", ((J, "            os.fsync(fd)\n", "            pass\n"),)),
+    Mutant(
+        "J03", "lock esclusivo ignorato", ((J, "if not try_lock(self._lock_fd):", "if False:"),)
+    ),
+    Mutant(
+        "J04",
+        "risposta upstream non valida accettata invece di AMBIGUOUS",
+        ((J, "        if _valid_ack(ack):\n", "        if ack is not None:\n"),),
+    ),
+    Mutant(
+        "J05",
+        "recovery chiude un invio come NOT_SENT (replay possibile)",
+        (
+            (
+                J,
+                "EntryStatus.AMBIGUOUS if entry.sent else EntryStatus.NOT_SENT",
+                "EntryStatus.NOT_SENT",
+            ),
+        ),
+    ),
+    Mutant("J06", "checksum non verificato", ((J, "if crc != _crc(rec) or ", "if "),)),
+    Mutant(
+        "J07",
+        "journal non scrivibile ma mutazione ammessa",
+        (
+            (J, "if fd is None or self.failure_reason is not None:", "if fd is None:"),
+            (
+                J,
+                "        if not self.writable:\n            raise self._unavailable()\n        entry",
+                "        entry",
+            ),
+        ),
+    ),
+    Mutant(
+        "J08",
+        "file del journal sostituito non rilevato",
+        ((J, "if (st.st_dev, st.st_ino) != self._ino:", "if False:"),),
+    ),
+    Mutant(
+        "J09",
+        "timeout dell'invio non applicato",
+        (
+            (
+                J,
+                "                with anyio.fail_after(timeout_s):\n",
+                "                if True:\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "J10",
+        "voce AMBIGUOUS non persistita al recovery",
+        (
+            (
+                J,
+                "            if self.writable:\n                self._close_entry(closed)",
+                "            if False:\n                self._close_entry(closed)",
+            ),
+        ),
+    ),
+    Mutant(
+        "J11",
+        "chiave logica scritta in chiaro nel journal",
+        (
+            (
+                J,
+                'return hashlib.sha256(b"pickfair-mcp:journal-key:v1\\x00" + key.encode()).hexdigest()',
+                "return key",
+            ),
+        ),
+    ),
+    Mutant(
+        "J12",
+        "invio upstream senza voce sent persistita",
+        (
+            (
+                J,
+                "            entry = self.mark_sent(entry)\n",
+                "            entry = replace(entry, sent=True)\n            self._entries[entry.request_id] = entry\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "J13",
+        "retry di lettura senza limite",
+        ((JR, "if not 1 <= attempts <= MAX_READ_ATTEMPTS:", "if False:"),),
     ),
 )
 

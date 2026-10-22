@@ -72,6 +72,28 @@
         "scripts/review_gate.py",
         "tests/guards/test_review_gate.py"
       ]
+    },
+    "mcp01b-request-identity-journal": {
+      "issue": "pickfair-mcp- #4; mandato owner PF-MCP-AUTONOMOUS-FACTORY-01 (22/10/2026)",
+      "scheda": "MCP-01b",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "docs/contract_v1.md",
+        "scripts/critical_mutations.py",
+        "scripts/mutmut_gate.py",
+        "src/pickfair_mcp/audit.py",
+        "src/pickfair_mcp/errors.py",
+        "src/pickfair_mcp/journal/__init__.py",
+        "src/pickfair_mcp/journal/lock.py",
+        "src/pickfair_mcp/journal/retry.py",
+        "src/pickfair_mcp/journal/store.py",
+        "src/pickfair_mcp/server.py",
+        "tests/e2e/test_journal_kill.py",
+        "tests/integration/test_journal_server.py",
+        "tests/unit/journal_v1_golden.jsonl",
+        "tests/unit/test_journal.py",
+        "tests/unit/test_journal_hardening.py"
+      ]
     }
   }
 }

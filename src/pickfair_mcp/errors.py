@@ -14,6 +14,7 @@ class ErrorCode(Enum):
     UPSTREAM_UNAVAILABLE = "UPSTREAM_UNAVAILABLE"
     UPSTREAM_INVALID_RESPONSE = "UPSTREAM_INVALID_RESPONSE"
     INTERNAL_ERROR = "INTERNAL_ERROR"
+    JOURNAL_UNAVAILABLE = "JOURNAL_UNAVAILABLE"
 
 
 # Messaggi fissi: nessun testo proveniente da eccezioni o dall'upstream.
@@ -27,6 +28,9 @@ MESSAGES: Final[dict[ErrorCode, str]] = {
     ErrorCode.UPSTREAM_UNAVAILABLE: "Control API is not reachable.",
     ErrorCode.UPSTREAM_INVALID_RESPONSE: "Control API answer violates the contract.",
     ErrorCode.INTERNAL_ERROR: "Internal adapter error; no operation was performed.",
+    ErrorCode.JOURNAL_UNAVAILABLE: (
+        "Request journal unavailable; mutations are blocked, reads are still allowed."
+    ),
 }
 
 # Solo letture idempotenti possono essere ripetute dal client. I comandi
