@@ -129,3 +129,5 @@ hash (descrittore canonico comune ai due repository) e nomi delle capability.
   ignorato. SIGTERM termina subito, senza riga di audit `server_stop`.
 - **Handshake serializzato**: chiamate concorrenti a `get_meta` attendono in coda; con
   upstream lento l'attesa può arrivare a N × timeout, sempre fail-closed.
+
+<!-- gate test throwaway: non mergiare -->
