@@ -117,9 +117,12 @@ hash (descrittore canonico comune ai due repository) e nomi delle capability.
   del Runner); a fine loop il gestore resta installato ma non delega più al Runner, e appena
   `anyio.run` termina SIGINT è ignorato prima di decidere l'esito, perché in finalizzazione
   CPython riporterebbe il gestore a SIG_DFL (exit -2 senza riga di audit). La riga
-  `server_start` è scritta solo dopo l'installazione del gestore. Un SIGINT prima di quella
-  riga (avvio dell'interprete, import, avvio del loop) resta gestito da Python, con
-  traceback su stderr ed exit -2: limite di piattaforma, nessun audit possibile. A riposo il
+  `server_start` è scritta solo dopo l'installazione del gestore. Finestra di avvio non
+  coperta (limite noto, pochi ms): un SIGINT durante avvio dell'interprete e import termina
+  con traceback ed exit -2; durante l'avvio del loop, prima che il Runner installi il suo
+  gestore, con 130 e `server_stop` senza `server_start`; nel loop prima di `install`, il
+  Runner annulla il task senza che il tracker lo registri e il server attende la chiusura
+  di stdin, poi esce con 130 (riproducibile solo iniettando il segnale). A riposo il
   watchdog è il percorso normale, quindi un singolo SIGINT chiude in circa 2 s. L'uscita non
   svuota buffer pendenti: una risposta JSON-RPC in scrittura in quel momento può restare
   troncata (caso teorico, mai osservato). Un SIGINT ignorato dal processo padre resta
