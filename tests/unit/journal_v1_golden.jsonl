@@ -1,0 +1,4 @@
+{"crc": "4babc33b297d27481ef4d6fd5ebf05695ba39a1cc5698f49bf8a0bdcd6a909b2", "journal_id": "abababababababababababababababab", "kind": "header", "seq": 0, "v": 1}
+{"crc": "25a20a3a686ca3df7e9684fecaa85d4cd9a3131389d770a4629b9b067f9aff93", "key_hash": "863945040e3e5a664a2989b425994381c21fbbf1671fc941ac340cf772fe8799", "kind": "begin", "request_id": "req_abababababababababababababababab", "seq": 1, "v": 1}
+{"crc": "eda0004f82932ff41e6a996e43bc708077f49da77dc159d481982f7e847cce7d", "kind": "sent", "request_id": "req_abababababababababababababababab", "seq": 2, "v": 1}
+{"correlation_id": "corr_1", "crc": "d1bce88857601b0b745c88e3caf7d12b01509a203dd11fe3848138f3b8a6392c", "kind": "outcome", "operation_id": "op_1", "request_id": "req_abababababababababababababababab", "seq": 3, "status": "ACCEPTED", "v": 1}

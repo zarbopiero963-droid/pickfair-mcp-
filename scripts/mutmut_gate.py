@@ -28,6 +28,21 @@ EQUIVALENT = {
     "pickfair_mcp.contract.version.x_hash_descriptor__mutmut_18",
     # ensure_ascii=True è il default di json.dumps
     "pickfair_mcp.contract.version.x_hash_descriptor__mutmut_9",
+    # MCP-01b. Mutanti senza differenza testuale generati da mutmut (sorgente identico
+    # all'originale: verificato con `mutmut show` e nel file mutato).
+    "pickfair_mcp.journal.store.x__read_all__mutmut_16",
+    "pickfair_mcp.journal.store.x__read_all__mutmut_17",
+    "pickfair_mcp.journal.store.x_key_hash__mutmut_4",
+    "pickfair_mcp.journal.store.xǁJournalǁ_load__mutmut_5",
+    "pickfair_mcp.journal.store.xǁJournalǁ_load__mutmut_6",
+    "pickfair_mcp.journal.store.xǁJournalǁ_load__mutmut_12",
+    "pickfair_mcp.journal.store.xǁJournalǁ_load__mutmut_13",
+    # valore iniziale sovrascritto: con attempts >= 1 il ciclo assegna sempre `last`
+    "pickfair_mcp.journal.retry.x_read_with_retry__mutmut_5",
+    # _ino iniziale mai letto: _append è raggiungibile solo dopo fstat riuscito
+    "pickfair_mcp.journal.store.xǁJournalǁ__init____mutmut_4",
+    # follow_symlinks=None è falsy come False: stesso comportamento di os.stat
+    "pickfair_mcp.journal.store.xǁJournalǁ_append__mutmut_7",
 }
 
 

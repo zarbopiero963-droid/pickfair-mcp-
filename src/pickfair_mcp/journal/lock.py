@@ -13,10 +13,11 @@ OPEN_FLAGS: Final = 0 if sys.platform == "win32" else os.O_NOFOLLOW | os.O_CLOEX
 def try_lock(fd: int) -> bool:
     """True se il lock esclusivo non bloccante è stato acquisito."""
     try:
-        if sys.platform == "win32":
+        if sys.platform == "win32":  # pragma: no mutate
             import msvcrt
 
-            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+            # Ramo Windows: verificato in MCP-07a (packaging Windows), non su CI Linux.
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)  # pragma: no mutate
         else:
             import fcntl
 

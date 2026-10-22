@@ -18,7 +18,7 @@ async def read_with_retry(
     read: Callable[[], Awaitable[T]], *, attempts: int, timeout_s: float
 ) -> T:
     if not 1 <= attempts <= MAX_READ_ATTEMPTS:
-        raise ValueError("attempts")
+        raise ValueError
     last = ErrorCode.UPSTREAM_UNAVAILABLE
     for _ in range(attempts):
         try:

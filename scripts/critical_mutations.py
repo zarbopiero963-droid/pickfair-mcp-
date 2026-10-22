@@ -461,16 +461,14 @@ MUTANTS: tuple[Mutant, ...] = (
         "deduplica disattivata: stessa chiave rimandata upstream",
         ((J, "        existing = self._by_key.get(kh)\n", "        existing = None\n"),),
     ),
-    Mutant(
-        "J02", "fsync rimosso", ((J, "            os.fsync(self._fd)\n", "            pass\n"),)
-    ),
+    Mutant("J02", "fsync rimosso", ((J, "            os.fsync(fd)\n", "            pass\n"),)),
     Mutant(
         "J03", "lock esclusivo ignorato", ((J, "if not try_lock(self._lock_fd):", "if False:"),)
     ),
     Mutant(
         "J04",
         "risposta upstream non valida accettata invece di AMBIGUOUS",
-        ((J, "if ack is not None and _valid_ack(ack):", "if ack is not None:"),),
+        ((J, "        if _valid_ack(ack):\n", "        if ack is not None:\n"),),
     ),
     Mutant(
         "J05",
@@ -488,10 +486,10 @@ MUTANTS: tuple[Mutant, ...] = (
         "J07",
         "journal non scrivibile ma mutazione ammessa",
         (
-            (J, "if not self.writable or self._fd is None:", "if self._fd is None:"),
+            (J, "if fd is None or self.failure_reason is not None:", "if fd is None:"),
             (
                 J,
-                '        if not self.writable:\n            raise JournalUnavailable(self.failure_reason or "JOURNAL_CLOSED")\n        entry',
+                "        if not self.writable:\n            raise self._unavailable()\n        entry",
                 "        entry",
             ),
         ),
@@ -529,7 +527,7 @@ MUTANTS: tuple[Mutant, ...] = (
         (
             (
                 J,
-                'return hashlib.sha256(b"pickfair-mcp:journal-key:v1\\x00" + key.encode("utf-8")).hexdigest()',
+                'return hashlib.sha256(b"pickfair-mcp:journal-key:v1\\x00" + key.encode()).hexdigest()',
                 "return key",
             ),
         ),

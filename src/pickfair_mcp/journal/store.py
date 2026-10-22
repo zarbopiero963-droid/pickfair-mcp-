@@ -28,7 +28,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field, replace
 from enum import Enum
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, TypeGuard
 
 import anyio
 
@@ -41,6 +41,7 @@ JOURNAL_VERSION: Final = 1
 _REQ_RE: Final = re.compile(REQUEST_ID_PATTERN)
 _UPSTREAM_ID_RE: Final = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _HEX64_RE: Final = re.compile(r"^[0-9a-f]{64}$")
+_HEX32_RE: Final = re.compile(r"^[0-9a-f]{32}$")
 _READ_CHUNK: Final = 1 << 16
 
 
@@ -91,15 +92,15 @@ def new_request_id() -> str:
 
 
 def key_hash(key: str) -> str:
-    return hashlib.sha256(b"pickfair-mcp:journal-key:v1\x00" + key.encode("utf-8")).hexdigest()
+    return hashlib.sha256(b"pickfair-mcp:journal-key:v1\x00" + key.encode()).hexdigest()
 
 
 def _crc(record: dict[str, Any]) -> str:
-    body = json.dumps(record, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
-    return hashlib.sha256(body.encode("ascii")).hexdigest()
+    body = json.dumps(record, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(body.encode()).hexdigest()
 
 
-def _valid_ack(ack: object) -> bool:
+def _valid_ack(ack: object) -> TypeGuard[UpstreamAck]:
     return (
         isinstance(ack, UpstreamAck)
         and isinstance(ack.operation_id, str)
@@ -131,6 +132,10 @@ class Journal:
     @property
     def writable(self) -> bool:
         return self.failure_reason is None and self._fd is not None
+
+    def _unavailable(self) -> JournalUnavailable:
+        # Invariante: un journal non scrivibile ha sempre failure_reason valorizzato.
+        return JournalUnavailable(str(self.failure_reason))
 
     def _fail(self, reason: str) -> None:
         if self.failure_reason is None:
@@ -185,7 +190,7 @@ class Journal:
             raise _Corrupt
         for index, line in enumerate(raw[:-1].split(b"\n")):
             try:
-                rec = json.loads(line.decode("ascii"))
+                rec = json.loads(line)
             except (UnicodeDecodeError, ValueError):
                 raise _Corrupt from None
             if not isinstance(rec, dict):
@@ -201,6 +206,9 @@ class Journal:
         if first != (kind == "header"):
             raise _Corrupt
         if kind == "header":
+            jid = rec.get("journal_id")
+            if not isinstance(jid, str) or not _HEX32_RE.fullmatch(jid):
+                raise _Corrupt
             return
         rid = rec.get("request_id")
         if not isinstance(rid, str) or not _REQ_RE.fullmatch(rid):
@@ -243,8 +251,9 @@ class Journal:
 
     # --------------------------------------------------------------- scrittura
     def _append(self, record: dict[str, Any]) -> None:
-        if not self.writable or self._fd is None:
-            raise JournalUnavailable(self.failure_reason or "JOURNAL_CLOSED")
+        fd = self._fd
+        if fd is None or self.failure_reason is not None:
+            raise self._unavailable()
         try:
             st = os.stat(self._path, follow_symlinks=False)
             if (st.st_dev, st.st_ino) != self._ino:
@@ -252,14 +261,14 @@ class Journal:
                 raise JournalUnavailable("JOURNAL_REPLACED")
             rec = {**record, "v": JOURNAL_VERSION, "seq": self._seq}
             rec["crc"] = _crc(rec)
-            data = (json.dumps(rec, sort_keys=True, ensure_ascii=True) + "\n").encode("ascii")
+            data = (json.dumps(rec, sort_keys=True) + "\n").encode()
             view = memoryview(data)
             while view:
-                written = os.write(self._fd, view)
+                written = os.write(fd, view)
                 if written <= 0:
-                    raise OSError("short write")
+                    raise OSError
                 view = view[written:]
-            os.fsync(self._fd)
+            os.fsync(fd)
         except OSError:
             self._fail("JOURNAL_IO")
             raise JournalUnavailable("JOURNAL_IO") from None
@@ -268,7 +277,7 @@ class Journal:
     def begin(self, key: str) -> Entry:
         kh = key_hash(key)
         if kh in self._by_key:
-            raise ValueError("chiave già presente")
+            raise ValueError
         rid = new_request_id()
         self._append({"kind": "begin", "request_id": rid, "key_hash": kh})
         entry = Entry(rid, kh, EntryStatus.IN_FLIGHT, sent=False)
@@ -279,7 +288,7 @@ class Journal:
     def mark_sent(self, entry: Entry) -> Entry:
         current = self._entries[entry.request_id]
         if current.sent or current.status is not EntryStatus.IN_FLIGHT:
-            raise ValueError("voce non inviabile")
+            raise ValueError
         self._append({"kind": "sent", "request_id": entry.request_id})
         updated = replace(current, sent=True)
         self._entries[entry.request_id] = updated
@@ -288,8 +297,8 @@ class Journal:
     def complete(self, entry: Entry, ack: UpstreamAck | None) -> Entry:
         current = self._entries[entry.request_id]
         if current.status is not EntryStatus.IN_FLIGHT or not current.sent:
-            raise ValueError("voce non completabile")
-        if ack is not None and _valid_ack(ack):
+            raise ValueError
+        if _valid_ack(ack):
             updated = replace(
                 current,
                 status=EntryStatus.ACCEPTED,
@@ -337,21 +346,20 @@ class Journal:
                 await event.wait()
             current = self._entries[existing]
             if current.status is EntryStatus.IN_FLIGHT:
-                raise JournalUnavailable(self.failure_reason or "JOURNAL_IO")
+                raise self._unavailable()
             return replace(current, deduplicated=True)
         if not self.writable:
-            raise JournalUnavailable(self.failure_reason or "JOURNAL_CLOSED")
+            raise self._unavailable()
         entry = self.begin(key)
         event = anyio.Event()
         self._inflight[kh] = event
         try:
             entry = self.mark_sent(entry)
-            ack: UpstreamAck | None
             try:
                 with anyio.fail_after(timeout_s):
                     ack = await send(entry.request_id)
             except Exception:  # noqa: BLE001 - esito incerto: AMBIGUOUS, mai testo upstream
-                ack = None
+                return self.complete(entry, None)
             return self.complete(entry, ack)
         finally:
             event.set()
