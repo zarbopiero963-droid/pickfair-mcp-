@@ -1,0 +1,89 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pickfair-mcp"
+version = "0.1.0"
+description = "Server MCP locale (stdio) di Pickfair: livello di trasporto e controllo verso la Control API v1, senza autorità di trading."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [{ name = "zarbopiero963-droid" }]
+# Dipendenze runtime: pin esatti. Le versioni transitive sono fissate in requirements/dev.lock.
+dependencies = [
+    "mcp==1.30.0",
+    "pydantic==2.12.3",
+    "anyio==4.11.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.4.2",
+    "pytest-cov==7.0.0",
+    "ruff==0.14.0",
+    "mypy==1.18.2",
+    "mutmut==3.3.1",
+    "jsonschema==4.25.1",
+]
+
+[project.scripts]
+pickfair-mcp = "pickfair_mcp.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pickfair_mcp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "e2e: avvia il server MCP come sottoprocesso stdio",
+    "guard: controlli di governance, no-bypass e sicurezza",
+]
+filterwarnings = ["error::pytest.PytestUnraisableExceptionWarning"]
+
+[tool.coverage.run]
+branch = true
+source = ["pickfair_mcp"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 90
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "BLE", "T20", "RUF"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "T20"]
+"scripts/**" = ["T20", "S603", "S607"]
+# Le stringhe dei mutanti devono coincidere carattere per carattere con il sorgente.
+"scripts/critical_mutations.py" = ["T20", "S603", "S607", "E501"]
+"src/pickfair_mcp/cli.py" = ["T20"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+mypy_path = "src"
+packages = ["pickfair_mcp"]
+plugins = ["pydantic.mypy"]
+
+[tool.mutmut]
+# Moduli con i controlli critici. server.py e audit.py sono coperti dal catalogo mirato
+# in scripts/critical_mutations.py; cli e adapter simulato solo dai test e2e/unit.
+paths_to_mutate = ["src/pickfair_mcp/"]
+do_not_mutate = [
+    "src/pickfair_mcp/cli.py",
+    "src/pickfair_mcp/__main__.py",
+    "src/pickfair_mcp/server.py",
+    "src/pickfair_mcp/audit.py",
+    "src/pickfair_mcp/adapters/*",
+]
+pytest_add_cli_args_test_selection = ["tests/unit", "tests/integration"]
+pytest_add_cli_args = ["-p", "no:cacheprovider", "-m", "not e2e and not guard"]
+also_copy = ["tests/", "docs/", "AGENTS.md"]

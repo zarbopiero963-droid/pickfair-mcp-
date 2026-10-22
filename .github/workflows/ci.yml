@@ -1,0 +1,83 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: lint, typecheck, test (py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install (lock con hash)
+        run: |
+          python -m pip install --upgrade pip
+          pip install --require-hashes -r requirements/dev.lock
+          pip install --no-deps -e .
+      - name: Ruff
+        run: |
+          ruff check .
+          ruff format --check .
+      - name: Mypy (strict)
+        run: mypy
+      - name: Pytest (unit, integration, e2e stdio, guard)
+        run: pytest --cov --cov-report=term
+
+  critical-mutations:
+    name: mutazioni dei controlli critici (100%)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install (lock con hash)
+        run: |
+          python -m pip install --upgrade pip
+          pip install --require-hashes -r requirements/dev.lock
+      - name: Catalogo mutanti critici
+        run: python scripts/critical_mutations.py --json critical-mutations.json
+      # Report nel log, non come artifact: nessun consumo della quota di storage.
+      - name: Report mutanti critici
+        if: always()
+        run: cat critical-mutations.json || true
+
+  mutmut:
+    name: mutation testing generale (soglia 85%)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install (lock con hash, senza installare il pacchetto)
+        # Il pacchetto non va installato: mutmut deve importare i sorgenti mutati.
+        run: |
+          python -m pip install --upgrade pip
+          pip install --require-hashes -r requirements/dev.lock
+      - name: mutmut run
+        run: mutmut run --max-children 4
+      - name: Gate sul punteggio
+        run: python scripts/mutmut_gate.py --fail-under 85 --json mutmut-report.json
+      - name: Report mutmut
+        if: always()
+        run: cat mutmut-report.json || true
