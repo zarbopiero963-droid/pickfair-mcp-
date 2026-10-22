@@ -522,3 +522,34 @@ def test_main_ignores_late_sigint_before_deciding_the_exit(
     signal.signal(signal.SIGINT, signal.default_int_handler)
     assert main(["serve"]) == (0 if outcome == "ok" else 1)
     assert signal.getsignal(signal.SIGINT) is signal.SIG_IGN
+
+
+def test_server_start_is_written_only_once_sigint_handling_is_active(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """N4: dopo la riga server_start una raffica di SIGINT non deve più trovare
+    default_int_handler o il gestore nudo del Runner (KeyboardInterrupt multipli, -2)."""
+    import anyio
+
+    from pickfair_mcp import cli
+    from pickfair_mcp.adapters.simulated import Scenario, SimulatedControlApiAdapter
+
+    at_start: list[object] = []
+
+    def fake_audit(event: str, **_: object) -> None:
+        if event == "server_start":
+            at_start.append(signal.getsignal(signal.SIGINT))
+
+    async def no_stdio(_server: object) -> None:
+        return None
+
+    monkeypatch.setattr(cli, "audit_event", fake_audit)
+    monkeypatch.setattr(cli, "_run_stdio", no_stdio)
+    signal.signal(signal.SIGINT, signal.default_int_handler)
+    tracker = cli.InterruptTracker(lambda: None, grace_s=30)
+    try:
+        anyio.run(cli._serve, SimulatedControlApiAdapter(Scenario.COMPATIBLE), 1.0, tracker)
+    finally:
+        tracker.disarm()
+    assert len(at_start) == 1
+    assert getattr(at_start[0], "__name__", None) == "_record_and_delegate"

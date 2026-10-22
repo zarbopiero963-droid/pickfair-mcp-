@@ -346,3 +346,32 @@ def test_sigint_storm_with_stdin_open_never_hangs_or_aborts(pause_s: float) -> N
         finally:
             raw.kill()
     assert failures == []
+
+
+def _first_stderr_line(raw: RawServer) -> str | None:
+    assert raw.proc.stderr is not None
+    stream = raw.proc.stderr
+    lines: list[str] = []
+    reader = threading.Thread(target=lambda: lines.append(stream.readline()), daemon=True)
+    reader.start()
+    reader.join(TIMEOUT_S)
+    return lines[0] if lines else None
+
+
+def test_sigint_storm_right_after_server_start_keeps_the_exit_contract() -> None:
+    """N4: dalla riga server_start in poi una raffica non trova più gestori che sollevano."""
+    failures = []
+    for run in range(STORM_RUNS):
+        raw = RawServer()
+        try:
+            assert raw.proc.stderr is not None
+            first = _first_stderr_line(raw)
+            assert first is not None and json.loads(first)["event"] == "server_start"
+            raw.send(INIT)
+            _storm(raw, 20, 0.0005)
+            problem = _single_clean_stop(raw, {(130, "interrupted")})
+            if problem is not None:
+                failures.append((run, problem))
+        finally:
+            raw.kill()
+    assert failures == []

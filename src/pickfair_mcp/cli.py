@@ -133,9 +133,17 @@ class InterruptTracker:
 async def _serve(
     adapter: SimulatedControlApiAdapter, timeout_s: float, tracker: InterruptTracker
 ) -> None:
-    server = build_server(adapter, timeout_s=timeout_s)
-    tracker.install()
+    tracker.install()  # prima di server_start: da quella riga SIGINT è sempre gestito (N4)
     try:
+        audit_event(
+            "server_start",
+            server_version=__version__,
+            adapter_kind=adapter.kind,
+            certified=adapter.certified,
+            contract_version=SUPPORTED_CONTRACT_VERSION,
+            mutation_exposure=MUTATION_EXPOSURE,
+        )
+        server = build_server(adapter, timeout_s=timeout_s)
         await _run_stdio(server)
     finally:
         tracker.uninstall()
@@ -174,14 +182,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         return EXIT_USAGE
     configure_stderr_logging()
     adapter = SimulatedControlApiAdapter(Scenario(args.sim_scenario))
-    audit_event(
-        "server_start",
-        server_version=__version__,
-        adapter_kind=adapter.kind,
-        certified=adapter.certified,
-        contract_version=SUPPORTED_CONTRACT_VERSION,
-        mutation_exposure=MUTATION_EXPOSURE,
-    )
     tracker = InterruptTracker(_force_interrupted_exit)
     try:
         anyio.run(_serve, adapter, timeout_s, tracker)

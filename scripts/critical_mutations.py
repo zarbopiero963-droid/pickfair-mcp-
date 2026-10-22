@@ -437,6 +437,22 @@ MUTANTS: tuple[Mutant, ...] = (
             ),
         ),
     ),
+    Mutant(
+        "M48",
+        "server_start scritto prima che SIGINT sia gestito dal tracker",
+        (
+            (
+                "src/pickfair_mcp/cli.py",
+                "    tracker.install()  # prima di server_start: da quella riga SIGINT è sempre gestito (N4)\n",
+                "",
+            ),
+            (
+                "src/pickfair_mcp/cli.py",
+                "        server = build_server(adapter, timeout_s=timeout_s)\n",
+                "        server = build_server(adapter, timeout_s=timeout_s)\n        tracker.install()\n",
+            ),
+        ),
+    ),
 )
 
 
