@@ -122,10 +122,16 @@
     },
     "claude-c-audit-20261103": {
       "issue": "pickfair-mcp- #1",
-      "scheda": "audit Claude C (sola lettura)",
+      "scheda": "audit e master roadmap Claude C (sola documentazione)",
       "files": [
         ".guardrails/allowed_scope.json",
-        "docs/audit/claude_c_audit_2026-11-03.md"
+        "docs/audit/claude_c_audit_2026-11-03.md",
+        "docs/roadmap/MASTER_ROADMAP_MCP_CONTROL_API.md",
+        "docs/roadmap/FUNCTIONAL_COVERAGE_MATRIX.md",
+        "docs/roadmap/PR_CARDS.md",
+        "docs/roadmap/HARD_TEST_CAMPAIGN.md",
+        "docs/roadmap/CERTIFICATION_GATES.md",
+        "docs/roadmap/DEPENDENCY_MAP.md"
       ]
     }
   }
