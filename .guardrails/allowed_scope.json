@@ -119,6 +119,14 @@
         "tests/unit/test_auth.py",
         "tests/unit/test_registry_guard.py"
       ]
+    },
+    "claude-c-audit-20261103": {
+      "issue": "pickfair-mcp- #1",
+      "scheda": "audit Claude C (sola lettura)",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "docs/audit/claude_c_audit_2026-11-03.md"
+      ]
     }
   }
 }
