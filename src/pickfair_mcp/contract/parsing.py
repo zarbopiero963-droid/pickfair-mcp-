@@ -14,7 +14,13 @@ from typing import Any, Final
 
 from pydantic import ValidationError
 
-from pickfair_mcp.contract.models import MetaResponse, ReconciliationStatusResponse, StatusResponse
+from pickfair_mcp.contract.models import (
+    AccountResponse,
+    ExposureResponse,
+    MetaResponse,
+    ReconciliationStatusResponse,
+    StatusResponse,
+)
 
 MAX_UPSTREAM_BYTES: Final = 64 * 1024
 
@@ -107,5 +113,21 @@ def parse_reconciliation_status(raw: bytes) -> ReconciliationStatusResponse:
     obj = parse_json_object(raw)
     try:
         return ReconciliationStatusResponse.model_validate(_tuplify(obj))
+    except ValidationError:
+        raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None
+
+
+def parse_account(raw: bytes) -> AccountResponse:
+    obj = parse_json_object(raw)
+    try:
+        return AccountResponse.model_validate(_tuplify(obj))
+    except ValidationError:
+        raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None
+
+
+def parse_exposure(raw: bytes) -> ExposureResponse:
+    obj = parse_json_object(raw)
+    try:
+        return ExposureResponse.model_validate(_tuplify(obj))
     except ValidationError:
         raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None

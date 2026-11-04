@@ -1,6 +1,6 @@
 {
   "contract_name": "pickfair-control-api",
-  "contract_version": "1.1.0",
+  "contract_version": "1.2.0",
   "error_codes": {
     "control_api": [
       "BAD_HOST",
@@ -9,6 +9,7 @@
       "INTERNAL",
       "METHOD_NOT_ALLOWED",
       "NOT_FOUND",
+      "NOT_IMPLEMENTED",
       "UNAUTHORIZED"
     ],
     "mcp": [
@@ -19,6 +20,7 @@
       "JOURNAL_UNAVAILABLE",
       "UNKNOWN_TOOL",
       "UPSTREAM_INVALID_RESPONSE",
+      "UPSTREAM_NOT_IMPLEMENTED",
       "UPSTREAM_TIMEOUT",
       "UPSTREAM_UNAUTHORIZED",
       "UPSTREAM_UNAVAILABLE"
@@ -153,16 +155,893 @@
   ],
   "semantics": {
     "codes": "Codes and reasons match ^[A-Z][A-Z0-9_]{0,63}$; free text from the core becomes UNSTRUCTURED and never crosses the API.",
-    "consistency": "PER_FIELD_NON_ATOMIC: fields are read one at a time without a runtime-wide critical section; observed_at is the read instant.",
+    "consistency": "PER_FIELD_NON_ATOMIC: fields are read one at a time without a runtime-wide critical section; observed_at is the read instant. PER_SECTION_LOCKED: each section is produced by one core call under the lock of the component that owns it, or is one value replaced as a whole; two sections may reflect nearby instants.",
     "freshness": {
       "max_clock_skew_s": 5.0,
       "max_snapshot_age_s": 30.0
     },
+    "money": "Amounts are finite floats in EUR exactly as the core holds them, never rounded or defaulted; execution_mode SIM means the simulated broker's fictitious balance.",
+    "not_implemented": "An approved read route the Control API does not serve yet answers 501 NOT_IMPLEMENTED; a path outside the approved routes answers 404 NOT_FOUND; any method other than GET answers 405 METHOD_NOT_ALLOWED. No command route is served.",
     "source": "Responses declare source=core; the simulated adapter declares source=simulated.",
     "transport": "HTTP/1.1 GET only on 127.0.0.1, Authorization Bearer token required, Host must be 127.0.0.1:<port>, no redirects, Content-Type application/json; charset=utf-8, body at most 65536 bytes.",
     "unavailable": "A field is null if and only if its name is listed in `unavailable`; a value the core does not hold is never replaced by a default."
   },
   "tools": {
+    "get_account": {
+      "input_schema": {
+        "additionalProperties": false,
+        "description": "Nessun argomento ammesso.",
+        "properties": {},
+        "title": "NoInput",
+        "type": "object"
+      },
+      "output_schema": {
+        "$defs": {
+          "AccountResponse": {
+            "additionalProperties": false,
+            "properties": {
+              "bankroll": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Bankroll"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "cash": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/CashBasis"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "consistency": {
+                "const": "PER_SECTION_LOCKED",
+                "title": "Consistency",
+                "type": "string"
+              },
+              "desk_mode": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "NORMAL",
+                      "EXPANSION",
+                      "DEFENSE",
+                      "LOCKDOWN"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Desk Mode"
+              },
+              "exchange_funds": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ExchangeFunds"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "execution_mode": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "SIM",
+                      "LIVE"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Execution Mode"
+              },
+              "observed_at": {
+                "exclusiveMaximum": 100000000000.0,
+                "exclusiveMinimum": 0,
+                "title": "Observed At",
+                "type": "number"
+              },
+              "source": {
+                "enum": [
+                  "core",
+                  "simulated"
+                ],
+                "title": "Source",
+                "type": "string"
+              },
+              "unavailable": {
+                "items": {
+                  "enum": [
+                    "execution_mode",
+                    "bankroll",
+                    "cash",
+                    "exchange_funds",
+                    "desk_mode"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 5,
+                "title": "Unavailable",
+                "type": "array",
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "source",
+              "observed_at",
+              "consistency",
+              "execution_mode",
+              "bankroll",
+              "cash",
+              "exchange_funds",
+              "desk_mode",
+              "unavailable"
+            ],
+            "title": "AccountResponse",
+            "type": "object"
+          },
+          "Bankroll": {
+            "additionalProperties": false,
+            "description": "`RiskDesk.debug_snapshot()`: una sola lettura sotto il lock del RiskDesk.",
+            "properties": {
+              "bankroll_current": {
+                "maximum": 1000000000.0,
+                "minimum": -1000000000.0,
+                "title": "Bankroll Current",
+                "type": "number"
+              },
+              "bankroll_start": {
+                "maximum": 1000000000.0,
+                "minimum": -1000000000.0,
+                "title": "Bankroll Start",
+                "type": "number"
+              },
+              "drawdown_pct": {
+                "maximum": 100,
+                "minimum": 0,
+                "title": "Drawdown Pct",
+                "type": "number"
+              },
+              "equity_current": {
+                "maximum": 1000000000.0,
+                "minimum": -1000000000.0,
+                "title": "Equity Current",
+                "type": "number"
+              },
+              "equity_peak": {
+                "maximum": 1000000000.0,
+                "minimum": -1000000000.0,
+                "title": "Equity Peak",
+                "type": "number"
+              },
+              "realized_pnl": {
+                "maximum": 1000000000.0,
+                "minimum": -1000000000.0,
+                "title": "Realized Pnl",
+                "type": "number"
+              },
+              "unrealized_pnl": {
+                "maximum": 1000000000.0,
+                "minimum": -1000000000.0,
+                "title": "Unrealized Pnl",
+                "type": "number"
+              }
+            },
+            "required": [
+              "bankroll_start",
+              "bankroll_current",
+              "equity_peak",
+              "equity_current",
+              "realized_pnl",
+              "unrealized_pnl",
+              "drawdown_pct"
+            ],
+            "title": "Bankroll",
+            "type": "object"
+          },
+          "CashBasis": {
+            "additionalProperties": false,
+            "description": "`RiskDesk.cash_basis()`: cassa e impegnato della STESSA lettura del conto.",
+            "properties": {
+              "cash_equity": {
+                "anyOf": [
+                  {
+                    "maximum": 1000000000.0,
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Cash Equity"
+              },
+              "committed_exposure": {
+                "maximum": 1000000000.0,
+                "minimum": 0,
+                "title": "Committed Exposure",
+                "type": "number"
+              },
+              "unverified_reason": {
+                "anyOf": [
+                  {
+                    "maxLength": 64,
+                    "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Unverified Reason"
+              },
+              "verified": {
+                "title": "Verified",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "verified",
+              "cash_equity",
+              "committed_exposure",
+              "unverified_reason"
+            ],
+            "title": "CashBasis",
+            "type": "object"
+          },
+          "ErrorBody": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "$ref": "#/$defs/ErrorCode"
+              },
+              "details": {
+                "$ref": "#/$defs/ErrorDetails"
+              },
+              "message": {
+                "maxLength": 200,
+                "title": "Message",
+                "type": "string"
+              },
+              "retryable": {
+                "title": "Retryable",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "retryable",
+              "details"
+            ],
+            "title": "ErrorBody",
+            "type": "object"
+          },
+          "ErrorCode": {
+            "enum": [
+              "INVALID_REQUEST",
+              "UNKNOWN_TOOL",
+              "CONTRACT_INCOMPATIBLE",
+              "UPSTREAM_TIMEOUT",
+              "UPSTREAM_UNAVAILABLE",
+              "UPSTREAM_INVALID_RESPONSE",
+              "UPSTREAM_UNAUTHORIZED",
+              "UPSTREAM_NOT_IMPLEMENTED",
+              "INTERNAL_ERROR",
+              "JOURNAL_UNAVAILABLE",
+              "FORBIDDEN"
+            ],
+            "title": "ErrorCode",
+            "type": "string"
+          },
+          "ErrorDetails": {
+            "additionalProperties": false,
+            "properties": {
+              "handshake_status": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Z_]{1,32}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Handshake Status"
+              },
+              "reasons": {
+                "items": {
+                  "maxLength": 160,
+                  "pattern": "^[A-Z_]+(:[A-Za-z0-9_{}/?=. -]{1,140})?$",
+                  "type": "string"
+                },
+                "maxItems": 32,
+                "title": "Reasons",
+                "type": "array"
+              }
+            },
+            "required": [
+              "reasons",
+              "handshake_status"
+            ],
+            "title": "ErrorDetails",
+            "type": "object"
+          },
+          "ExchangeFunds": {
+            "additionalProperties": false,
+            "description": "Ultimo snapshot dei fondi registrato dal runtime (nessuna nuova lettura dell'exchange).",
+            "properties": {
+              "age_s": {
+                "anyOf": [
+                  {
+                    "maximum": 31536000,
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Age S"
+              },
+              "available": {
+                "maximum": 1000000000.0,
+                "minimum": 0,
+                "title": "Available",
+                "type": "number"
+              },
+              "cash_equity": {
+                "maximum": 1000000000.0,
+                "minimum": 0,
+                "title": "Cash Equity",
+                "type": "number"
+              },
+              "committed": {
+                "maximum": 1000000000.0,
+                "minimum": 0,
+                "title": "Committed",
+                "type": "number"
+              },
+              "ok": {
+                "title": "Ok",
+                "type": "boolean"
+              },
+              "reason": {
+                "anyOf": [
+                  {
+                    "maxLength": 64,
+                    "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Reason"
+              },
+              "source": {
+                "maxLength": 64,
+                "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                "title": "Source",
+                "type": "string"
+              }
+            },
+            "required": [
+              "ok",
+              "available",
+              "committed",
+              "cash_equity",
+              "reason",
+              "source",
+              "age_s"
+            ],
+            "title": "ExchangeFunds",
+            "type": "object"
+          },
+          "GetAccountData": {
+            "additionalProperties": false,
+            "properties": {
+              "account": {
+                "$ref": "#/$defs/AccountResponse"
+              },
+              "age_s": {
+                "maximum": 30.0,
+                "minimum": 0,
+                "title": "Age S",
+                "type": "number"
+              },
+              "upstream": {
+                "$ref": "#/$defs/UpstreamInfo"
+              }
+            },
+            "required": [
+              "account",
+              "age_s",
+              "upstream"
+            ],
+            "title": "GetAccountData",
+            "type": "object"
+          },
+          "UpstreamInfo": {
+            "additionalProperties": false,
+            "properties": {
+              "certified": {
+                "title": "Certified",
+                "type": "boolean"
+              },
+              "kind": {
+                "enum": [
+                  "simulated",
+                  "http"
+                ],
+                "title": "Kind",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "certified"
+            ],
+            "title": "UpstreamInfo",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/GetAccountData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ErrorBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "request_id": {
+            "pattern": "^req_[0-9a-f]{32}$",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]{2,47}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool"
+          }
+        },
+        "required": [
+          "ok",
+          "request_id",
+          "tool",
+          "data",
+          "error"
+        ],
+        "title": "Envelope[GetAccountData]",
+        "type": "object"
+      },
+      "route": "GET /v1/account",
+      "scope": "read"
+    },
+    "get_exposure": {
+      "input_schema": {
+        "additionalProperties": false,
+        "description": "Nessun argomento ammesso.",
+        "properties": {},
+        "title": "NoInput",
+        "type": "object"
+      },
+      "output_schema": {
+        "$defs": {
+          "ErrorBody": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "$ref": "#/$defs/ErrorCode"
+              },
+              "details": {
+                "$ref": "#/$defs/ErrorDetails"
+              },
+              "message": {
+                "maxLength": 200,
+                "title": "Message",
+                "type": "string"
+              },
+              "retryable": {
+                "title": "Retryable",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "retryable",
+              "details"
+            ],
+            "title": "ErrorBody",
+            "type": "object"
+          },
+          "ErrorCode": {
+            "enum": [
+              "INVALID_REQUEST",
+              "UNKNOWN_TOOL",
+              "CONTRACT_INCOMPATIBLE",
+              "UPSTREAM_TIMEOUT",
+              "UPSTREAM_UNAVAILABLE",
+              "UPSTREAM_INVALID_RESPONSE",
+              "UPSTREAM_UNAUTHORIZED",
+              "UPSTREAM_NOT_IMPLEMENTED",
+              "INTERNAL_ERROR",
+              "JOURNAL_UNAVAILABLE",
+              "FORBIDDEN"
+            ],
+            "title": "ErrorCode",
+            "type": "string"
+          },
+          "ErrorDetails": {
+            "additionalProperties": false,
+            "properties": {
+              "handshake_status": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Z_]{1,32}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Handshake Status"
+              },
+              "reasons": {
+                "items": {
+                  "maxLength": 160,
+                  "pattern": "^[A-Z_]+(:[A-Za-z0-9_{}/?=. -]{1,140})?$",
+                  "type": "string"
+                },
+                "maxItems": 32,
+                "title": "Reasons",
+                "type": "array"
+              }
+            },
+            "required": [
+              "reasons",
+              "handshake_status"
+            ],
+            "title": "ErrorDetails",
+            "type": "object"
+          },
+          "ExposureResponse": {
+            "additionalProperties": false,
+            "properties": {
+              "consistency": {
+                "const": "PER_SECTION_LOCKED",
+                "title": "Consistency",
+                "type": "string"
+              },
+              "observed_at": {
+                "exclusiveMaximum": 100000000000.0,
+                "exclusiveMinimum": 0,
+                "title": "Observed At",
+                "type": "number"
+              },
+              "recovery": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/RecoveryCapacity"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "source": {
+                "enum": [
+                  "core",
+                  "simulated"
+                ],
+                "title": "Source",
+                "type": "string"
+              },
+              "tables": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "$ref": "#/$defs/RoserpinaTable"
+                    },
+                    "maxItems": 256,
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Tables"
+              },
+              "total_exposure": {
+                "anyOf": [
+                  {
+                    "maximum": 1000000000.0,
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Total Exposure"
+              },
+              "unavailable": {
+                "items": {
+                  "enum": [
+                    "tables",
+                    "total_exposure",
+                    "recovery"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 3,
+                "title": "Unavailable",
+                "type": "array",
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "source",
+              "observed_at",
+              "consistency",
+              "tables",
+              "total_exposure",
+              "recovery",
+              "unavailable"
+            ],
+            "title": "ExposureResponse",
+            "type": "object"
+          },
+          "GetExposureData": {
+            "additionalProperties": false,
+            "properties": {
+              "age_s": {
+                "maximum": 30.0,
+                "minimum": 0,
+                "title": "Age S",
+                "type": "number"
+              },
+              "exposure": {
+                "$ref": "#/$defs/ExposureResponse"
+              },
+              "upstream": {
+                "$ref": "#/$defs/UpstreamInfo"
+              }
+            },
+            "required": [
+              "exposure",
+              "age_s",
+              "upstream"
+            ],
+            "title": "GetExposureData",
+            "type": "object"
+          },
+          "RecoveryCapacity": {
+            "additionalProperties": false,
+            "properties": {
+              "active_count": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Active Count",
+                "type": "integer"
+              },
+              "allow_recovery": {
+                "title": "Allow Recovery",
+                "type": "boolean"
+              },
+              "max_recovery_tables": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Max Recovery Tables",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "active_count",
+              "max_recovery_tables",
+              "allow_recovery"
+            ],
+            "title": "RecoveryCapacity",
+            "type": "object"
+          },
+          "RoserpinaTable": {
+            "additionalProperties": false,
+            "properties": {
+              "current_exposure": {
+                "maximum": 1000000000.0,
+                "minimum": -1000000000.0,
+                "title": "Current Exposure",
+                "type": "number"
+              },
+              "in_recovery": {
+                "title": "In Recovery",
+                "type": "boolean"
+              },
+              "loss_amount": {
+                "maximum": 1000000000.0,
+                "minimum": -1000000000.0,
+                "title": "Loss Amount",
+                "type": "number"
+              },
+              "market_id": {
+                "anyOf": [
+                  {
+                    "maxLength": 32,
+                    "pattern": "^[0-9A-Za-z._-]{1,32}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Market Id"
+              },
+              "occupied": {
+                "title": "Occupied",
+                "type": "boolean"
+              },
+              "selection_id": {
+                "anyOf": [
+                  {
+                    "maxLength": 32,
+                    "pattern": "^[0-9A-Za-z._-]{1,32}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Selection Id"
+              },
+              "status": {
+                "enum": [
+                  "FREE",
+                  "ACTIVE",
+                  "RECOVERY",
+                  "LOCKED"
+                ],
+                "title": "Status",
+                "type": "string"
+              },
+              "table_id": {
+                "maximum": 10000,
+                "minimum": 1,
+                "title": "Table Id",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "table_id",
+              "status",
+              "occupied",
+              "in_recovery",
+              "market_id",
+              "selection_id",
+              "current_exposure",
+              "loss_amount"
+            ],
+            "title": "RoserpinaTable",
+            "type": "object"
+          },
+          "UpstreamInfo": {
+            "additionalProperties": false,
+            "properties": {
+              "certified": {
+                "title": "Certified",
+                "type": "boolean"
+              },
+              "kind": {
+                "enum": [
+                  "simulated",
+                  "http"
+                ],
+                "title": "Kind",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "certified"
+            ],
+            "title": "UpstreamInfo",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/GetExposureData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ErrorBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "request_id": {
+            "pattern": "^req_[0-9a-f]{32}$",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]{2,47}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool"
+          }
+        },
+        "required": [
+          "ok",
+          "request_id",
+          "tool",
+          "data",
+          "error"
+        ],
+        "title": "Envelope[GetExposureData]",
+        "type": "object"
+      },
+      "route": "GET /v1/exposure",
+      "scope": "read"
+    },
     "get_meta": {
       "input_schema": {
         "additionalProperties": false,
@@ -210,6 +1089,7 @@
               "UPSTREAM_UNAVAILABLE",
               "UPSTREAM_INVALID_RESPONSE",
               "UPSTREAM_UNAUTHORIZED",
+              "UPSTREAM_NOT_IMPLEMENTED",
               "INTERNAL_ERROR",
               "JOURNAL_UNAVAILABLE",
               "FORBIDDEN"
@@ -458,6 +1338,7 @@
               "UPSTREAM_UNAVAILABLE",
               "UPSTREAM_INVALID_RESPONSE",
               "UPSTREAM_UNAUTHORIZED",
+              "UPSTREAM_NOT_IMPLEMENTED",
               "INTERNAL_ERROR",
               "JOURNAL_UNAVAILABLE",
               "FORBIDDEN"
@@ -853,6 +1734,7 @@
               "UPSTREAM_UNAVAILABLE",
               "UPSTREAM_INVALID_RESPONSE",
               "UPSTREAM_UNAUTHORIZED",
+              "UPSTREAM_NOT_IMPLEMENTED",
               "INTERNAL_ERROR",
               "JOURNAL_UNAVAILABLE",
               "FORBIDDEN"
@@ -1209,6 +2091,303 @@
     }
   },
   "upstream_schemas": {
+    "account": {
+      "$defs": {
+        "Bankroll": {
+          "additionalProperties": false,
+          "description": "`RiskDesk.debug_snapshot()`: una sola lettura sotto il lock del RiskDesk.",
+          "properties": {
+            "bankroll_current": {
+              "maximum": 1000000000.0,
+              "minimum": -1000000000.0,
+              "title": "Bankroll Current",
+              "type": "number"
+            },
+            "bankroll_start": {
+              "maximum": 1000000000.0,
+              "minimum": -1000000000.0,
+              "title": "Bankroll Start",
+              "type": "number"
+            },
+            "drawdown_pct": {
+              "maximum": 100,
+              "minimum": 0,
+              "title": "Drawdown Pct",
+              "type": "number"
+            },
+            "equity_current": {
+              "maximum": 1000000000.0,
+              "minimum": -1000000000.0,
+              "title": "Equity Current",
+              "type": "number"
+            },
+            "equity_peak": {
+              "maximum": 1000000000.0,
+              "minimum": -1000000000.0,
+              "title": "Equity Peak",
+              "type": "number"
+            },
+            "realized_pnl": {
+              "maximum": 1000000000.0,
+              "minimum": -1000000000.0,
+              "title": "Realized Pnl",
+              "type": "number"
+            },
+            "unrealized_pnl": {
+              "maximum": 1000000000.0,
+              "minimum": -1000000000.0,
+              "title": "Unrealized Pnl",
+              "type": "number"
+            }
+          },
+          "required": [
+            "bankroll_start",
+            "bankroll_current",
+            "equity_peak",
+            "equity_current",
+            "realized_pnl",
+            "unrealized_pnl",
+            "drawdown_pct"
+          ],
+          "title": "Bankroll",
+          "type": "object"
+        },
+        "CashBasis": {
+          "additionalProperties": false,
+          "description": "`RiskDesk.cash_basis()`: cassa e impegnato della STESSA lettura del conto.",
+          "properties": {
+            "cash_equity": {
+              "anyOf": [
+                {
+                  "maximum": 1000000000.0,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cash Equity"
+            },
+            "committed_exposure": {
+              "maximum": 1000000000.0,
+              "minimum": 0,
+              "title": "Committed Exposure",
+              "type": "number"
+            },
+            "unverified_reason": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Unverified Reason"
+            },
+            "verified": {
+              "title": "Verified",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "verified",
+            "cash_equity",
+            "committed_exposure",
+            "unverified_reason"
+          ],
+          "title": "CashBasis",
+          "type": "object"
+        },
+        "ExchangeFunds": {
+          "additionalProperties": false,
+          "description": "Ultimo snapshot dei fondi registrato dal runtime (nessuna nuova lettura dell'exchange).",
+          "properties": {
+            "age_s": {
+              "anyOf": [
+                {
+                  "maximum": 31536000,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Age S"
+            },
+            "available": {
+              "maximum": 1000000000.0,
+              "minimum": 0,
+              "title": "Available",
+              "type": "number"
+            },
+            "cash_equity": {
+              "maximum": 1000000000.0,
+              "minimum": 0,
+              "title": "Cash Equity",
+              "type": "number"
+            },
+            "committed": {
+              "maximum": 1000000000.0,
+              "minimum": 0,
+              "title": "Committed",
+              "type": "number"
+            },
+            "ok": {
+              "title": "Ok",
+              "type": "boolean"
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Reason"
+            },
+            "source": {
+              "maxLength": 64,
+              "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+              "title": "Source",
+              "type": "string"
+            }
+          },
+          "required": [
+            "ok",
+            "available",
+            "committed",
+            "cash_equity",
+            "reason",
+            "source",
+            "age_s"
+          ],
+          "title": "ExchangeFunds",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "bankroll": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Bankroll"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cash": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CashBasis"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "consistency": {
+          "const": "PER_SECTION_LOCKED",
+          "title": "Consistency",
+          "type": "string"
+        },
+        "desk_mode": {
+          "anyOf": [
+            {
+              "enum": [
+                "NORMAL",
+                "EXPANSION",
+                "DEFENSE",
+                "LOCKDOWN"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Desk Mode"
+        },
+        "exchange_funds": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExchangeFunds"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "execution_mode": {
+          "anyOf": [
+            {
+              "enum": [
+                "SIM",
+                "LIVE"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Execution Mode"
+        },
+        "observed_at": {
+          "exclusiveMaximum": 100000000000.0,
+          "exclusiveMinimum": 0,
+          "title": "Observed At",
+          "type": "number"
+        },
+        "source": {
+          "enum": [
+            "core",
+            "simulated"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "unavailable": {
+          "items": {
+            "enum": [
+              "execution_mode",
+              "bankroll",
+              "cash",
+              "exchange_funds",
+              "desk_mode"
+            ],
+            "type": "string"
+          },
+          "maxItems": 5,
+          "title": "Unavailable",
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "source",
+        "observed_at",
+        "consistency",
+        "execution_mode",
+        "bankroll",
+        "cash",
+        "exchange_funds",
+        "desk_mode",
+        "unavailable"
+      ],
+      "title": "AccountResponse",
+      "type": "object"
+    },
     "error": {
       "additionalProperties": false,
       "properties": {
@@ -1223,6 +2402,7 @@
                 "INTERNAL",
                 "METHOD_NOT_ALLOWED",
                 "NOT_FOUND",
+                "NOT_IMPLEMENTED",
                 "UNAUTHORIZED"
               ]
             }
@@ -1236,6 +2416,202 @@
       "required": [
         "error"
       ],
+      "type": "object"
+    },
+    "exposure": {
+      "$defs": {
+        "RecoveryCapacity": {
+          "additionalProperties": false,
+          "properties": {
+            "active_count": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Active Count",
+              "type": "integer"
+            },
+            "allow_recovery": {
+              "title": "Allow Recovery",
+              "type": "boolean"
+            },
+            "max_recovery_tables": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Max Recovery Tables",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "active_count",
+            "max_recovery_tables",
+            "allow_recovery"
+          ],
+          "title": "RecoveryCapacity",
+          "type": "object"
+        },
+        "RoserpinaTable": {
+          "additionalProperties": false,
+          "properties": {
+            "current_exposure": {
+              "maximum": 1000000000.0,
+              "minimum": -1000000000.0,
+              "title": "Current Exposure",
+              "type": "number"
+            },
+            "in_recovery": {
+              "title": "In Recovery",
+              "type": "boolean"
+            },
+            "loss_amount": {
+              "maximum": 1000000000.0,
+              "minimum": -1000000000.0,
+              "title": "Loss Amount",
+              "type": "number"
+            },
+            "market_id": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "pattern": "^[0-9A-Za-z._-]{1,32}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Market Id"
+            },
+            "occupied": {
+              "title": "Occupied",
+              "type": "boolean"
+            },
+            "selection_id": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "pattern": "^[0-9A-Za-z._-]{1,32}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Selection Id"
+            },
+            "status": {
+              "enum": [
+                "FREE",
+                "ACTIVE",
+                "RECOVERY",
+                "LOCKED"
+              ],
+              "title": "Status",
+              "type": "string"
+            },
+            "table_id": {
+              "maximum": 10000,
+              "minimum": 1,
+              "title": "Table Id",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "table_id",
+            "status",
+            "occupied",
+            "in_recovery",
+            "market_id",
+            "selection_id",
+            "current_exposure",
+            "loss_amount"
+          ],
+          "title": "RoserpinaTable",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "consistency": {
+          "const": "PER_SECTION_LOCKED",
+          "title": "Consistency",
+          "type": "string"
+        },
+        "observed_at": {
+          "exclusiveMaximum": 100000000000.0,
+          "exclusiveMinimum": 0,
+          "title": "Observed At",
+          "type": "number"
+        },
+        "recovery": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecoveryCapacity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source": {
+          "enum": [
+            "core",
+            "simulated"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "tables": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/RoserpinaTable"
+              },
+              "maxItems": 256,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Tables"
+        },
+        "total_exposure": {
+          "anyOf": [
+            {
+              "maximum": 1000000000.0,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Total Exposure"
+        },
+        "unavailable": {
+          "items": {
+            "enum": [
+              "tables",
+              "total_exposure",
+              "recovery"
+            ],
+            "type": "string"
+          },
+          "maxItems": 3,
+          "title": "Unavailable",
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "source",
+        "observed_at",
+        "consistency",
+        "tables",
+        "total_exposure",
+        "recovery",
+        "unavailable"
+      ],
+      "title": "ExposureResponse",
       "type": "object"
     },
     "meta": {

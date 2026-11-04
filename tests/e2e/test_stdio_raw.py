@@ -135,6 +135,8 @@ def test_stdout_is_pure_jsonrpc_and_stderr_has_no_client_input(server: RawServer
         "get_meta",
         "get_status",
         "get_reconciliation_status",
+        "get_account",
+        "get_exposure",
     ]
     server.send(
         {

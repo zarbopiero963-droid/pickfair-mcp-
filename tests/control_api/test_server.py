@@ -95,11 +95,54 @@ def test_no_mutating_method(api: Any, method: str, path: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "path", ["/v1/orders", "/v1/status/", "/v1/status?x=1", "//v1/status", "/"]
+    "path",
+    [
+        "/v1/status/",
+        "/v1/status?x=1",
+        "//v1/status",
+        "/",
+        "/v1/cashout",
+        "/v1/mode",
+        "/v1/orders/1/cancel",
+        "/v1/markets/../book",
+        "/v1/operations?status=done",
+        "/v1/audit/",
+        "/v1/operations/.",
+        "/v2/orders",
+    ],
 )
 def test_unknown_paths(api: Any, path: str) -> None:
-    server, _s, token_path, _p = api
-    assert request(server.port, "GET", path, token=token_path.read_text())[0] == 404
+    server, _s, token_path, providers = api
+    status, _h, body = request(server.port, "GET", path, token=token_path.read_text())
+    assert (status, body) == (404, {"error": {"code": "NOT_FOUND"}})
+    assert providers.calls == 0
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/v1/orders",
+        "/v1/positions",
+        "/v1/config",
+        "/v1/events",
+        "/v1/markets",
+        "/v1/markets/1.234567/book",
+        "/v1/operations/op-1",
+        "/v1/operations?status=pending",
+        "/v1/audit/corr-1",
+    ],
+)
+def test_approved_but_unserved_reads_are_typed_not_implemented(api: Any, path: str) -> None:
+    """Route di lettura approvate ma assenti nel core: 501 tipizzato, mai un dato, mai il core."""
+    server, _s, token_path, providers = api
+    status, _h, body = request(server.port, "GET", path, token=token_path.read_text())
+    assert (status, body) == (501, {"error": {"code": "NOT_IMPLEMENTED"}})
+    assert providers.calls == 0
+
+
+def test_not_implemented_still_requires_auth_and_host(api: Any) -> None:
+    server, _s, _token_path, _p = api
+    assert request(server.port, "GET", "/v1/orders", token="x" * 43)[0] == 401
 
 
 def test_get_with_body_rejected(api: Any) -> None:

@@ -38,6 +38,7 @@ pytestmark = [
 ]
 REPO_ROOT = Path(__file__).resolve().parents[2]
 HELPER = Path(__file__).with_name("core_runtime_server.py")
+READ_TOOLS = ("get_status", "get_reconciliation_status", "get_account", "get_exposure")
 
 
 @pytest.fixture
@@ -215,7 +216,7 @@ async def test_e2e_reads_have_no_side_effects_on_the_core(core: Core, tmp_path: 
 
         async with anyio.create_task_group() as tg:  # letture concorrenti
             for i in range(30):
-                tg.start_soon(one, ("get_status", "get_reconciliation_status")[i % 2])
+                tg.start_soon(one, READ_TOOLS[i % len(READ_TOOLS)])
     after = core.send("DIGEST")
     assert results == [False] * 30
     assert after["counts"]["OK"] == 31  # un handshake + 30 letture
@@ -307,3 +308,70 @@ async def test_e2e_no_secret_leaks(core: Core, tmp_path: Path) -> None:
     for text in (json.dumps(payloads), mcp_err, core_err):
         assert token not in text
     assert str(core.token_path) not in json.dumps(payloads)
+
+
+async def test_e2e_account_and_exposure_report_the_core_values(core: Core, tmp_path: Path) -> None:
+    """MCP-01e: get_account e get_exposure dal RuntimeController reale avviato in SIM."""
+    errlog = (tmp_path / "mcp.err").open("w+")
+    before = core.send("DIGEST")
+    async with mcp(core, errlog) as s:
+        tools = {t.name: t for t in (await s.list_tools()).tools}
+        account = await call(s, "get_account")
+        exposure = await call(s, "get_exposure")
+        reads_done = core.send("DIGEST")
+        expected = core.send("FINANCE")
+        activated = core.send("ACTIVATE")  # comando al CORE: occupa un tavolo
+        baseline = core.send("DIGEST")
+        exposure_after = await call(s, "get_exposure")
+        after = core.send("DIGEST")
+    for name, (is_error, payload) in (("get_account", account), ("get_exposure", exposure)):
+        assert is_error is False, payload
+        jsonschema.validate(payload, tools[name].outputSchema)
+        assert payload["data"]["upstream"] == {"kind": "http", "certified": False}
+    a = account[1]["data"]["account"]
+    assert a["source"] == "core" and a["consistency"] == "PER_SECTION_LOCKED"
+    assert a["execution_mode"] == "SIM"
+    assert a["bankroll"] == {k: float(expected["bankroll"][k]) for k in a["bankroll"]}
+    assert a["desk_mode"] == expected["desk_mode"]
+    assert a["cash"]["committed_exposure"] == expected["cash"][1]
+    assert a["cash"]["verified"] is (expected["cash"][0] is not None)
+    funds = a["exchange_funds"]
+    assert funds["ok"] is expected["funds"]["ok"] and funds["source"] == "START"
+    assert funds["available"] == expected["funds"]["available"]
+    e = exposure[1]["data"]["exposure"]
+    assert len(e["tables"]) == expected["tables"]
+    assert e["total_exposure"] == expected["total_exposure"]
+    assert e["recovery"]["active_count"] == expected["recovery_active"]
+    # dopo il comando al core il tavolo risulta occupato; nome evento e meta non escono
+    e2 = exposure_after[1]["data"]["exposure"]
+    table = next(t for t in e2["tables"] if t["table_id"] == 1)
+    assert table["occupied"] is True and table["status"] == "ACTIVE"
+    assert table["market_id"] == "1.234567" and table["selection_id"] == "47972"
+    assert e2["total_exposure"] == activated["total"] == 12.5
+    text = json.dumps(exposure_after)
+    assert "Juventus" not in text and "IGNORE" not in text and "cref-secret" not in text
+    # finestre di sole letture: nessun effetto sul core
+    assert reads_done["calls"] == before["calls"] and after["calls"] == baseline["calls"]
+    for key in ("db", "bus", "balance"):
+        assert reads_done[key] == before[key] and after[key] == baseline[key], key
+
+
+async def test_e2e_unserved_reads_are_not_implemented(core: Core) -> None:
+    """Route approvate ma assenti nel core: 501 tipizzato dal server reale, mai un dato."""
+    from pickfair_mcp.adapters.http import _LoopbackConnection  # niente DNS: socket IPv4 diretto
+
+    token = core.token_path.read_text()
+    for path in ("/v1/orders", "/v1/positions", "/v1/config", "/v1/markets/1.2/book"):
+        conn = _LoopbackConnection(core.port, 5.0)
+        conn.request("GET", path, headers={"Authorization": f"Bearer {token}"})
+        resp = conn.getresponse()
+        assert (resp.status, json.loads(resp.read())) == (
+            501,
+            {"error": {"code": "NOT_IMPLEMENTED"}},
+        )
+        conn.close()
+    for method in ("POST", "PATCH"):
+        conn = _LoopbackConnection(core.port, 5.0)
+        conn.request(method, "/v1/orders", body=b"{}", headers={"Authorization": f"Bearer {token}"})
+        assert conn.getresponse().status == 405  # nessun comando servito
+        conn.close()

@@ -230,6 +230,68 @@
         "tests/unit/test_pf_agent_bridge.py"
       ],
       "max_files": 4
+    },
+    "mcp01e-account-exposure": {
+      "issue": "pickfair-mcp- #37 (coordinamento) · mandato owner 04/11/2026",
+      "scheda": "MCP-01e — get_account e get_exposure (contratto 1.2.0)",
+      "description": "Letture di bankroll, cassa, fondi, desk mode, tavoli Roserpina ed esposizione su route già approvate (OWN-MCP-02F); NOT_IMPLEMENTED tipizzato per le letture approvate non servite; un solo elenco di tool per server e contratto; inventario di integrazione per area; handoff della patch incrementale del core. Nessun comando, nessuna route nuova.",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "README.md",
+        "docs/contract_v1.md",
+        "docs/handoff/core_bridge_mcp01e.patch.sha256",
+        "docs/handoff/mcp01e_finance_reads.md",
+        "docs/roadmap/FUNCTIONAL_COVERAGE_MATRIX.md",
+        "docs/roadmap/INTEGRATION_INVENTORY.md",
+        "scripts/critical_mutations.py",
+        "src/pickfair_control_api/__init__.py",
+        "src/pickfair_control_api/contract.py",
+        "src/pickfair_control_api/contract_v1.json",
+        "src/pickfair_control_api/server.py",
+        "src/pickfair_mcp/adapters/base.py",
+        "src/pickfair_mcp/adapters/http.py",
+        "src/pickfair_mcp/adapters/simulated.py",
+        "src/pickfair_mcp/contract/descriptor.py",
+        "src/pickfair_mcp/contract/descriptor_v1.json",
+        "src/pickfair_mcp/contract/models.py",
+        "src/pickfair_mcp/contract/parsing.py",
+        "src/pickfair_mcp/contract/version.py",
+        "src/pickfair_mcp/errors.py",
+        "src/pickfair_mcp/journal/retry.py",
+        "src/pickfair_mcp/server.py",
+        "src/pickfair_mcp/tools/__init__.py",
+        "src/pickfair_mcp/tools/finance.py",
+        "src/pickfair_mcp/tools/status.py",
+        "tests/control_api/bodies.py",
+        "tests/control_api/servers.py",
+        "tests/control_api/test_server.py",
+        "tests/crossrepo/core_runtime_server.py",
+        "tests/crossrepo/test_core_e2e.py",
+        "tests/e2e/test_stdio_raw.py",
+        "tests/e2e/test_stdio_subprocess.py",
+        "tests/guards/test_tool_surface.py",
+        "tests/integration/test_finance_tools.py",
+        "tests/integration/test_server_inprocess.py",
+        "tests/integration/test_status_tools.py",
+        "tests/unit/test_cli.py",
+        "tests/unit/test_contract_descriptor.py",
+        "tests/unit/test_contract_version.py",
+        "tests/unit/test_control_api_distribution.py",
+        "tests/unit/test_finance_models.py",
+        "tests/unit/test_handshake.py",
+        "tests/unit/test_registry_guard.py"
+      ],
+      "max_files": 44
+    },
+    "mcp-write-ops-design": {
+      "issue": "mandato owner 04/11/2026 §5",
+      "scheda": "Progetto delle operazioni di scrittura future (DESIGN_ONLY)",
+      "description": "Solo documentazione: catalogo delle scritture future, principi (autorità del core, least privilege, idempotenza, AMBIGUOUS senza retry, anteprima e conferma), dipendenze. Nessun codice, nessuna abilitazione.",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "docs/design/WRITE_OPERATIONS_DESIGN.md"
+      ],
+      "max_files": 2
     }
   }
 }

@@ -21,8 +21,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-COPY = ("src", "tests", "docs", "scripts", "pyproject.toml", "AGENTS.md", ".guardrails")
-TEST_ARGS = ("tests/unit", "tests/integration", "tests/control_api")
+COPY = ("src", "tests", "docs", "scripts", "pyproject.toml", "AGENTS.md", ".guardrails", ".github")
+TEST_ARGS = ("tests/unit", "tests/integration", "tests/control_api", "tests/guards")
 
 
 @dataclass(frozen=True)
@@ -54,6 +54,9 @@ HS = "src/pickfair_mcp/policy/handshake.py"
 CS = "src/pickfair_control_api/server.py"
 CT = "src/pickfair_control_api/tokens.py"
 CK = "src/pickfair_control_api/schema_check.py"
+CC = "src/pickfair_control_api/contract.py"
+FI = "src/pickfair_mcp/tools/finance.py"
+TI = "src/pickfair_mcp/tools/__init__.py"
 
 MUTANTS: tuple[Mutant, ...] = (
     Mutant(
@@ -959,6 +962,149 @@ MUTANTS: tuple[Mutant, ...] = (
         "C11",
         "null non dichiarato in unavailable accettato dal server",
         ((CK, "        if (value.get(name) is None) != (name in declared):", "        if False:"),),
+    ),
+    Mutant(
+        "F01",
+        "cassa verificata senza importo (o viceversa) accettata",
+        (
+            (
+                MO,
+                "        if self.verified != (self.cash_equity is not None):\n"
+                '            raise ValueError("verified and cash_equity disagree")',
+                "        if False:\n"
+                '            raise ValueError("verified and cash_equity disagree")',
+            ),
+        ),
+    ),
+    Mutant(
+        "F02",
+        "fondi non verificabili senza motivo accettati",
+        (
+            (
+                MO,
+                "        if self.ok == (self.reason is not None):",
+                "        if self.ok and self.reason is not None:",
+            ),
+        ),
+    ),
+    Mutant(
+        "F03",
+        "desk mode senza il bankroll da cui deriva",
+        (
+            (
+                MO,
+                "        if self.desk_mode is not None and self.bankroll is None:",
+                "        if False:",
+            ),
+        ),
+    ),
+    Mutant(
+        "F04",
+        "tavoli duplicati accettati",
+        ((MO, '        raise ValueError("duplicate table_id")', "        pass"),),
+    ),
+    Mutant(
+        "F05",
+        "testo libero accettato come identificativo di mercato",
+        (
+            (
+                MO,
+                'IDENTIFIER_PATTERN = r"^[0-9A-Za-z._-]{1,32}$"',
+                'IDENTIFIER_PATTERN = r"^.{1,32}$"',
+            ),
+        ),
+    ),
+    Mutant(
+        "F06",
+        "limite monetario rimosso",
+        (
+            (
+                MO,
+                "Money = Annotated[float, Field(ge=-MONEY_LIMIT, le=MONEY_LIMIT)]",
+                "Money = float",
+            ),
+        ),
+    ),
+    Mutant(
+        "F07",
+        "get_account legge la route sbagliata",
+        (
+            (
+                FI,
+                "            read=adapter.get_account_raw,",
+                "            read=adapter.get_exposure_raw,",
+            ),
+        ),
+    ),
+    Mutant(
+        "F08",
+        "route approvata non servita risponde 404 invece di NOT_IMPLEMENTED",
+        (
+            (
+                CS,
+                "            if exact and any(p.fullmatch(raw_path) for p in unserved_read_routes()):",
+                "            if False:",
+            ),
+        ),
+    ),
+    Mutant(
+        "F09",
+        "segmenti «.»/«..» accettati come identificativo di route",
+        (
+            (
+                CC,
+                '_SEGMENT: Final = "[A-Za-z0-9_-][A-Za-z0-9._-]{0,63}"',
+                '_SEGMENT: Final = "[A-Za-z0-9._-]{1,64}"',
+            ),
+        ),
+    ),
+    Mutant(
+        "F10",
+        "NOT_IMPLEMENTED ritentato come indisponibilità",
+        (
+            (
+                RT,
+                "        except UpstreamNotImplemented:\n"
+                "            # Capacità assente nel core: ripetere non la fa comparire.\n"
+                "            raise ToolError(",
+                "        except UpstreamNotImplemented:\n"
+                "            last = ErrorCode.UPSTREAM_UNAVAILABLE\n"
+                "            continue\n"
+                "            raise ToolError(",
+            ),
+        ),
+    ),
+    Mutant(
+        "F11",
+        "501 dell'upstream non tipizzato",
+        ((HT, "        if status == 501:\n            raise UpstreamNotImplemented\n", ""),),
+    ),
+    Mutant(
+        "F12",
+        "server avviato con provider mancanti",
+        ((CS, "        if set(providers) != PROVIDER_NAMES or not all(", "        if not all("),),
+    ),
+    Mutant(
+        "F13",
+        "tool dichiarato dal contratto ma non esposto dal server",
+        (
+            (
+                TI,
+                "    registry.register(make_get_exposure(adapter, guard, timeout_s=timeout_s))\n",
+                "",
+            ),
+        ),
+    ),
+    Mutant(
+        "F14",
+        "drawdown oltre il 100% accettato",
+        (
+            (
+                MO,
+                "Percent = Annotated[float, Field(ge=0, le=100)]",
+                "Percent = Annotated[float, Field(ge=0)]",
+            ),
+        ),
     ),
 )
 

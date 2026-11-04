@@ -48,6 +48,8 @@ def test_default_registry_exposes_only_read_tools() -> None:
         "get_meta",
         "get_status",
         "get_reconciliation_status",
+        "get_account",
+        "get_exposure",
     )
 
 

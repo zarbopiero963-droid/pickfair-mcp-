@@ -24,6 +24,8 @@ class Providers:
     def __init__(self) -> None:
         self.status: Callable[[], dict[str, Any]] = bodies.status
         self.reconciliation: Callable[[], dict[str, Any]] = bodies.reconciliation
+        self.account: Callable[[], dict[str, Any]] = bodies.account
+        self.exposure: Callable[[], dict[str, Any]] = bodies.exposure
         self.calls = 0
 
     def mapping(self) -> dict[str, Callable[[], dict[str, Any]]]:
@@ -35,7 +37,20 @@ class Providers:
             self.calls += 1
             return self.reconciliation()
 
-        return {"status": status, "reconciliation_status": recon}
+        def account() -> dict[str, Any]:
+            self.calls += 1
+            return self.account()
+
+        def exposure() -> dict[str, Any]:
+            self.calls += 1
+            return self.exposure()
+
+        return {
+            "status": status,
+            "reconciliation_status": recon,
+            "account": account,
+            "exposure": exposure,
+        }
 
 
 def secure_dir(base: Path) -> Path:

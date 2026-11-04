@@ -197,18 +197,18 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | ID | Capacità | Core: componente | Endpoint | Tool MCP | Schede | Stato | L1/L2/L3 |
 |---|---|---|---|---|---|---|---|
 | CAP-ROS-01 | Numero di tavoli e ridimensionamento | `TableManager.resize`, `table_count` | `PATCH /v1/config` | `patch_config` | 015 | NOT_IMPLEMENTED | P/NO/NR |
-| CAP-ROS-02 | Stato del singolo tavolo | `snapshot_table` | `GET /v1/exposure` o RC-05 | `get_exposure` | 011 | OWNER_BLOCKED (K3) | P/NO/NR |
-| CAP-ROS-03 | Vista aggregata dei tavoli | `TableManager` | idem | idem | 011 | OWNER_BLOCKED (K3) | P/NO/NR |
+| CAP-ROS-02 | Stato del singolo tavolo | `TableManager.snapshot()` | `GET /v1/exposure` (route esistente, OWN-MCP-02F) | `get_exposure` | 011 · MCP-01e | NOT_IMPLEMENTED | P/HRN/NR |
+| CAP-ROS-03 | Vista aggregata dei tavoli | `TableManager` | idem | idem | 011 · MCP-01e | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-ROS-04 | Allocazione evento → tavolo | `allocate`, `activate` | (interno) | — | 011, 025 | NOT_IMPLEMENTED | P/NO/NR |
 | CAP-ROS-05 | Sblocco forzato di un tavolo (privilegiato) | `force_unlock*` | RC-06 | (candidato) | 015 | OWNER_BLOCKED | P/NO/NR |
-| CAP-ROS-06 | Tavoli di recovery | `max_recovery_tables`, `allow_recovery` | `GET /v1/exposure` | `get_exposure` | 011 | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-ROS-06 | Tavoli di recovery | `max_recovery_tables`, `allow_recovery` | `GET /v1/exposure` | `get_exposure` | 011 · MCP-01e | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-ROS-07 | Target di profitto del ciclo | `target_profit_cycle_pct` | `GET/PATCH /v1/config` | config | 011, 014 | NOT_IMPLEMENTED | P/NO/NR |
 | CAP-ROS-08 | Transizioni desk EXPANSION / DEFENSE / LOCKDOWN | `risk_desk`, soglie drawdown | `GET /v1/status` | `get_status` | 011 · ROS-01/02 (#586) | NOT_IMPLEMENTED | Pz/NO/NR |
 | CAP-ROS-09 | Auto-reset del ciclo | `auto_reset_drawdown_pct`, `reset_cycle` | RC-02 | (candidato) | 015 | OWNER_BLOCKED | P/NO/NR |
 | CAP-ROS-10 | Avvio / pausa / STOP **per tavolo** | assente (STOP è globale) | — | — | 015 | CORE_BLOCKED | A/NO/NR |
 | CAP-ROS-11 | Allocazione del capitale per tavolo | MM Roserpina | `GET /v1/exposure` | `get_exposure` | 011, 012 | NOT_IMPLEMENTED | V/NO/NR |
 | CAP-ROS-12 | Debito di recovery persistente dopo crash | F-10 (#599) | `GET /v1/exposure` | `get_exposure` | 011, 020 | NOT_IMPLEMENTED | F/NO/NR |
-| CAP-ROS-13 | Equity e bankroll Roserpina | `docs/roserpina_bankroll_equity.md` | `GET /v1/account` | `get_account` | 012 | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-ROS-13 | Equity e bankroll Roserpina | `docs/roserpina_bankroll_equity.md` | `GET /v1/account` | `get_account` | 012 · MCP-01e | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-ROS-14 | Tetto all'inseguimento del recovery | `max_recovery_chase_abs` | `GET/PATCH /v1/config` | config | 011, 014 | NOT_IMPLEMENTED | P/NO/NR |
 | CAP-ROS-15 | Auto-trade MM ed esecutore di ciclo (ingressi automatici del ciclo Roserpina) | `AUTO_TRADE_MM_RESULT`, `_last_cycle_executor_result` | `GET /v1/status` (stato) | `get_status` | 011, 025 | NOT_IMPLEMENTED | P/NO/NR |
 
@@ -217,8 +217,8 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | ID | Capacità | Core: componente | Endpoint | Tool MCP | Schede | Stato | L1/L2/L3 |
 |---|---|---|---|---|---|---|---|
 | CAP-BKR-01 | Saldo LIVE con freschezza 30 s (codice: 120 s, conflitto C2 #586) | `core/table_manager.py:51`, funds | `GET /v1/account` | `get_account` | 012 · FUNDS (#586) | CORE_BLOCKED | Pz/NO/NR |
-| CAP-BKR-02 | Saldo fittizio SIM separato | `SimulationBroker` | `GET /v1/account` | `get_account` | 012 · PR15 | NOT_IMPLEMENTED | P/NO/NR |
-| CAP-BKR-03 | Capitale impegnato ed esposizione totale | `controller_event_exposure`, PR29 | `GET /v1/exposure` | `get_exposure` | 012 · MCP-02b | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-BKR-02 | Saldo fittizio SIM separato | `SimulationBroker` | `GET /v1/account` | `get_account` | 012 · PR15 · MCP-01e | NOT_IMPLEMENTED | P/HRN/NR |
+| CAP-BKR-03 | Capitale impegnato ed esposizione totale | `controller_event_exposure`, PR29 | `GET /v1/exposure` | `get_exposure` | 012 · MCP-02b · MCP-01e | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-BKR-04 | Esposizione per ordine / mercato / evento / tavolo | cap `max_*_exposure` | `GET /v1/exposure` | `get_exposure` | 012 | NOT_IMPLEMENTED | P/NO/NR |
 | CAP-BKR-05 | Drawdown e peak separati per modalità | PR15, DD-01..04 (#586) | `GET /v1/exposure` | `get_exposure` | 012 | CORE_BLOCKED | Pz/NO/NR |
 | CAP-BKR-06 | Perdita giornaliera e di sessione | `daily_loss_store`, `loss_limits` | `GET /v1/exposure` | `get_exposure` | 012 | NOT_IMPLEMENTED | P/NO/NR |
@@ -364,7 +364,7 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | DUT | 15 | 9 | 6 | 0 | 0 | 0 |
 | CSH | 20 | 13 | 7 | 0 | 0 | 0 |
 | SLT | 7 | 5 | 2 | 0 | 0 | 0 |
-| ROS | 15 | 10 | 1 | 4 | 0 | 0 |
+| ROS | 15 | 12 | 1 | 2 | 0 | 0 |
 | BKR | 20 | 16 | 4 | 0 | 0 | 0 |
 | CFG | 10 | 6 | 4 | 0 | 0 | 0 |
 | STR/SIG | 12 | 1 | 6 | 4 | 1 | 0 |
@@ -373,10 +373,10 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | AUD | 15 | 2 | 4 | 8 | 1 | 0 |
 | SEC | 11 | 6 | 3 | 2 | 0 | 0 |
 | REL/LIV | 8 | 2 | 3 | 3 | 0 | 0 |
-| **Totale** | **228** | **131** | **65** | **29** | **3** | **0** |
+| **Totale** | **228** | **133** | **65** | **27** | **3** | **0** |
 
 Denominatore applicabile v0.2 = 228 − 3 RETIRED (duplicati, ID conservati) − 0 OUT_OF_SCOPE = **225**. COMPLETE = **0/225**.
-Capacità con catena reale su branch (L2 = `HRN`): **21** — non contano come COMPLETE.
+Capacità con catena reale su branch (L2 = `HRN`): **27** — non contano come COMPLETE.
 
 Il catalogo è **incompleto per costruzione** (PF-MCP-001): mancano la GUI riga per riga (42 chiavi),
 le singole strategie del perimetro storico, lo streaming (gap #586), la sicurezza applicativa del core,
@@ -440,3 +440,12 @@ Adapter HTTP di prodotto, token D-11, contratto 1.1.0 e Control API (`pickfair_c
 repository MCP; ponte del core consegnato a Claude B come patch. Capacità con L2 = `HRN`: 21
 (aggiunte MET-01/02/03/04/13, SEC-01/06/07/10). COMPLETE: ancora **0/225**: nessuna è integrata
 in Pickfair-nogui né certificata in modo indipendente.
+
+## 8. Aggiornamento 04/11/2026 (MCP-01e)
+
+`GET /v1/account` e `GET /v1/exposure` (contratto 1.2.0) dal MCP al RuntimeController reale, ponte del
+core consegnato a Claude B come patch incrementale (dipende da MCP-01d). Capacità con L2 = `HRN`: 27
+(aggiunte ROS-02, ROS-03, ROS-06, ROS-13, BKR-02, BKR-03). CAP-ROS-02/03 passano da OWNER_BLOCKED (K3)
+a NOT_IMPLEMENTED: la vista dei tavoli usa la route già approvata `GET /v1/exposure` (OWN-MCP-02F:
+prima si estendono le route esistenti), quindi K3 non serve per loro. COMPLETE: ancora **0/225**.
+Inventario per area funzionale: [INTEGRATION_INVENTORY.md](INTEGRATION_INVENTORY.md).

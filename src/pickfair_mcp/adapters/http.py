@@ -31,6 +31,7 @@ import anyio
 
 from pickfair_mcp.adapters.base import (
     AdapterKind,
+    UpstreamNotImplemented,
     UpstreamProtocolError,
     UpstreamTimeout,
     UpstreamUnauthorized,
@@ -141,6 +142,8 @@ class HttpControlApiAdapter:
             status, content_type, body = self._request(path, self._current_token(reload=True))
             if status == 401:
                 raise UpstreamUnauthorized
+        if status == 501:
+            raise UpstreamNotImplemented
         if status != 200:
             raise UpstreamProtocolError(f"HTTP_{status}")
         if content_type != EXPECTED_CONTENT_TYPE:
@@ -158,3 +161,9 @@ class HttpControlApiAdapter:
 
     async def get_reconciliation_status_raw(self) -> bytes:
         return await self._get("/v1/reconciliation/status")
+
+    async def get_account_raw(self) -> bytes:
+        return await self._get("/v1/account")
+
+    async def get_exposure_raw(self) -> bytes:
+        return await self._get("/v1/exposure")

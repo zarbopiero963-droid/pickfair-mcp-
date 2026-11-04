@@ -1,13 +1,16 @@
 """Server HTTP della Control API v1 — sola lettura, solo loopback, autenticato, auto-verificato.
 
-Il server non conosce il motore: riceve dal core due *provider* di sola lettura
-(``status`` e ``reconciliation_status``) che restituiscono un dict. Il ponte che li implementa
+Il server non conosce il motore: riceve dal core un *provider* di sola lettura per ogni route
+servita (``contract.PROVIDER_NAMES``: status, reconciliation_status, account, exposure) che
+restituisce un dict. Il ponte che li implementa
 sul ``RuntimeController`` appartiene al repository Pickfair-nogui (handoff a Claude B).
 
 Regole:
 - bind solo su ``127.0.0.1`` con porta esplicita (0 solo con ``allow_ephemeral_port``);
 - ``Authorization: Bearer <token>`` (TokenStore, tempo costante) e ``Host: 127.0.0.1:<porta>``;
 - solo GET esatti sulle route di ``contract.ROUTE_SCHEMAS``, senza query né corpo;
+- una route di lettura approvata ma non servita risponde ``501 NOT_IMPLEMENTED`` (mai un dato);
+  un percorso fuori contratto ``404 NOT_FOUND``; ogni metodo diverso da GET ``405``;
 - ogni risposta è validata contro lo schema del contratto PRIMA dell'invio: una risposta fuori
   contratto diventa ``500 CONTRACT_SELF_CHECK``, mai un dato apparentemente valido;
 - corpi d'errore fissi; nessun log per richiesta; token mai nei log.
@@ -28,9 +31,11 @@ from pickfair_control_api.contract import (
     CAPABILITIES,
     CONTRACT_VERSION,
     GIT_SHA_RE,
+    PROVIDER_NAMES,
     ROUTE_SCHEMAS,
     response_schema,
     schema_hash,
+    unserved_read_routes,
 )
 from pickfair_control_api.schema_check import SchemaUnsupported, SchemaViolation, validate
 from pickfair_control_api.tokens import TokenStore
@@ -97,8 +102,11 @@ class _Handler(BaseHTTPRequestHandler):
         # Percorso grezzo: http.server normalizza «//x» in «/x»; il contratto vuole quello esatto.
         parts = self.requestline.split(" ")
         raw_path = parts[1] if len(parts) == 3 else ""
-        route = raw_path if raw_path == self.path and raw_path in app.routes else None
+        exact = raw_path == self.path
+        route = raw_path if exact and raw_path in app.routes else None
         if route is None:
+            if exact and any(p.fullmatch(raw_path) for p in unserved_read_routes()):
+                return self._error(501, "NOT_IMPLEMENTED")
             return self._error(404, "NOT_FOUND")
         try:
             body = app.routes[route]()
@@ -180,9 +188,7 @@ class ControlApiServer:
             raise ControlApiConfigError("TOKEN_STORE_REQUIRED")
         if not isinstance(git_sha, str) or not GIT_SHA_RE.fullmatch(git_sha):
             raise ControlApiConfigError("GIT_SHA_INVALID")
-        if set(providers) != {"status", "reconciliation_status"} or not all(
-            callable(p) for p in providers.values()
-        ):
+        if set(providers) != PROVIDER_NAMES or not all(callable(p) for p in providers.values()):
             raise ControlApiConfigError("PROVIDERS_INVALID")
         meta = {
             "contract_version": CONTRACT_VERSION,
@@ -191,9 +197,8 @@ class ControlApiServer:
             "schema_hash": schema_hash(),
         }
         routes: dict[str, Provider] = {
-            "/v1/meta": lambda: dict(meta),
-            "/v1/status": providers["status"],
-            "/v1/reconciliation/status": providers["reconciliation_status"],
+            path: (lambda: dict(meta)) if name == "meta" else providers[name]
+            for path, name in ROUTE_SCHEMAS.items()
         }
         self._httpd = _Server((host, port), _Handler, bind_and_activate=True)
         self.port = int(self._httpd.server_address[1])

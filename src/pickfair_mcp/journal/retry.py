@@ -8,6 +8,7 @@ from typing import TypeVar
 import anyio
 
 from pickfair_mcp.adapters.base import (
+    UpstreamNotImplemented,
     UpstreamProtocolError,
     UpstreamTimeout,
     UpstreamUnauthorized,
@@ -37,6 +38,11 @@ async def read_with_retry(
             # Credenziali rifiutate: ripetere non serve e non è mai sicuro.
             raise ToolError(
                 ErrorCode.UPSTREAM_UNAUTHORIZED, reasons=("UPSTREAM_UNAUTHORIZED",)
+            ) from None
+        except UpstreamNotImplemented:
+            # Capacità assente nel core: ripetere non la fa comparire.
+            raise ToolError(
+                ErrorCode.UPSTREAM_NOT_IMPLEMENTED, reasons=("UPSTREAM_NOT_IMPLEMENTED",)
             ) from None
         except UpstreamProtocolError as exc:
             raise ToolError(

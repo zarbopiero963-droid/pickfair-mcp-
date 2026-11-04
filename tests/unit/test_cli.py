@@ -29,7 +29,13 @@ def forced_exits(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[bool]]:
 def test_contract_info(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["contract-info"]) == 0
     info = json.loads(capsys.readouterr().out)
-    assert info["tools"] == ["get_meta", "get_status", "get_reconciliation_status"]
+    assert info["tools"] == [
+        "get_meta",
+        "get_status",
+        "get_reconciliation_status",
+        "get_account",
+        "get_exposure",
+    ]
     assert info["live_commands"] == "DISABLED"
 
 

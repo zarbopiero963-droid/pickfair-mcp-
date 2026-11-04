@@ -18,7 +18,12 @@ from __future__ import annotations
 import json
 from typing import Any, Final
 
-from pickfair_mcp.contract.models import ReconciliationStatusResponse, StatusResponse
+from pickfair_mcp.contract.models import (
+    AccountResponse,
+    ExposureResponse,
+    ReconciliationStatusResponse,
+    StatusResponse,
+)
 from pickfair_mcp.contract.routes import APPROVED_ROUTES
 from pickfair_mcp.contract.version import (
     CONTRACT_NAME,
@@ -38,6 +43,7 @@ CONTROL_API_ERROR_CODES: Final = (
     "INTERNAL",
     "METHOD_NOT_ALLOWED",
     "NOT_FOUND",
+    "NOT_IMPLEMENTED",
     "UNAUTHORIZED",
 )
 
@@ -52,7 +58,18 @@ SEMANTICS: Final = {
     ),
     "consistency": (
         "PER_FIELD_NON_ATOMIC: fields are read one at a time without a runtime-wide "
-        "critical section; observed_at is the read instant."
+        "critical section; observed_at is the read instant. PER_SECTION_LOCKED: each section "
+        "is produced by one core call under the lock of the component that owns it, or is one "
+        "value replaced as a whole; two sections may reflect nearby instants."
+    ),
+    "money": (
+        "Amounts are finite floats in EUR exactly as the core holds them, never rounded or "
+        "defaulted; execution_mode SIM means the simulated broker's fictitious balance."
+    ),
+    "not_implemented": (
+        "An approved read route the Control API does not serve yet answers 501 NOT_IMPLEMENTED; "
+        "a path outside the approved routes answers 404 NOT_FOUND; any method other than GET "
+        "answers 405 METHOD_NOT_ALLOWED. No command route is served."
     ),
     "freshness": {
         "max_snapshot_age_s": MAX_SNAPSHOT_AGE_S,
@@ -106,6 +123,8 @@ def build_contract_descriptor() -> dict[str, Any]:
             "meta": thaw(META_RESPONSE_SCHEMA),
             "status": _schema(StatusResponse),
             "reconciliation_status": _schema(ReconciliationStatusResponse),
+            "account": _schema(AccountResponse),
+            "exposure": _schema(ExposureResponse),
             "error": error_schema,
         },
         "tools": tools,

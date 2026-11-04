@@ -14,7 +14,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Final
 
-CONTRACT_VERSION: Final = "1.1.0"
+CONTRACT_VERSION: Final = "1.2.0"
 DESCRIPTOR_PATH: Final = Path(__file__).with_name("contract_v1.json")
 
 # Route servite in sola lettura. Nessuna route di comando.
@@ -22,8 +22,33 @@ ROUTE_SCHEMAS: Final = {
     "/v1/meta": "meta",
     "/v1/status": "status",
     "/v1/reconciliation/status": "reconciliation_status",
+    "/v1/account": "account",
+    "/v1/exposure": "exposure",
 }
+# Provider che il core deve fornire: uno per ogni route servita tranne /v1/meta.
+PROVIDER_NAMES: Final = frozenset(name for name in ROUTE_SCHEMAS.values() if name != "meta")
 CAPABILITIES: Final[tuple[str, ...]] = tuple(f"GET {p}" for p in ROUTE_SCHEMAS)
+_TEMPLATE_RE: Final = re.compile(r"\{[a-z_]+\}")
+_SEGMENT: Final = "[A-Za-z0-9_-][A-Za-z0-9._-]{0,63}"  # mai «.» o «..» come segmento
+
+
+@lru_cache(maxsize=1)
+def unserved_read_routes() -> tuple[re.Pattern[str], ...]:
+    """Route di LETTURA approvate dal contratto ma non servite: rispondono 501 NOT_IMPLEMENTED.
+
+    Un segmento parametrico (``{id}``) accetta solo un identificatore; la query, se presente nella
+    route approvata, deve coincidere esattamente. Le route di comando non sono mai elencate qui.
+    """
+    patterns = []
+    for kind, method, path in load_descriptor()["routes"]:
+        if kind != "read" or method != "GET" or path in ROUTE_SCHEMAS:
+            continue
+        parts = _TEMPLATE_RE.split(path)
+        body = _SEGMENT.join(re.escape(part) for part in parts)
+        patterns.append(re.compile(rf"\A{body}\Z"))
+    return tuple(patterns)
+
+
 GIT_SHA_RE: Final = re.compile(r"^[0-9a-f]{40}$")
 
 

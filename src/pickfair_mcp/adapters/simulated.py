@@ -1,7 +1,8 @@
 """Adapter simulato deterministico della Control API (solo test ed evidenze).
 
-Non contiene saldi, ordini o stati finanziari. Espone GET /v1/meta e, da MCP-02a,
-GET /v1/status e GET /v1/reconciliation/status con scenari deterministici.
+Espone GET /v1/meta e, da MCP-02a, GET /v1/status e GET /v1/reconciliation/status; da MCP-01e
+GET /v1/account e GET /v1/exposure, con importi FITTIZI e deterministici (fixture di test, mai
+dati di Pickfair). Nessun ordine e nessuna operazione.
 Si dichiara sempre `kind="simulated"` e `certified=False`; ogni risposta di stato
 porta `source="simulated"`, così un risultato simulato non è mai confondibile con il core.
 """
@@ -40,7 +41,13 @@ class Scenario(Enum):
     UNAVAILABLE = "unavailable"
 
 
-SIMULATED_CAPABILITIES = ["GET /v1/meta", "GET /v1/status", "GET /v1/reconciliation/status"]
+SIMULATED_CAPABILITIES = [
+    "GET /v1/meta",
+    "GET /v1/status",
+    "GET /v1/reconciliation/status",
+    "GET /v1/account",
+    "GET /v1/exposure",
+]
 
 
 class StatusScenario(Enum):
@@ -96,6 +103,8 @@ class SimulatedControlApiAdapter:
         self.meta_calls = 0
         self.status_calls = 0
         self.reconciliation_calls = 0
+        self.account_calls = 0
+        self.exposure_calls = 0
 
     @property
     def kind(self) -> AdapterKind:
@@ -138,6 +147,14 @@ class SimulatedControlApiAdapter:
         self.reconciliation_calls += 1
         return await self._status_like(_reconciliation_body)
 
+    async def get_account_raw(self) -> bytes:
+        self.account_calls += 1
+        return await self._status_like(_account_body)
+
+    async def get_exposure_raw(self) -> bytes:
+        self.exposure_calls += 1
+        return await self._status_like(_exposure_body)
+
     async def _status_like(self, build: Callable[[StatusScenario, float], dict[str, Any]]) -> bytes:
         if self._delay_s > 0:
             await anyio.sleep(self._delay_s)
@@ -160,7 +177,7 @@ class SimulatedControlApiAdapter:
 _SCENARIO_BODIES: dict[Scenario, bytes] = {
     Scenario.COMPATIBLE: _encode(_meta()),
     Scenario.INCOMPATIBLE_MAJOR: _encode(_meta(contract_version="2.0.0")),
-    Scenario.UNSUPPORTED_MINOR: _encode(_meta(contract_version="1.2.0")),
+    Scenario.UNSUPPORTED_MINOR: _encode(_meta(contract_version="1.3.0")),
     Scenario.SCHEMA_HASH_MISMATCH: _encode(_meta(schema_hash="0" * 64)),
     Scenario.MISSING_META_CAPABILITY: _encode(_meta(capabilities=["GET /v1/status"])),
     Scenario.META_ONLY: _encode(_meta(capabilities=["GET /v1/meta"])),
@@ -263,4 +280,120 @@ def _reconciliation_body(scenario: StatusScenario, now: float) -> dict[str, Any]
         body["startup"] = {"state": "REQUIRED", "reason": _INJECTION, "recovery_failure": None}
     elif scenario is StatusScenario.INCONSISTENT:
         body["ghosts"] = None
+    return body
+
+
+def _sectioned(scenario: StatusScenario, now: float) -> dict[str, Any]:
+    return {**_common(scenario, now), "consistency": "PER_SECTION_LOCKED"}
+
+
+def _account_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
+    body: dict[str, Any] = {
+        **_sectioned(scenario, now),
+        "execution_mode": "SIM",
+        "bankroll": {
+            "bankroll_start": 1000.0,
+            "bankroll_current": 1012.5,
+            "equity_peak": 1020.0,
+            "equity_current": 1015.0,
+            "realized_pnl": 12.5,
+            "unrealized_pnl": 2.5,
+            "drawdown_pct": 0.49019607843137253,
+        },
+        "cash": {
+            "verified": True,
+            "cash_equity": 1012.5,
+            "committed_exposure": 40.0,
+            "unverified_reason": None,
+        },
+        "exchange_funds": {
+            "ok": True,
+            "available": 972.5,
+            "committed": 40.0,
+            "cash_equity": 1012.5,
+            "reason": None,
+            "source": "SIM_BROKER",
+            "age_s": 3.0,
+        },
+        "desk_mode": "NORMAL",
+        "unavailable": [],
+    }
+    if scenario is StatusScenario.LIVE_BLOCKED:
+        body["execution_mode"] = "LIVE"
+        body["cash"] = {
+            "verified": False,
+            "cash_equity": None,
+            "committed_exposure": 0.0,
+            "unverified_reason": "CASH_NOT_READ",
+        }
+        body["exchange_funds"] = None
+        body["unavailable"] = ["exchange_funds"]
+    elif scenario is StatusScenario.STOP_ACTIVE:
+        body["bankroll"] = {**body["bankroll"], "bankroll_current": 780.0, "equity_current": 780.0}
+        body["bankroll"]["drawdown_pct"] = 23.52941176470588
+        body["desk_mode"] = "LOCKDOWN"
+    elif scenario is StatusScenario.NOT_STARTED:
+        body["exchange_funds"] = None
+        body["desk_mode"] = None
+        body["bankroll"] = None
+        body["unavailable"] = ["bankroll", "exchange_funds", "desk_mode"]
+    elif scenario is StatusScenario.EXTRA_FIELD:
+        body["debug"] = True  # campo estraneo: il contratto è chiuso
+    elif scenario is StatusScenario.INJECTION_TEXT:
+        body["exchange_funds"] = {
+            **body["exchange_funds"],
+            "ok": False,
+            "reason": _INJECTION,
+        }
+    elif scenario is StatusScenario.INCONSISTENT:
+        body["cash"] = None
+    return body
+
+
+def _table(table_id: int, **overrides: Any) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "table_id": table_id,
+        "status": "FREE",
+        "occupied": False,
+        "in_recovery": False,
+        "market_id": None,
+        "selection_id": None,
+        "current_exposure": 0.0,
+        "loss_amount": 0.0,
+    }
+    data.update(overrides)
+    return data
+
+
+def _exposure_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
+    body: dict[str, Any] = {
+        **_sectioned(scenario, now),
+        "tables": [
+            _table(
+                1,
+                status="ACTIVE",
+                occupied=True,
+                market_id="1.200000001",
+                selection_id="47972",
+                current_exposure=40.0,
+            ),
+            _table(2),
+            _table(3),
+        ],
+        "total_exposure": 40.0,
+        "recovery": {"active_count": 0, "max_recovery_tables": 0, "allow_recovery": False},
+        "unavailable": [],
+    }
+    if scenario is StatusScenario.RECONCILIATION_REQUIRED:
+        body["tables"][1] = _table(2, status="RECOVERY", in_recovery=True, loss_amount=12.0)
+        body["recovery"] = {"active_count": 1, "max_recovery_tables": 2, "allow_recovery": True}
+    elif scenario is StatusScenario.NOT_STARTED:
+        body["total_exposure"] = None
+        body["unavailable"] = ["total_exposure"]
+    elif scenario is StatusScenario.EXTRA_FIELD:
+        body["tables"][0] = {**body["tables"][0], "customer_ref": "abc"}
+    elif scenario is StatusScenario.INJECTION_TEXT:
+        body["tables"][0] = {**body["tables"][0], "market_id": _INJECTION}
+    elif scenario is StatusScenario.INCONSISTENT:
+        body["recovery"] = None
     return body

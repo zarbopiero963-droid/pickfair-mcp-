@@ -14,6 +14,7 @@ class ErrorCode(Enum):
     UPSTREAM_UNAVAILABLE = "UPSTREAM_UNAVAILABLE"
     UPSTREAM_INVALID_RESPONSE = "UPSTREAM_INVALID_RESPONSE"
     UPSTREAM_UNAUTHORIZED = "UPSTREAM_UNAUTHORIZED"
+    UPSTREAM_NOT_IMPLEMENTED = "UPSTREAM_NOT_IMPLEMENTED"
     INTERNAL_ERROR = "INTERNAL_ERROR"
     JOURNAL_UNAVAILABLE = "JOURNAL_UNAVAILABLE"
     FORBIDDEN = "FORBIDDEN"
@@ -31,6 +32,9 @@ MESSAGES: Final[dict[ErrorCode, str]] = {
     ErrorCode.UPSTREAM_INVALID_RESPONSE: "Control API answer violates the contract.",
     ErrorCode.UPSTREAM_UNAUTHORIZED: (
         "Control API rejected the adapter credentials; nothing was performed."
+    ),
+    ErrorCode.UPSTREAM_NOT_IMPLEMENTED: (
+        "Pickfair does not implement this capability yet; nothing was read or performed."
     ),
     ErrorCode.INTERNAL_ERROR: "Internal adapter error; no operation was performed.",
     ErrorCode.JOURNAL_UNAVAILABLE: (

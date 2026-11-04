@@ -232,3 +232,37 @@ Limiti noti:
   provider del core, auto-verifica di ogni risposta (`CONTRACT_SELF_CHECK`), token nuovo a ogni avvio
   e rotazione a doppia accettazione. Il ponte verso il `RuntimeController` appartiene a Pickfair-nogui:
   consegnato a Claude B in `docs/handoff/`.
+
+## MCP-01e — `get_account` e `get_exposure` (contratto 1.2.0)
+
+Route già approvate (pickfair-mcp- #1), nessuna route nuova: per OWN-MCP-02F si estendono prima le
+route esistenti. Il contratto sale a **1.2.0** (aggiunte compatibili nello schema, ma lo schema hash
+cambia: MCP e Control API si aggiornano insieme, una 1.1.0 viene rifiutata con `CONTRACT_INCOMPATIBLE`).
+
+| Tool | Route | Contenuto |
+|---|---|---|
+| `get_account` | `GET /v1/account` | `execution_mode` (base del denaro: SIM = saldo fittizio), `bankroll` (start, corrente, picco, equity, P&L realizzato/non realizzato, drawdown %), `cash` (verificata sì/no, cassa, impegnato, motivo), `exchange_funds` (ultimo snapshot registrato dal runtime: disponibile, impegnato, cassa, esito, sorgente, età), `desk_mode` |
+| `get_exposure` | `GET /v1/exposure` | `tables` (tavoli Roserpina: id, stato, occupato, id mercato/selezione, esposizione, perdita da recuperare), `total_exposure` (valore del cap `max_open_exposure`), `recovery` (tavoli in recovery, massimo, recovery consentito) |
+
+Regole aggiunte:
+- **Consistenza `PER_SECTION_LOCKED`**: ogni sezione viene da una chiamata del core sotto il lock del
+  componente che la possiede; nel ponte del core `bankroll`+`cash` condividono la stessa acquisizione
+  del lock del RiskDesk e `tables`+`total_exposure`+`recovery` quella del lock dei tavoli (attesa
+  massima 0,25 s, poi sezioni indisponibili: le letture non bloccano mai il motore).
+- **Denaro**: float finiti in EUR come li tiene il core, limite ±1e9, mai arrotondati o sostituiti
+  da default; un valore non finito o fuori tipo rende la sezione indisponibile.
+- **Nessun testo libero**: nomi di eventi, `meta` dei tavoli e `customer_ref` non escono; gli
+  identificativi di mercato/selezione devono rispettare `^[0-9A-Za-z._-]{1,32}$`.
+- **Regole fra campi** (le applica il MCP; JSON Schema non le esprime e la Control API le rispetta per
+  costruzione): cassa verificata ⇔ importo presente e nessun motivo; fondi `ok` ⇔ nessun motivo;
+  `desk_mode` solo con `bankroll`; `table_id` unici. Elenco esplicito in
+  `tests/unit/test_contract_descriptor.py::MCP_ONLY_RULES`.
+- **`desk_mode`** usa la regola di `get_status` del core (bankroll corrente rispetto al picco) sui
+  valori della sezione `bankroll`: le decisioni del Money Management sul singolo ordine considerano
+  anche perdita giornaliera e crescita del ciclo e possono differire.
+- **Route approvate non servite**: la Control API risponde `501 NOT_IMPLEMENTED`; il MCP restituisce
+  `UPSTREAM_NOT_IMPLEMENTED` (nuovo codice, non ritentabile). Percorso fuori contratto `404`, metodo
+  diverso da GET `405`: nessun comando è servito.
+- **Un solo elenco di tool**: `tools.register_read_tools` alimenta sia il server reale sia il
+  descrittore del contratto (guardia `tests/guards/test_tool_surface.py`; prima di MCP-01e il server
+  aveva un elenco proprio e le due cose potevano divergere).

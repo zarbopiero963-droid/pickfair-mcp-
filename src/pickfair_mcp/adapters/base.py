@@ -23,6 +23,10 @@ class UpstreamUnauthorized(Exception):
     """La Control API ha rifiutato le credenziali dell'adapter, anche dopo la rilettura."""
 
 
+class UpstreamNotImplemented(Exception):
+    """La Control API dichiara la route approvata ma non ancora servita (501 NOT_IMPLEMENTED)."""
+
+
 class UpstreamProtocolError(Exception):
     """Risposta HTTP fuori protocollo (status, redirect, content-type); `reason` è fisso."""
 
@@ -58,4 +62,12 @@ class ControlApiAdapter(Protocol):
 
     async def get_reconciliation_status_raw(self) -> bytes:
         """Corpo grezzo di GET /v1/reconciliation/status (MCP-02a)."""
+        ...
+
+    async def get_account_raw(self) -> bytes:
+        """Corpo grezzo di GET /v1/account (MCP-01e)."""
+        ...
+
+    async def get_exposure_raw(self) -> bytes:
+        """Corpo grezzo di GET /v1/exposure (MCP-01e)."""
         ...

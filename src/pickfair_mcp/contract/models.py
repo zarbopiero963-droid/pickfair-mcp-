@@ -233,3 +233,186 @@ class ReconciliationStatusResponse(StrictModel):
             raise ValueError("optional field list out of sync")
         _check_unavailable(values, self.unavailable)
         return self
+
+
+# ---------------------------------------------------------------------------
+# MCP-01e — GET /v1/account e GET /v1/exposure (contratto 1.2.0)
+#
+# Valori monetari: float finiti in EUR come li tiene il core (nessuna conversione, nessun
+# arrotondamento). `execution_mode` dichiara la base del denaro: «SIM» = saldo fittizio del
+# broker simulato, mai denaro reale.
+#
+# Consistenza PER_SECTION_LOCKED: ogni sezione è prodotta da UNA chiamata del core sotto il lock
+# del componente che la possiede (RiskDesk, TableManager) oppure è la lettura di un solo valore
+# sostituito per intero (snapshot dei fondi). Due sezioni possono riflettere istanti vicini.
+# ---------------------------------------------------------------------------
+
+MONEY_LIMIT = 1_000_000_000.0
+Money = Annotated[float, Field(ge=-MONEY_LIMIT, le=MONEY_LIMIT)]
+NonNegativeMoney = Annotated[float, Field(ge=0, le=MONEY_LIMIT)]
+Percent = Annotated[float, Field(ge=0, le=100)]
+SectionConsistency = Literal["PER_SECTION_LOCKED"]
+ExecutionMode = Literal["SIM", "LIVE"]
+# Identificativi di mercato/selezione: mai testo libero (niente nomi di eventi).
+IDENTIFIER_PATTERN = r"^[0-9A-Za-z._-]{1,32}$"
+Identifier = Annotated[str, StringConstraints(pattern=IDENTIFIER_PATTERN, max_length=32)]
+MAX_TABLES = 256
+FundsAge = Annotated[float, Field(ge=0, le=31_536_000)]
+
+
+class Bankroll(StrictModel):
+    """`RiskDesk.debug_snapshot()`: una sola lettura sotto il lock del RiskDesk."""
+
+    bankroll_start: Money
+    bankroll_current: Money
+    equity_peak: Money
+    equity_current: Money
+    realized_pnl: Money
+    unrealized_pnl: Money
+    drawdown_pct: Percent
+
+
+class CashBasis(StrictModel):
+    """`RiskDesk.cash_basis()`: cassa e impegnato della STESSA lettura del conto."""
+
+    verified: bool
+    cash_equity: NonNegativeMoney | None
+    committed_exposure: NonNegativeMoney
+    unverified_reason: Code | None
+
+    @model_validator(mode="after")
+    def _coherent(self) -> CashBasis:
+        if self.verified != (self.cash_equity is not None):
+            raise ValueError("verified and cash_equity disagree")
+        if self.verified and self.unverified_reason is not None:
+            raise ValueError("verified cash with a reason")
+        return self
+
+
+class ExchangeFunds(StrictModel):
+    """Ultimo snapshot dei fondi registrato dal runtime (nessuna nuova lettura dell'exchange)."""
+
+    ok: bool
+    available: NonNegativeMoney
+    committed: NonNegativeMoney
+    cash_equity: NonNegativeMoney
+    reason: Code | None
+    source: Code
+    age_s: FundsAge | None
+
+    @model_validator(mode="after")
+    def _coherent(self) -> ExchangeFunds:
+        if self.ok == (self.reason is not None):
+            raise ValueError("ok and reason disagree")
+        return self
+
+
+DeskMode = Literal["NORMAL", "EXPANSION", "DEFENSE", "LOCKDOWN"]
+AccountField = Literal["execution_mode", "bankroll", "cash", "exchange_funds", "desk_mode"]
+ACCOUNT_OPTIONAL_FIELDS: tuple[str, ...] = (
+    "execution_mode",
+    "bankroll",
+    "cash",
+    "exchange_funds",
+    "desk_mode",
+)
+
+
+class AccountResponse(StrictModel):
+    source: Source
+    observed_at: ObservedAt
+    consistency: SectionConsistency
+    execution_mode: ExecutionMode | None
+    bankroll: Bankroll | None
+    cash: CashBasis | None
+    exchange_funds: ExchangeFunds | None
+    # Stessa regola di `get_status` del core (bankroll corrente rispetto al picco), calcolata sui
+    # valori della sezione `bankroll`. Le decisioni del Money Management per il singolo ordine
+    # considerano anche perdita giornaliera e crescita del ciclo: questo valore non le sostituisce.
+    desk_mode: DeskMode | None
+    unavailable: Annotated[
+        tuple[AccountField, ...],
+        Field(max_length=len(ACCOUNT_OPTIONAL_FIELDS), json_schema_extra={"uniqueItems": True}),
+    ]
+
+    @model_validator(mode="after")
+    def _declared(self) -> AccountResponse:
+        values: dict[str, object] = {
+            "execution_mode": self.execution_mode,
+            "bankroll": self.bankroll,
+            "cash": self.cash,
+            "exchange_funds": self.exchange_funds,
+            "desk_mode": self.desk_mode,
+        }
+        if tuple(values) != ACCOUNT_OPTIONAL_FIELDS:
+            raise ValueError("optional field list out of sync")
+        _check_unavailable(values, self.unavailable)
+        if self.desk_mode is not None and self.bankroll is None:
+            raise ValueError("desk_mode without bankroll")
+        return self
+
+
+TableStatus = Literal["FREE", "ACTIVE", "RECOVERY", "LOCKED"]
+
+
+class RoserpinaTable(StrictModel):
+    table_id: Annotated[int, Field(ge=1, le=10_000)]
+    status: TableStatus
+    occupied: bool
+    in_recovery: bool
+    market_id: Identifier | None
+    selection_id: Identifier | None
+    current_exposure: Money
+    loss_amount: Money
+
+
+def _unique_tables(values: tuple[RoserpinaTable, ...]) -> tuple[RoserpinaTable, ...]:
+    ids = [t.table_id for t in values]
+    if len(set(ids)) != len(ids):
+        raise ValueError("duplicate table_id")
+    return values
+
+
+class RecoveryCapacity(StrictModel):
+    # `RuntimeController._active_recovery_count()`: stato di recovery illeggibile => capacità
+    # considerata esaurita (fail-closed del core, riportato com'è).
+    active_count: Count
+    max_recovery_tables: Count
+    allow_recovery: bool
+
+
+ExposureField = Literal["tables", "total_exposure", "recovery"]
+EXPOSURE_OPTIONAL_FIELDS: tuple[str, ...] = ("tables", "total_exposure", "recovery")
+
+
+class ExposureResponse(StrictModel):
+    source: Source
+    observed_at: ObservedAt
+    consistency: SectionConsistency
+    # `TableManager.snapshot()`: tutti i tavoli in una sola lettura sotto il lock dei tavoli.
+    tables: (
+        Annotated[
+            tuple[RoserpinaTable, ...], Field(max_length=MAX_TABLES), AfterValidator(_unique_tables)
+        ]
+        | None
+    )
+    # `TableManager.total_exposure()`: valore che alimenta il cap `max_open_exposure`; un valore
+    # non finito nel core (stato corrotto) rende il campo indisponibile, mai zero.
+    total_exposure: NonNegativeMoney | None
+    recovery: RecoveryCapacity | None
+    unavailable: Annotated[
+        tuple[ExposureField, ...],
+        Field(max_length=len(EXPOSURE_OPTIONAL_FIELDS), json_schema_extra={"uniqueItems": True}),
+    ]
+
+    @model_validator(mode="after")
+    def _declared(self) -> ExposureResponse:
+        values: dict[str, object] = {
+            "tables": self.tables,
+            "total_exposure": self.total_exposure,
+            "recovery": self.recovery,
+        }
+        if tuple(values) != EXPOSURE_OPTIONAL_FIELDS:
+            raise ValueError("optional field list out of sync")
+        _check_unavailable(values, self.unavailable)
+        return self

@@ -19,6 +19,8 @@ from pickfair_control_api.schema_check import SchemaViolation, validate
 from pickfair_mcp.contract.descriptor import build_contract_descriptor, serialize_descriptor
 from pickfair_mcp.contract.parsing import (
     UpstreamInvalidResponse,
+    parse_account,
+    parse_exposure,
     parse_reconciliation_status,
     parse_status,
 )
@@ -41,21 +43,37 @@ def test_both_committed_copies_equal_the_generated_descriptor() -> None:
 
 def test_hash_and_version_are_shared() -> None:
     assert api_contract.schema_hash() == contract_schema_hash()
-    assert api_contract.CONTRACT_VERSION == SUPPORTED_CONTRACT_VERSION == "1.1.0"
-    assert COMPAT_MATRIX == {"1.1.0": frozenset({contract_schema_hash()})}
+    assert api_contract.CONTRACT_VERSION == SUPPORTED_CONTRACT_VERSION == "1.2.0"
+    assert COMPAT_MATRIX == {"1.2.0": frozenset({contract_schema_hash()})}
 
 
 def test_descriptor_covers_tools_errors_and_semantics() -> None:
     d = json.loads(GENERATED)
-    assert set(d["tools"]) == {"get_meta", "get_status", "get_reconciliation_status"}
+    assert set(d["tools"]) == {
+        "get_meta",
+        "get_status",
+        "get_reconciliation_status",
+        "get_account",
+        "get_exposure",
+    }
     for tool in d["tools"].values():
         assert tool["input_schema"]["additionalProperties"] is False
         assert "ok" in tool["output_schema"]["properties"]
         assert tool["scope"] == "read"
     assert set(d["error_codes"]["mcp"]) == {c.value for c in ErrorCode}
     assert "CONTRACT_SELF_CHECK" in d["error_codes"]["control_api"]
-    assert set(d["upstream_schemas"]) == {"meta", "status", "reconciliation_status", "error"}
-    assert {"unavailable", "codes", "consistency", "freshness"} <= set(d["semantics"])
+    assert set(d["upstream_schemas"]) == {
+        "meta",
+        "status",
+        "reconciliation_status",
+        "account",
+        "exposure",
+        "error",
+    }
+    assert {"unavailable", "codes", "consistency", "freshness", "money", "not_implemented"} <= set(
+        d["semantics"]
+    )
+    assert "NOT_IMPLEMENTED" in d["error_codes"]["control_api"]
     assert len(d["routes"]) == 25
 
 
@@ -206,3 +224,97 @@ def test_valid_reconciliation_accepted_by_both_sides() -> None:
 def test_non_finite_number_rejected_by_api_validator() -> None:
     assert not _api_accepts("status", bodies.status(observed_at=math.nan))
     assert not _api_accepts("status", bodies.status(observed_at=math.inf))
+
+
+# ------------------------------------------------------------------ MCP-01e (contratto 1.2.0)
+
+_FUNDS = bodies.account()["exchange_funds"]
+
+HOSTILE_ACCOUNT = [
+    {"password": "x"},
+    {"consistency": "PER_FIELD_NON_ATOMIC"},
+    {"execution_mode": "PAPER"},
+    {"desk_mode": "YOLO"},
+    {"cash": None},  # null non dichiarato
+    {"unavailable": ["bankroll"]},  # dichiarato ma presente
+    {"bankroll": {**bodies.account()["bankroll"], "bankroll_current": 1e12}},
+    {"bankroll": {**bodies.account()["bankroll"], "drawdown_pct": 100.5}},
+    {"bankroll": {**bodies.account()["bankroll"], "realized_pnl": True}},
+    {"exchange_funds": {**_FUNDS, "available": -1.0}},
+    {"exchange_funds": {**_FUNDS, "source": "sim broker"}},
+    {"exchange_funds": {**_FUNDS, "reason": "free text"}},
+    {"exchange_funds": {**_FUNDS, "error": "x"}},
+]
+
+
+@pytest.mark.parametrize("override", HOSTILE_ACCOUNT, ids=range(len(HOSTILE_ACCOUNT)))
+def test_hostile_account_rejected_by_both_sides(override: dict[str, Any]) -> None:
+    body = bodies.account(**override)
+    assert not _mcp_accepts(parse_account, body)
+    assert not _api_accepts("account", body)
+
+
+HOSTILE_EXPOSURE = [
+    {"total_exposure": -1.0},
+    {"recovery": None},
+    {"tables": [{**bodies.table(1), "customer_ref": "x"}]},
+    {"tables": [{**bodies.table(1), "status": "BUSY"}]},
+    {"tables": [{**bodies.table(1), "market_id": "Juventus v Inter"}]},
+    {"tables": [{**bodies.table(1), "table_id": 0}]},
+    {"tables": [bodies.table(i) for i in range(1, 258)]},
+]
+
+
+@pytest.mark.parametrize("override", HOSTILE_EXPOSURE, ids=range(len(HOSTILE_EXPOSURE)))
+def test_hostile_exposure_rejected_by_both_sides(override: dict[str, Any]) -> None:
+    body = bodies.exposure(**override)
+    assert not _mcp_accepts(parse_exposure, body)
+    assert not _api_accepts("exposure", body)
+
+
+@pytest.mark.parametrize(
+    ("name", "parse", "body"),
+    [
+        ("account", parse_account, bodies.account()),
+        (
+            "account",
+            parse_account,
+            bodies.account(bankroll=None, desk_mode=None, unavailable=["bankroll", "desk_mode"]),
+        ),
+        ("exposure", parse_exposure, bodies.exposure()),
+        ("exposure", parse_exposure, bodies.exposure(tables=[])),
+        (
+            "exposure",
+            parse_exposure,
+            bodies.exposure(total_exposure=None, unavailable=["total_exposure"]),
+        ),
+    ],
+)
+def test_valid_finance_bodies_accepted_by_both_sides(name: str, parse: Any, body: Any) -> None:
+    assert _mcp_accepts(parse, body)
+    assert _api_accepts(name, body)
+
+
+# Regole fra campi che JSON Schema non esprime: le applica SOLO il MCP (seconda barriera).
+# Il ponte del core le rispetta per costruzione; se non lo facesse, la risposta arriva al MCP e
+# viene rifiutata (UPSTREAM_INVALID_RESPONSE), mai accettata. L'elenco rende l'asimmetria esplicita.
+MCP_ONLY_RULES = [
+    ("account", parse_account, {"cash": {**bodies.account()["cash"], "verified": False}}),
+    (
+        "account",
+        parse_account,
+        {"cash": {**bodies.account()["cash"], "unverified_reason": "CASH_NOT_READ"}},
+    ),
+    ("account", parse_account, {"exchange_funds": {**_FUNDS, "ok": False}}),
+    ("account", parse_account, {"bankroll": None, "unavailable": ["bankroll"]}),
+    ("exposure", parse_exposure, {"tables": [bodies.table(1), bodies.table(1)]}),
+]
+
+
+@pytest.mark.parametrize(("name", "parse", "override"), MCP_ONLY_RULES)
+def test_cross_field_rules_are_enforced_by_the_mcp(
+    name: str, parse: Any, override: dict[str, Any]
+) -> None:
+    body = getattr(bodies, name)(**override)
+    assert not _mcp_accepts(parse, body)
+    assert _api_accepts(name, body)  # se questo cambia, la regola è passata anche nello schema
