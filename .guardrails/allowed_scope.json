@@ -218,6 +218,18 @@
         "tests/unit/test_status_models.py",
         "tests/unit/test_token_file.py"
       ]
+    },
+    "pf-agent-bridge-v1": {
+      "issue": "pickfair-mcp- #37",
+      "scheda": "PF-AGENT-BRIDGE-v1 (coordinamento Claude B <-> Claude C)",
+      "description": "Protocollo di coordinamento fra agenti: specifica, libreria stdlib-only (validazione messaggi, dedupe, ACK, timeout, conflitti, poll GET limitato di #37) e test. Nessuna funzione applica patch, apre PR, fa merge, deploy o LIVE.",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "docs/coordination/PF-AGENT-BRIDGE-v1.md",
+        "scripts/pf_agent_bridge.py",
+        "tests/unit/test_pf_agent_bridge.py"
+      ],
+      "max_files": 4
     }
   }
 }
