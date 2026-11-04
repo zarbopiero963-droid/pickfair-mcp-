@@ -133,6 +133,16 @@
         "docs/roadmap/CERTIFICATION_GATES.md",
         "docs/roadmap/DEPENDENCY_MAP.md"
       ]
+    },
+    "mcp02a-status-reconciliation": {
+      "issue": "pickfair-mcp- #7",
+      "scheda": "MCP-02a / PF-MCP-008",
+      "description": "get_status e get_reconciliation_status (sola lettura); adapter simulato marcato simulated",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "tests/unit/test_status_models.py",
+        "tests/integration/test_status_tools.py"
+      ]
     }
   }
 }
