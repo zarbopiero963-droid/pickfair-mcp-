@@ -48,8 +48,16 @@ def test_every_exposed_read_route_is_served_by_the_control_api() -> None:
 
 
 def test_control_api_serves_only_read_routes() -> None:
+    # Confronto su metodo + percorso: /v1/orders è una lettura (GET, MCP-01g) e un comando (POST)
+    # approvato ma NON servito. Il server ha solo do_GET; ogni altro metodo è 405.
     assert all(c.startswith("GET /v1/") for c in api_contract.CAPABILITIES)
-    command_paths = {
-        path for kind, _m, path in load_contract_descriptor()["routes"] if kind == "command"
+    commands = {
+        f"{method} {path}"
+        for kind, method, path in load_contract_descriptor()["routes"]
+        if kind == "command"
     }
-    assert not command_paths & set(api_contract.ROUTE_SCHEMAS)
+    assert commands and not commands & set(api_contract.CAPABILITIES)
+    from pickfair_control_api.server import _Handler
+
+    for verb in ("POST", "PUT", "PATCH", "DELETE"):
+        assert getattr(_Handler, f"do_{verb}") is _Handler._method_not_allowed

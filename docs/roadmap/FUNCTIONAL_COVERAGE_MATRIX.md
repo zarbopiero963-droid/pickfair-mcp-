@@ -121,12 +121,12 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | CAP-ORD-06 | Cancel pertinente | `CMD_CANCEL_ORDER` | `POST /v1/orders/{id}/cancel` | `cancel_order` | 016 · MCP-04d | NOT_IMPLEMENTED | P/NO/NR |
 | CAP-ORD-07 | Replace senza retry cieco | `CMD_REPLACE_ORDER` | `POST /v1/orders/{id}/replace` | `replace_order` | 016 · MCP-04d | NOT_IMPLEMENTED | P/NO/NR |
 | CAP-ORD-08 | updateOrders (persistenza) | assente | estensione | — | 016 · MCP-04g | CORE_BLOCKED | A/NO/NR |
-| CAP-ORD-09 | Stati matched / unmatched / partial | eventi `QUICK_BET_*` | `GET /v1/orders` | `list_orders` | 013 · MCP-02d | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-ORD-09 | Stati matched / unmatched / partial | eventi `QUICK_BET_*` | `GET /v1/orders` | `list_orders` | 013 · MCP-02d · MCP-01g | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-ORD-10 | TTL degli unmatched | `direct_unmatched_ttl.py` | `GET /v1/orders` | `list_orders` | 013, 016 | NOT_IMPLEMENTED | P/NO/NR |
 | CAP-ORD-11 | Anti-duplicato ordini | `duplication_guard`, `QUICK_BET_DUPLICATE` | `POST /v1/orders` | `place_order` | 016, 021 | NOT_IMPLEMENTED | P/NO/NR |
 | CAP-ORD-12 | AMBIGUOUS dopo l'invio, riconciliazione | `QUICK_BET_AMBIGUOUS`, PR30 | `GET /v1/operations/{id}` | `get_operation` | 016, 022 | NOT_IMPLEMENTED | P/NO/NR |
 | CAP-ORD-13 | customerOrderRef sul wire, parità SIM | F-13a (#601) | — | — | 016 | NOT_IMPLEMENTED | F/NO/NR |
-| CAP-ORD-14 | Ordini correnti | `listCurrentOrders` | `GET /v1/orders` | `list_orders` | 013 · MCP-02d | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-ORD-14 | Ordini correnti | `listCurrentOrders` | `GET /v1/orders` | `list_orders` | 013 · MCP-02d · MCP-01g | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-ORD-15 | Ordini chiusi | `listClearedOrders` (sottoinsieme LIVE) | `GET /v1/orders` | `list_orders` | 013 · MCP-02d | NOT_IMPLEMENTED | Pz/NO/NR |
 | CAP-ORD-16 | Rivalidazione della quota prima dell'invio (PF-OD12-04) | miglior prezzo dinamico **non implementato** | `POST /v1/orders` | `place_order` | 016 | CORE_BLOCKED | A/NO/NR |
 | CAP-ORD-17 | Fondi insufficienti = blocco, mai ridimensionamento (PF-EXEC-04) | gate fondi Q10 | `POST /v1/orders` | `place_order` | 016 | NOT_IMPLEMENTED | Pz/NO/NR |
@@ -136,6 +136,7 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | CAP-ORD-21 | Ingresso automatico (principal automation) | — | `POST /v1/orders` | `place_order` | 034 · MCP-04f | NOT_IMPLEMENTED | —/NO/NR |
 | CAP-ORD-22 | Mercato sospeso / feed perso = nessun ingresso (PF-EXEC-05) | safety gates | `POST /v1/orders` | `place_order` | 016, 022 | NOT_IMPLEMENTED | Pz/NO/NR |
 | CAP-ORD-23 | Posizioni aperte: mercato, selezione, lato, size, prezzo medio, P&L, esposizione, liability in Decimal senza perdita | `PnLEngine`, `PositionLedger` | `GET /v1/positions` | `list_positions` | 013 · MCP-01f | NOT_IMPLEMENTED | P/HRN/NR |
+| CAP-ORD-24 | Lettura degli ordini dal ledger durevole: stati del core con mappa esplicita, AMBIGUOUS mai FAILED, betId, quantità Decimal, riconciliazione, hedge dei cashout, stato dello snapshot | ledger `orders`, `hedge_ref`, `ReconciliationEngine` | `GET /v1/orders` | `list_orders` | 013 · MCP-01g | NOT_IMPLEMENTED | P/HRN/NR |
 
 ### 2.6 DUT — Dutching (15)
 
@@ -363,7 +364,7 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | RT | 12 | 8 | 1 | 3 | 0 | 0 |
 | MOD | 11 | 4 | 5 | 2 | 0 | 0 |
 | MKT | 11 | 6 | 4 | 1 | 0 | 0 |
-| ORD | 23 | 18 | 4 | 0 | 1 | 0 |
+| ORD | 24 | 19 | 4 | 0 | 1 | 0 |
 | DUT | 15 | 9 | 6 | 0 | 0 | 0 |
 | CSH | 20 | 13 | 7 | 0 | 0 | 0 |
 | SLT | 7 | 5 | 2 | 0 | 0 | 0 |
@@ -376,10 +377,10 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | AUD | 15 | 2 | 4 | 8 | 1 | 0 |
 | SEC | 11 | 6 | 3 | 2 | 0 | 0 |
 | REL/LIV | 8 | 2 | 3 | 3 | 0 | 0 |
-| **Totale** | **231** | **136** | **65** | **27** | **3** | **0** |
+| **Totale** | **232** | **137** | **65** | **27** | **3** | **0** |
 
-Denominatore applicabile v0.2 = 231 − 3 RETIRED (duplicati, ID conservati) − 0 OUT_OF_SCOPE = **228**. COMPLETE = **0/228**.
-Capacità con catena reale su branch (L2 = `HRN`): **35** — non contano come COMPLETE.
+Denominatore applicabile v0.2 = 232 − 3 RETIRED (duplicati, ID conservati) − 0 OUT_OF_SCOPE = **229**. COMPLETE = **0/229**.
+Capacità con catena reale su branch (L2 = `HRN`): **38** — non contano come COMPLETE.
 
 Il catalogo è **incompleto per costruzione** (PF-MCP-001): mancano la GUI riga per riga (42 chiavi),
 le singole strategie del perimetro storico, lo streaming (gap #586), la sicurezza applicativa del core,
@@ -460,3 +461,10 @@ Diagnostica del motore e stato delle protezioni finanziarie in `GET /v1/status`,
 del motore), CAP-ORD-23 (posizioni aperte), CAP-STP-11 (stato delle protezioni): denominatore 228.
 L2 = `HRN` anche per RT-02, RT-07, BKR-06, STP-08, STP-10. Capacità con L2 = `HRN`: 35. COMPLETE:
 ancora **0/228**.
+
+## 10. Aggiornamento 04/11/2026 (MCP-01g)
+
+`GET /v1/orders` (contratto 1.4.0) dal ledger durevole `orders`, letto in sola lettura. Nuova voce
+CAP-ORD-24; L2 = `HRN` anche per ORD-09 e ORD-14 (ordini correnti: dal ledger del bot, non da
+`listCurrentOrders` dell'exchange). CAP-ORD-12 resta su `get_operation` (stato asincrono per
+operation_id, non esiste nel core). Capacità con L2 = `HRN`: 38. COMPLETE: ancora **0/229**.

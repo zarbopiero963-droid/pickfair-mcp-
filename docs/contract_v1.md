@@ -300,3 +300,28 @@ non escono.
 (niente esponente, «+», zeri iniziali o zero negativo). Il MCP non fa aritmetica su questi valori. Gli
 importi di `get_account`/`get_exposure` (1.2.0) restano float: migrarli è una modifica di contratto
 separata, non retroattiva.
+
+## MCP-01g — `list_orders` (contratto 1.4.0)
+
+Route già approvata `GET /v1/orders`. Fonte: il ledger durevole `orders` del core, letto dalla
+Control API con una connessione SQLite separata e in **sola lettura** (`mode=ro` + `query_only`) in
+una sola transazione (`consistency = SINGLE_READ_TRANSACTION`). Nessuna chiamata di rete.
+
+Ogni ordine: `local_id`, `bet_id`, `role` (ENTRY / HEDGE del cashout / DUTCHING_LEG), `core_status`
+(stato reale del core) e `status` (contratto), `market_id`, `selection_id`, `side`, `price`, `stake`,
+`size_matched`, `avg_price_matched`, `size_remaining` (Decimal), `table_id`, `created_at`,
+`updated_at`, `reconciliation` (`in_reconciliation`, `in_engine_queue`, `finalized`,
+`ambiguity_reason`), `broker_view` (SIM: PRESENT/ABSENT nel broker simulato; LIVE: NOT_CHECKED).
+L'esposizione per ordine non è nel ledger: non è riportata (nessun ricalcolo).
+
+Mappa degli stati (`ORDER_STATUS_MAP`, pubblicata nella semantica del contratto e quindi nell'hash):
+INFLIGHT, HEDGE_PENDING → PENDING; SUBMITTED, ACCEPTED_FOR_PROCESSING, HEDGE_PLACED → ACCEPTED oppure
+UNMATCHED / PARTIALLY_MATCHED / MATCHED solo con quantità abbinata e residua esplicite e coerenti;
+HEDGE_UNMATCHED → UNMATCHED; COMPLETED → MATCHED; FAILED, HEDGE_FAILED → FAILED; DENIED → REJECTED;
+DUPLICATE_BLOCKED; AMBIGUOUS, HEDGE_AMBIGUOUS → AMBIGUOUS; ogni altro → UNKNOWN. APPROVED, CANCELLED e
+SETTLED non esistono nel ledger e non compaiono.
+
+`snapshot.state`: OK; PARTIAL (righe illeggibili contate in `omitted`, o elenco troncato); STALE
+(letto, ma la riconciliazione d'avvio del core non è conclusa); UNKNOWN (database occupato);
+UNAVAILABLE (non leggibile). Solo con OK l'elenco è completo; con UNKNOWN/UNAVAILABLE non c'è elenco
+(mai un elenco vuoto «rassicurante»). Valori mancanti null, mai zero; betId mai inventato.

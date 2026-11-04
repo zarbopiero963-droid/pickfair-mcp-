@@ -25,6 +25,7 @@ from pickfair_mcp.auth import Scope
 from pickfair_mcp.contract.models import (
     AccountResponse,
     ExposureResponse,
+    OrdersResponse,
     PositionsResponse,
     ReconciliationStatusResponse,
     StatusResponse,
@@ -94,6 +95,7 @@ SnapshotT = TypeVar(
     AccountResponse,
     ExposureResponse,
     PositionsResponse,
+    OrdersResponse,
 )
 
 

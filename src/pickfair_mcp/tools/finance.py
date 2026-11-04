@@ -21,10 +21,16 @@ from pickfair_mcp.auth import Scope
 from pickfair_mcp.contract.models import (
     AccountResponse,
     ExposureResponse,
+    OrdersResponse,
     PositionsResponse,
     StrictModel,
 )
-from pickfair_mcp.contract.parsing import parse_account, parse_exposure, parse_positions
+from pickfair_mcp.contract.parsing import (
+    parse_account,
+    parse_exposure,
+    parse_orders,
+    parse_positions,
+)
 from pickfair_mcp.policy.handshake import HandshakeGuard
 from pickfair_mcp.tools.meta import UpstreamInfo
 from pickfair_mcp.tools.registry import ToolContext, ToolSpec
@@ -39,6 +45,7 @@ from pickfair_mcp.tools.status import (
 ACCOUNT_ROUTE: Final = "GET /v1/account"
 EXPOSURE_ROUTE: Final = "GET /v1/exposure"
 POSITIONS_ROUTE: Final = "GET /v1/positions"
+ORDERS_ROUTE: Final = "GET /v1/orders"
 
 _MONEY = (
     " Amounts are EUR floats exactly as Pickfair holds them; execution_mode SIM means a "
@@ -62,6 +69,15 @@ POSITIONS_DESCRIPTION = (
     "unrealized P&L (last mark-to-market done by Pickfair), exposure and liability. Amounts and "
     "prices are exact decimal strings, never floats; amounts_source says whether they come from "
     "Pickfair's Decimal ledger or from a float with the rest unavailable." + SUFFIX
+)
+
+ORDERS_DESCRIPTION = (
+    "Read-only. Returns Pickfair orders from the local Control API (GET /v1/orders): the core's "
+    "durable order ledger (entries, Dutching legs, cashout hedges) with local id, betId, market, "
+    "selection, side, price, stake, matched and remaining size as exact decimal strings, core "
+    "status and its explicit mapping, reconciliation flags and a comparison with the simulated "
+    "broker. snapshot.state is OK, PARTIAL, STALE, UNKNOWN or UNAVAILABLE: anything but OK is "
+    "not a complete picture. AMBIGUOUS orders are unresolved, never failed." + SUFFIX
 )
 
 Age = Annotated[float, Field(ge=0, le=MAX_SNAPSHOT_AGE_S)]
@@ -171,5 +187,41 @@ def make_list_positions(
         description=POSITIONS_DESCRIPTION,
         input_model=NoInput,
         data_model=ListPositionsData,
+        handler=handler,
+    )
+
+
+class ListOrdersData(StrictModel):
+    orders: OrdersResponse
+    age_s: Age
+    upstream: UpstreamInfo
+
+
+def make_list_orders(
+    adapter: ControlApiAdapter,
+    guard: HandshakeGuard,
+    *,
+    timeout_s: float,
+    clock: Callable[[], float] = time.time,
+) -> ToolSpec:
+    async def handler(_: ToolContext) -> ListOrdersData:
+        snapshot, age = await read_snapshot(
+            adapter,
+            guard,
+            route=ORDERS_ROUTE,
+            read=adapter.get_orders_raw,
+            parse=parse_orders,
+            timeout_s=timeout_s,
+            clock=clock,
+        )
+        return ListOrdersData(orders=snapshot, age_s=age, upstream=upstream_info(adapter))
+
+    return ToolSpec(
+        name="list_orders",
+        route=ORDERS_ROUTE,
+        scope=Scope.READ,
+        description=ORDERS_DESCRIPTION,
+        input_model=NoInput,
+        data_model=ListOrdersData,
         handler=handler,
     )

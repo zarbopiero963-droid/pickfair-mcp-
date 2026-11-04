@@ -261,3 +261,51 @@ def positions(**overrides: Any) -> dict[str, Any]:
     }
     body.update(overrides)
     return body
+
+
+def order(**overrides: Any) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "local_id": 7,
+        "bet_id": "1000000000001",
+        "role": "ENTRY",
+        "core_status": "SUBMITTED",
+        "status": "PARTIALLY_MATCHED",
+        "market_id": "1.200000001",
+        "selection_id": "47972",
+        "side": "BACK",
+        "price": "2.5",
+        "stake": "10",
+        "size_matched": "4",
+        "avg_price_matched": "2.5",
+        "size_remaining": "6",
+        "table_id": 1,
+        "created_at": 1_700_000_000.0,
+        "updated_at": 1_700_000_001.5,
+        "reconciliation": {
+            "in_reconciliation": True,
+            "in_engine_queue": False,
+            "finalized": False,
+            "ambiguity_reason": None,
+        },
+        "broker_view": "PRESENT",
+        "unavailable": [],
+    }
+    data.update(overrides)
+    return data
+
+
+def orders(**overrides: Any) -> dict[str, Any]:
+    body: dict[str, Any] = {
+        "source": "core",
+        "observed_at": time.time(),
+        "consistency": "SINGLE_READ_TRANSACTION",
+        "snapshot": {
+            "state": "OK",
+            "reason": None,
+            "orders": [order()],
+            "omitted": 0,
+            "truncated": False,
+        },
+    }
+    body.update(overrides)
+    return body

@@ -19,8 +19,10 @@ import json
 from typing import Any, Final
 
 from pickfair_mcp.contract.models import (
+    ORDER_STATUS_MAP,
     AccountResponse,
     ExposureResponse,
+    OrdersResponse,
     PositionsResponse,
     ReconciliationStatusResponse,
     StatusResponse,
@@ -70,6 +72,24 @@ SEMANTICS: Final = {
         "float): lossless from the core's Decimal, or the shortest repr of the core's float "
         "when the core holds a float (declared by amounts_source)."
     ),
+    "orders": {
+        "source": (
+            "The core's durable `orders` ledger read in one read-only transaction; hedge orders "
+            "of cashouts (HEDGE_*) included; never a network call."
+        ),
+        "status_map": {k: list(v) for k, v in sorted(ORDER_STATUS_MAP.items())},
+        "status_map_rule": (
+            "A core status outside the map is UNKNOWN. UNMATCHED / PARTIALLY_MATCHED / MATCHED "
+            "for an accepted order only with explicit size_matched and size_remaining. AMBIGUOUS "
+            "stays AMBIGUOUS, never FAILED or absent."
+        ),
+        "not_in_core": ["APPROVED", "CANCELLED", "SETTLED"],
+        "snapshot_states": (
+            "OK complete; PARTIAL rows omitted or list truncated (reason); STALE read but the "
+            "core's startup reconciliation is not done (reason); UNKNOWN database busy; "
+            "UNAVAILABLE not readable. Missing values stay null, never zero."
+        ),
+    },
     "protections": (
         "Each protection is ACTIVE, INACTIVE, TRIGGERED, UNKNOWN or UNAVAILABLE; only ACTIVE has "
         "no reason. A protection that cannot be verified is UNKNOWN (core has it, value not "
@@ -136,6 +156,7 @@ def build_contract_descriptor() -> dict[str, Any]:
             "account": _schema(AccountResponse),
             "exposure": _schema(ExposureResponse),
             "positions": _schema(PositionsResponse),
+            "orders": _schema(OrdersResponse),
             "error": error_schema,
         },
         "tools": tools,

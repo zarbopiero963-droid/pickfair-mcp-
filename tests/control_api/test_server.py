@@ -121,7 +121,6 @@ def test_unknown_paths(api: Any, path: str) -> None:
 @pytest.mark.parametrize(
     "path",
     [
-        "/v1/orders",
         "/v1/config",
         "/v1/events",
         "/v1/markets",
@@ -264,7 +263,7 @@ def test_invalid_configuration_refused() -> None:
     with pytest.raises(ControlApiConfigError, match="PROVIDERS_INVALID"):
         ControlApiServer({"status": bodies.status}, **good)
     with pytest.raises(ControlApiConfigError, match="PROVIDERS_INVALID"):
-        ControlApiServer({**Providers().mapping(), "orders": bodies.status}, **good)
+        ControlApiServer({**Providers().mapping(), "cashout": bodies.status}, **good)
 
 
 def test_restart_on_the_same_port_is_immediate_but_never_shared(tmp_path: Path) -> None:

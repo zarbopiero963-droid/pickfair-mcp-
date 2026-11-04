@@ -48,6 +48,7 @@ SIMULATED_CAPABILITIES = [
     "GET /v1/account",
     "GET /v1/exposure",
     "GET /v1/positions",
+    "GET /v1/orders",
 ]
 
 
@@ -107,6 +108,7 @@ class SimulatedControlApiAdapter:
         self.account_calls = 0
         self.exposure_calls = 0
         self.positions_calls = 0
+        self.orders_calls = 0
 
     @property
     def kind(self) -> AdapterKind:
@@ -161,6 +163,10 @@ class SimulatedControlApiAdapter:
         self.positions_calls += 1
         return await self._status_like(_positions_body)
 
+    async def get_orders_raw(self) -> bytes:
+        self.orders_calls += 1
+        return await self._status_like(_orders_body)
+
     async def _status_like(self, build: Callable[[StatusScenario, float], dict[str, Any]]) -> bytes:
         if self._delay_s > 0:
             await anyio.sleep(self._delay_s)
@@ -183,7 +189,7 @@ class SimulatedControlApiAdapter:
 _SCENARIO_BODIES: dict[Scenario, bytes] = {
     Scenario.COMPATIBLE: _encode(_meta()),
     Scenario.INCOMPATIBLE_MAJOR: _encode(_meta(contract_version="2.0.0")),
-    Scenario.UNSUPPORTED_MINOR: _encode(_meta(contract_version="1.4.0")),
+    Scenario.UNSUPPORTED_MINOR: _encode(_meta(contract_version="1.5.0")),
     Scenario.SCHEMA_HASH_MISMATCH: _encode(_meta(schema_hash="0" * 64)),
     Scenario.MISSING_META_CAPABILITY: _encode(_meta(capabilities=["GET /v1/status"])),
     Scenario.META_ONLY: _encode(_meta(capabilities=["GET /v1/meta"])),
@@ -586,3 +592,100 @@ def _positions_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
     elif scenario is StatusScenario.INCONSISTENT:
         body["positions"] = None
     return body
+
+
+def _order(local_id: int, **overrides: Any) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "local_id": local_id,
+        "bet_id": f"{100000000000 + local_id}",
+        "role": "ENTRY",
+        "core_status": "SUBMITTED",
+        "status": "PARTIALLY_MATCHED",
+        "market_id": "1.200000001",
+        "selection_id": "47972",
+        "side": "BACK",
+        "price": "2.5",
+        "stake": "10",
+        "size_matched": "4",
+        "avg_price_matched": "2.5",
+        "size_remaining": "6",
+        "table_id": 1,
+        "created_at": 1_700_000_000.0 + local_id,
+        "updated_at": 1_700_000_000.0 + local_id,
+        "reconciliation": {
+            "in_reconciliation": True,
+            "in_engine_queue": False,
+            "finalized": False,
+            "ambiguity_reason": None,
+        },
+        "broker_view": "PRESENT",
+        "unavailable": [],
+    }
+    data.update(overrides)
+    return data
+
+
+def _orders_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
+    orders = [
+        _order(1),
+        _order(
+            2,
+            core_status="AMBIGUOUS",
+            status="AMBIGUOUS",
+            bet_id=None,
+            size_matched=None,
+            avg_price_matched=None,
+            size_remaining=None,
+            broker_view="NOT_CHECKED",
+            reconciliation={
+                "in_reconciliation": True,
+                "in_engine_queue": True,
+                "finalized": False,
+                "ambiguity_reason": "TIMEOUT_AFTER_SUBMIT",
+            },
+            unavailable=["bet_id", "size_matched", "avg_price_matched", "size_remaining"],
+        ),
+        _order(
+            3,
+            role="HEDGE",
+            core_status="HEDGE_PLACED",
+            status="MATCHED",
+            side="LAY",
+            price="2.4",
+            stake="4",
+            size_matched="4",
+            avg_price_matched="2.4",
+            size_remaining="0",
+            table_id=None,
+            reconciliation={
+                "in_reconciliation": False,
+                "in_engine_queue": False,
+                "finalized": True,
+                "ambiguity_reason": None,
+            },
+            unavailable=["table_id"],
+        ),
+    ]
+    snapshot: dict[str, Any] = {
+        "state": "OK",
+        "reason": None,
+        "orders": orders,
+        "omitted": 0,
+        "truncated": False,
+    }
+    if scenario is StatusScenario.RECONCILIATION_REQUIRED:
+        snapshot.update(state="STALE", reason="STARTUP_RECONCILIATION_REQUIRED")
+    elif scenario is StatusScenario.NOT_STARTED:
+        snapshot = {"state": "UNAVAILABLE", "reason": "DB_NOT_CONFIGURED"}
+    elif scenario is StatusScenario.EXTRA_FIELD:
+        orders[0] = {**orders[0], "customer_ref": "abc"}
+    elif scenario is StatusScenario.INJECTION_TEXT:
+        orders[0] = {**orders[0], "bet_id": _INJECTION}
+    elif scenario is StatusScenario.INCONSISTENT:
+        orders[1] = {**orders[1], "status": "FAILED"}  # AMBIGUOUS spacciato per fallito
+    return {
+        "source": "core" if scenario is StatusScenario.WRONG_SOURCE else "simulated",
+        "observed_at": _observed_at(scenario, now),
+        "consistency": "SINGLE_READ_TRANSACTION",
+        "snapshot": snapshot,
+    }

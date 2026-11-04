@@ -64,7 +64,14 @@ def upstream_calls(adapter: SimulatedControlApiAdapter) -> int:
 async def test_both_tools_listed_as_read_only_with_output_schema() -> None:
     async with session_for(SimulatedControlApiAdapter()) as session:
         tools = {t.name: t for t in (await session.list_tools()).tools}
-    assert set(tools) == {"get_meta", *TOOLS, "get_account", "get_exposure", "list_positions"}
+    assert set(tools) == {
+        "get_meta",
+        *TOOLS,
+        "get_account",
+        "get_exposure",
+        "list_positions",
+        "list_orders",
+    }
     for name in TOOLS:
         tool = tools[name]
         assert tool.annotations is not None

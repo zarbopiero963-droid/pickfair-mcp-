@@ -1,6 +1,6 @@
 # INTEGRATION INVENTORY — copertura MCP + Control API per area funzionale
 
-Aggiornato 04/11/2026 · MCP-01f · base core `ada40765` (Pickfair-nogui `main`) · Claude C.
+Aggiornato 04/11/2026 · MCP-01g · base core `ada40765` (Pickfair-nogui `main`) · Claude C.
 
 Livelli (cumulativi, ognuno richiede un'evidenza; senza evidenza il livello NON è raggiunto):
 
@@ -13,7 +13,7 @@ Livelli (cumulativi, ognuno richiede un'evidenza; senza evidenza il livello NON 
 | `INTEGRATED` | ponte mergiato in Pickfair-nogui `main` | SHA di merge (Claude B, merge owner) |
 | `CERTIFIED` | review indipendente + verifica d'integrazione di Claude B + certificazione #586 | dossier |
 
-Oggi **nessuna area è INTEGRATED né CERTIFIED**: i ponti MCP-01d, MCP-01e e MCP-01f sono patch consegnate a
+Oggi **nessuna area è INTEGRATED né CERTIFIED**: i ponti MCP-01d, MCP-01e, MCP-01f e MCP-01g sono patch consegnate a
 Claude B, da integrare dopo #608 e #606 con una PR indipendente e safety-critical.
 
 ## Stato per area (priorità owner)
@@ -23,7 +23,7 @@ Claude B, da integrare dopo #608 e #606 con una PR indipendente e safety-critica
 | 1 | Stato del sistema | `TESTED` | `GET /v1/status` · `get_status` | MCP-01d `647d5e8d`; patch core `505f579c…`; E2E core reale 9/9 ×3 | integrazione (Claude B) |
 | 2 | Diagnostica Trading Engine | `TESTED` | `GET /v1/status` (`engine`) · `get_status` | MCP-01f; `TradingEngine.readiness()` (salute calcolata all'avvio del motore), connessione Betfair dagli attributi del servizio, feed, I/O, bus, code; test core + mutazioni 37/37; E2E 10/10 ×3 | integrazione (Claude B); in headless il `TradingEngine` è iniettato da `headless_main`, nei test d'integrazione è assente e dichiarato indisponibile |
 | 3 | Inventario tavoli Roserpina | `TESTED` | `GET /v1/exposure` · `get_exposure` | MCP-01e (questo branch); `TableManager.snapshot()` sotto lock; test core 22 + mutazioni 24/24; E2E 9/9 ×3 | integrazione (Claude B) |
-| 4 | Posizioni aperte e ordini | posizioni `TESTED` · ordini `CORE_AVAILABLE` (parziale) | `GET /v1/positions` · `list_positions`; `GET /v1/orders` | MCP-01f: `PositionLedger` Decimal sotto il lock del `PnLEngine`; ordini SIM `list_current_orders()` puro; **LIVE: nessuno stato in memoria** (solo DB o rete) | MCP-01g: ordini SIM + AMBIGUOUS dal reconciliation engine; ordini LIVE da progettare con Claude B/D |
+| 4 | Posizioni aperte e ordini | `TESTED` (posizioni e ordini del ledger) | `GET /v1/positions` · `list_positions`; `GET /v1/orders` · `list_orders` | MCP-01f (posizioni Decimal); MCP-01g: ledger `orders` in sola lettura (SQLite `mode=ro` + `query_only`), mappa esplicita degli stati, hedge dei cashout, test core + mutazioni 51/51, E2E 11/11 ×3 | ordini LIVE sull'exchange (`listCurrentOrders`) restano fuori: richiederebbero rete; allineare alla correzione P0 AMBIGUOUS/betId di Claude D |
 | 5 | Bankroll, riserve, esposizione | `TESTED` (bankroll, esposizione) · `CORE_AVAILABLE` (riserve) | `GET /v1/account`, `GET /v1/exposure` | MCP-01e; `RiskDesk.debug_snapshot()`/`cash_basis()` sotto lock; riserve pendenti: `TableManager.pending_exposure()` **non è puro** (pota i tombstone, `table_manager.py:480`) | chiedere a Claude B una lettura pura delle riserve |
 | 6 | Stato Money Management | `TESTED` (desk mode) · `CORE_AVAILABLE` (parametri) | `GET /v1/account` (`desk_mode`), `GET /v1/config` | `determine_desk_mode` puro (`core/money_management.py:131`); parametri in `RoserpinaConfig` (`core/system_state.py:61`) | MCP-01g: `get_config` redatto |
 | 7 | Configurazioni operative | `CORE_AVAILABLE` | `GET /v1/config` · `get_config` | `RuntimeController.config` (dataclass); segreti da redigere: `database._SECRET_FIELDS` (`database.py:22-38`), `core/redaction.py` | MCP-01g |

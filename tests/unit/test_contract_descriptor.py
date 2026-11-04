@@ -21,6 +21,7 @@ from pickfair_mcp.contract.parsing import (
     UpstreamInvalidResponse,
     parse_account,
     parse_exposure,
+    parse_orders,
     parse_positions,
     parse_reconciliation_status,
     parse_status,
@@ -44,8 +45,8 @@ def test_both_committed_copies_equal_the_generated_descriptor() -> None:
 
 def test_hash_and_version_are_shared() -> None:
     assert api_contract.schema_hash() == contract_schema_hash()
-    assert api_contract.CONTRACT_VERSION == SUPPORTED_CONTRACT_VERSION == "1.3.0"
-    assert COMPAT_MATRIX == {"1.3.0": frozenset({contract_schema_hash()})}
+    assert api_contract.CONTRACT_VERSION == SUPPORTED_CONTRACT_VERSION == "1.4.0"
+    assert COMPAT_MATRIX == {"1.4.0": frozenset({contract_schema_hash()})}
 
 
 def test_descriptor_covers_tools_errors_and_semantics() -> None:
@@ -57,6 +58,7 @@ def test_descriptor_covers_tools_errors_and_semantics() -> None:
         "get_account",
         "get_exposure",
         "list_positions",
+        "list_orders",
     }
     for tool in d["tools"].values():
         assert tool["input_schema"]["additionalProperties"] is False
@@ -71,6 +73,7 @@ def test_descriptor_covers_tools_errors_and_semantics() -> None:
         "account",
         "exposure",
         "positions",
+        "orders",
         "error",
     }
     assert {"unavailable", "codes", "consistency", "freshness", "money", "not_implemented"} <= set(
@@ -410,3 +413,71 @@ def test_13_semantics_are_part_of_the_hash() -> None:
     d = build_contract_descriptor()
     assert "protections" in d["semantics"] and "positions" in d["upstream_schemas"]
     assert "UNKNOWN" in d["semantics"]["protections"]
+
+
+# ------------------------------------------------------------------ MCP-01g (contratto 1.4.0)
+
+HOSTILE_ORDERS = [
+    bodies.orders(snapshot={**bodies.orders()["snapshot"], "orders": [bodies.order(stake=10.0)]}),
+    bodies.orders(
+        snapshot={**bodies.orders()["snapshot"], "orders": [bodies.order(customer_ref="x")]}
+    ),
+    bodies.orders(
+        snapshot={**bodies.orders()["snapshot"], "orders": [bodies.order(status="CANCELLED")]}
+    ),
+    bodies.orders(snapshot={"state": "UNKNOWN", "reason": None}),
+    bodies.orders(
+        snapshot={
+            "state": "CONSISTENT",
+            "reason": None,
+            "orders": [],
+            "omitted": 0,
+            "truncated": False,
+        }
+    ),
+    bodies.orders(consistency="PER_SECTION_LOCKED"),
+]
+
+
+@pytest.mark.parametrize("body", HOSTILE_ORDERS, ids=range(len(HOSTILE_ORDERS)))
+def test_hostile_orders_rejected_by_both_sides(body: dict[str, Any]) -> None:
+    assert not _mcp_accepts(parse_orders, body)
+    assert not _api_accepts("orders", body)
+
+
+def test_valid_orders_accepted_by_both_sides() -> None:
+    for body in (
+        bodies.orders(),
+        bodies.orders(snapshot={"state": "UNAVAILABLE", "reason": "DB_NOT_CONFIGURED"}),
+    ):
+        assert _mcp_accepts(parse_orders, body)
+        assert _api_accepts("orders", body)
+
+
+# Regole solo-MCP di 1.4.0: mappa degli stati e quantità esplicite (JSON Schema non le esprime).
+MCP_ONLY_RULES_14 = [
+    bodies.orders(
+        snapshot={
+            **bodies.orders()["snapshot"],
+            "orders": [bodies.order(core_status="AMBIGUOUS", status="FAILED")],
+        }
+    ),
+    bodies.orders(
+        snapshot={**bodies.orders()["snapshot"], "orders": [bodies.order(size_remaining="0")]}
+    ),  # PARTIAL con residuo 0
+    bodies.orders(
+        snapshot={"state": "OK", "reason": "X", "orders": [], "omitted": 0, "truncated": False}
+    ),
+]
+
+
+@pytest.mark.parametrize("body", MCP_ONLY_RULES_14, ids=range(len(MCP_ONLY_RULES_14)))
+def test_14_cross_field_rules_are_enforced_by_the_mcp(body: dict[str, Any]) -> None:
+    assert not _mcp_accepts(parse_orders, body)
+    assert _api_accepts("orders", body)
+
+
+def test_14_order_map_is_part_of_the_hash() -> None:
+    d = build_contract_descriptor()
+    assert d["semantics"]["orders"]["status_map"]["AMBIGUOUS"] == ["AMBIGUOUS"]
+    assert d["semantics"]["orders"]["not_in_core"] == ["APPROVED", "CANCELLED", "SETTLED"]

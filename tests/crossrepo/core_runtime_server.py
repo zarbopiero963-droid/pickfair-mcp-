@@ -137,8 +137,13 @@ for name in (
 
 
 def db_digest() -> str:
+    # `-shm` escluso: indice del WAL dove ogni lettore SQLite (anche la lettura in sola lettura
+    # degli ordini, MCP-01g) scrive il proprio marcatore di lettura; nessun dato. `.db` e `-wal`
+    # restano confrontati byte per byte.
     h = hashlib.sha256()
     for p in sorted(WORK.glob("pickfair.db*")):
+        if p.name.endswith("-shm"):
+            continue
         h.update(p.name.encode())
         h.update(p.read_bytes())
     return h.hexdigest()
@@ -253,6 +258,45 @@ for line in sys.stdin:
             open_size=str(ledger._open_size),
             avg=str(ledger._avg_entry_price()),
             exposure=str(exposure),
+        )
+    elif cmd[0] == "ORDERS":
+        # Comando al CORE: righe nel ledger `orders` come le scrive il TradingEngine (DB reale).
+        ids = {}
+        for status, resp, extra in (
+            (
+                "SUBMITTED",
+                {
+                    "instructionReports": [
+                        {"betId": "SIMBET-e2e1", "sizeMatched": 2.0, "sizeRemaining": 3.0}
+                    ]
+                },
+                {},
+            ),
+            ("AMBIGUOUS", None, {"ambiguity_reason": "timeout_after_submit"}),
+            ("COMPLETED", {"betId": "SIMBET-e2e2"}, {}),
+        ):
+            ids[status] = rc.db.insert_order(
+                {
+                    "customer_ref": f"cref-secret-{status}",
+                    "correlation_id": "corr",
+                    "status": status,
+                    "response": resp,
+                    "payload": {
+                        "market_id": "1.234567",
+                        "selection_id": 47972,
+                        "side": "BACK",
+                        "price": 2.5,
+                        "stake": 5.0,
+                        "event_key": "Juventus v Inter",
+                    },
+                    **extra,
+                }
+            )
+        cands, unattr = rc._open_order_candidates()
+        reply(
+            event="ORDERS",
+            ids=ids,
+            open_bet_ids=sorted(c["bet_id"] for c in list(cands) + list(unattr)),
         )
     elif cmd[0] == "DIGEST":
         state["recording"] = False  # la misura stessa non deve contare come chiamata

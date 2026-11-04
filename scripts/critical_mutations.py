@@ -964,6 +964,121 @@ MUTANTS: tuple[Mutant, ...] = (
         ((CK, "        if (value.get(name) is None) != (name in declared):", "        if False:"),),
     ),
     Mutant(
+        "H01",
+        "ordine AMBIGUOUS accettato come FAILED",
+        (
+            (
+                MO,
+                '    "AMBIGUOUS": ("AMBIGUOUS",),\n    "HEDGE_AMBIGUOUS": ("AMBIGUOUS",),\n}',
+                '    "AMBIGUOUS": ("AMBIGUOUS", "FAILED"),\n    "HEDGE_AMBIGUOUS": ("AMBIGUOUS",),\n}',
+            ),
+        ),
+    ),
+    Mutant(
+        "H02",
+        "stato del core sconosciuto accettato con qualunque stato",
+        (
+            (
+                MO,
+                '        if self.status not in ORDER_STATUS_MAP.get(self.core_status, ("UNKNOWN",)):',
+                "        if self.core_status in ORDER_STATUS_MAP and self.status not in ORDER_STATUS_MAP[self.core_status]:",
+            ),
+        ),
+    ),
+    Mutant(
+        "H03",
+        "abbinamento dichiarato senza quantità esplicite",
+        (
+            (
+                MO,
+                '            if self.size_matched is None or self.size_remaining is None:\n                raise ValueError("matched split without explicit sizes")',
+                "            if self.size_matched is None or self.size_remaining is None:\n                return self",
+            ),
+        ),
+    ),
+    Mutant(
+        "H04",
+        "abbinamento in contrasto con le quantità accettato",
+        (
+            (
+                MO,
+                '            if self.status != expected:\n                raise ValueError("matched split disagrees with the sizes")',
+                '            if False:\n                raise ValueError("matched split disagrees with the sizes")',
+            ),
+        ),
+    ),
+    Mutant(
+        "H05",
+        "confronto col broker senza betId accettato",
+        (
+            (
+                MO,
+                '        if self.broker_view != "NOT_CHECKED" and self.bet_id is None:',
+                "        if False:",
+            ),
+        ),
+    ),
+    Mutant(
+        "H06",
+        "ordini duplicati accettati",
+        ((MO, '        raise ValueError("duplicate local_id")', "        pass"),),
+    ),
+    Mutant(
+        "H07",
+        "snapshot OK con righe omesse accettato",
+        (
+            (
+                MO,
+                '        if self.state == "OK" and (self.reason or self.omitted or self.truncated):',
+                '        if self.state == "OK" and self.reason:',
+            ),
+        ),
+    ),
+    Mutant(
+        "H08",
+        "snapshot PARTIAL senza dire cosa manca accettato",
+        (
+            (
+                MO,
+                '        if self.state == "PARTIAL" and not (self.reason and (self.omitted or self.truncated)):',
+                "        if False:",
+            ),
+        ),
+    ),
+    Mutant(
+        "H09",
+        "list_orders legge la route sbagliata",
+        (
+            (
+                FI,
+                "            read=adapter.get_orders_raw,",
+                "            read=adapter.get_positions_raw,",
+            ),
+        ),
+    ),
+    Mutant(
+        "H10",
+        "valore d'ordine nullo non dichiarato accettato",
+        (
+            (
+                MO,
+                '        if tuple(values) != ORDER_OPTIONAL_FIELDS:\n            raise ValueError("optional field list out of sync")\n        _check_unavailable(values, self.unavailable)',
+                '        if tuple(values) != ORDER_OPTIONAL_FIELDS:\n            raise ValueError("optional field list out of sync")',
+            ),
+        ),
+    ),
+    Mutant(
+        "H11",
+        "snapshot non letto senza motivo accettato",
+        (
+            (
+                MO,
+                '    state: Literal["UNKNOWN", "UNAVAILABLE"]\n    reason: Code\n',
+                '    state: Literal["UNKNOWN", "UNAVAILABLE"]\n    reason: Code | None\n',
+            ),
+        ),
+    ),
+    Mutant(
         "G01",
         "protezione ACTIVE con un motivo accettata (stato non verificato mascherato)",
         (

@@ -1,6 +1,6 @@
 {
   "contract_name": "pickfair-control-api",
-  "contract_version": "1.3.0",
+  "contract_version": "1.4.0",
   "error_codes": {
     "control_api": [
       "BAD_HOST",
@@ -162,6 +162,66 @@
     },
     "money": "Amounts are finite floats in EUR exactly as the core holds them, never rounded or defaulted; execution_mode SIM means the simulated broker's fictitious balance. Since 1.3.0 new amounts and prices are canonical decimal strings (no exponent, no float): lossless from the core's Decimal, or the shortest repr of the core's float when the core holds a float (declared by amounts_source).",
     "not_implemented": "An approved read route the Control API does not serve yet answers 501 NOT_IMPLEMENTED; a path outside the approved routes answers 404 NOT_FOUND; any method other than GET answers 405 METHOD_NOT_ALLOWED. No command route is served.",
+    "orders": {
+      "not_in_core": [
+        "APPROVED",
+        "CANCELLED",
+        "SETTLED"
+      ],
+      "snapshot_states": "OK complete; PARTIAL rows omitted or list truncated (reason); STALE read but the core's startup reconciliation is not done (reason); UNKNOWN database busy; UNAVAILABLE not readable. Missing values stay null, never zero.",
+      "source": "The core's durable `orders` ledger read in one read-only transaction; hedge orders of cashouts (HEDGE_*) included; never a network call.",
+      "status_map": {
+        "ACCEPTED_FOR_PROCESSING": [
+          "ACCEPTED",
+          "UNMATCHED",
+          "PARTIALLY_MATCHED",
+          "MATCHED"
+        ],
+        "AMBIGUOUS": [
+          "AMBIGUOUS"
+        ],
+        "COMPLETED": [
+          "MATCHED"
+        ],
+        "DENIED": [
+          "REJECTED"
+        ],
+        "DUPLICATE_BLOCKED": [
+          "DUPLICATE_BLOCKED"
+        ],
+        "FAILED": [
+          "FAILED"
+        ],
+        "HEDGE_AMBIGUOUS": [
+          "AMBIGUOUS"
+        ],
+        "HEDGE_FAILED": [
+          "FAILED"
+        ],
+        "HEDGE_PENDING": [
+          "PENDING"
+        ],
+        "HEDGE_PLACED": [
+          "ACCEPTED",
+          "UNMATCHED",
+          "PARTIALLY_MATCHED",
+          "MATCHED"
+        ],
+        "HEDGE_UNMATCHED": [
+          "UNMATCHED"
+        ],
+        "INFLIGHT": [
+          "PENDING"
+        ],
+        "SUBMITTED": [
+          "ACCEPTED",
+          "UNMATCHED",
+          "PARTIALLY_MATCHED",
+          "MATCHED"
+        ]
+      },
+      "status_map_rule": "A core status outside the map is UNKNOWN. UNMATCHED / PARTIALLY_MATCHED / MATCHED for an accepted order only with explicit size_matched and size_remaining. AMBIGUOUS stays AMBIGUOUS, never FAILED or absent."
+    },
     "protections": "Each protection is ACTIVE, INACTIVE, TRIGGERED, UNKNOWN or UNAVAILABLE; only ACTIVE has no reason. A protection that cannot be verified is UNKNOWN (core has it, value not readable) or UNAVAILABLE (core does not expose it yet), never ACTIVE or INACTIVE; the derived lists `disabled` and `unverifiable` must match the items.",
     "source": "Responses declare source=core; the simulated adapter declares source=simulated.",
     "transport": "HTTP/1.1 GET only on 127.0.0.1, Authorization Bearer token required, Host must be 127.0.0.1:<port>, no redirects, Content-Type application/json; charset=utf-8, body at most 65536 bytes.",
@@ -3122,6 +3182,603 @@
       "route": "GET /v1/status",
       "scope": "read"
     },
+    "list_orders": {
+      "input_schema": {
+        "additionalProperties": false,
+        "description": "Nessun argomento ammesso.",
+        "properties": {},
+        "title": "NoInput",
+        "type": "object"
+      },
+      "output_schema": {
+        "$defs": {
+          "ErrorBody": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "$ref": "#/$defs/ErrorCode"
+              },
+              "details": {
+                "$ref": "#/$defs/ErrorDetails"
+              },
+              "message": {
+                "maxLength": 200,
+                "title": "Message",
+                "type": "string"
+              },
+              "retryable": {
+                "title": "Retryable",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "retryable",
+              "details"
+            ],
+            "title": "ErrorBody",
+            "type": "object"
+          },
+          "ErrorCode": {
+            "enum": [
+              "INVALID_REQUEST",
+              "UNKNOWN_TOOL",
+              "CONTRACT_INCOMPATIBLE",
+              "UPSTREAM_TIMEOUT",
+              "UPSTREAM_UNAVAILABLE",
+              "UPSTREAM_INVALID_RESPONSE",
+              "UPSTREAM_UNAUTHORIZED",
+              "UPSTREAM_NOT_IMPLEMENTED",
+              "INTERNAL_ERROR",
+              "JOURNAL_UNAVAILABLE",
+              "FORBIDDEN"
+            ],
+            "title": "ErrorCode",
+            "type": "string"
+          },
+          "ErrorDetails": {
+            "additionalProperties": false,
+            "properties": {
+              "handshake_status": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Z_]{1,32}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Handshake Status"
+              },
+              "reasons": {
+                "items": {
+                  "maxLength": 160,
+                  "pattern": "^[A-Z_]+(:[A-Za-z0-9_{}/?=. -]{1,140})?$",
+                  "type": "string"
+                },
+                "maxItems": 32,
+                "title": "Reasons",
+                "type": "array"
+              }
+            },
+            "required": [
+              "reasons",
+              "handshake_status"
+            ],
+            "title": "ErrorDetails",
+            "type": "object"
+          },
+          "ListOrdersData": {
+            "additionalProperties": false,
+            "properties": {
+              "age_s": {
+                "maximum": 30.0,
+                "minimum": 0,
+                "title": "Age S",
+                "type": "number"
+              },
+              "orders": {
+                "$ref": "#/$defs/OrdersResponse"
+              },
+              "upstream": {
+                "$ref": "#/$defs/UpstreamInfo"
+              }
+            },
+            "required": [
+              "orders",
+              "age_s",
+              "upstream"
+            ],
+            "title": "ListOrdersData",
+            "type": "object"
+          },
+          "Order": {
+            "additionalProperties": false,
+            "properties": {
+              "avg_price_matched": {
+                "anyOf": [
+                  {
+                    "maxLength": 48,
+                    "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Avg Price Matched"
+              },
+              "bet_id": {
+                "anyOf": [
+                  {
+                    "maxLength": 32,
+                    "pattern": "^[0-9A-Za-z._-]{1,32}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Bet Id"
+              },
+              "broker_view": {
+                "enum": [
+                  "PRESENT",
+                  "ABSENT",
+                  "NOT_CHECKED"
+                ],
+                "title": "Broker View",
+                "type": "string"
+              },
+              "core_status": {
+                "maxLength": 64,
+                "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                "title": "Core Status",
+                "type": "string"
+              },
+              "created_at": {
+                "exclusiveMaximum": 100000000000.0,
+                "exclusiveMinimum": 0,
+                "title": "Created At",
+                "type": "number"
+              },
+              "local_id": {
+                "maximum": 1000000000000000,
+                "minimum": 1,
+                "title": "Local Id",
+                "type": "integer"
+              },
+              "market_id": {
+                "anyOf": [
+                  {
+                    "maxLength": 32,
+                    "pattern": "^[0-9A-Za-z._-]{1,32}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Market Id"
+              },
+              "price": {
+                "anyOf": [
+                  {
+                    "maxLength": 48,
+                    "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Price"
+              },
+              "reconciliation": {
+                "$ref": "#/$defs/OrderReconciliation"
+              },
+              "role": {
+                "enum": [
+                  "ENTRY",
+                  "HEDGE",
+                  "DUTCHING_LEG"
+                ],
+                "title": "Role",
+                "type": "string"
+              },
+              "selection_id": {
+                "anyOf": [
+                  {
+                    "maxLength": 32,
+                    "pattern": "^[0-9A-Za-z._-]{1,32}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Selection Id"
+              },
+              "side": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "BACK",
+                      "LAY"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Side"
+              },
+              "size_matched": {
+                "anyOf": [
+                  {
+                    "maxLength": 48,
+                    "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Size Matched"
+              },
+              "size_remaining": {
+                "anyOf": [
+                  {
+                    "maxLength": 48,
+                    "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Size Remaining"
+              },
+              "stake": {
+                "anyOf": [
+                  {
+                    "maxLength": 48,
+                    "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Stake"
+              },
+              "status": {
+                "enum": [
+                  "PENDING",
+                  "ACCEPTED",
+                  "UNMATCHED",
+                  "PARTIALLY_MATCHED",
+                  "MATCHED",
+                  "AMBIGUOUS",
+                  "REJECTED",
+                  "FAILED",
+                  "DUPLICATE_BLOCKED",
+                  "UNKNOWN"
+                ],
+                "title": "Status",
+                "type": "string"
+              },
+              "table_id": {
+                "anyOf": [
+                  {
+                    "maximum": 10000,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Table Id"
+              },
+              "unavailable": {
+                "items": {
+                  "enum": [
+                    "bet_id",
+                    "market_id",
+                    "selection_id",
+                    "side",
+                    "price",
+                    "stake",
+                    "size_matched",
+                    "avg_price_matched",
+                    "size_remaining",
+                    "table_id"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 10,
+                "title": "Unavailable",
+                "type": "array",
+                "uniqueItems": true
+              },
+              "updated_at": {
+                "exclusiveMaximum": 100000000000.0,
+                "exclusiveMinimum": 0,
+                "title": "Updated At",
+                "type": "number"
+              }
+            },
+            "required": [
+              "local_id",
+              "bet_id",
+              "role",
+              "core_status",
+              "status",
+              "market_id",
+              "selection_id",
+              "side",
+              "price",
+              "stake",
+              "size_matched",
+              "avg_price_matched",
+              "size_remaining",
+              "table_id",
+              "created_at",
+              "updated_at",
+              "reconciliation",
+              "broker_view",
+              "unavailable"
+            ],
+            "title": "Order",
+            "type": "object"
+          },
+          "OrderReconciliation": {
+            "additionalProperties": false,
+            "properties": {
+              "ambiguity_reason": {
+                "anyOf": [
+                  {
+                    "maxLength": 64,
+                    "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Ambiguity Reason"
+              },
+              "finalized": {
+                "title": "Finalized",
+                "type": "boolean"
+              },
+              "in_engine_queue": {
+                "title": "In Engine Queue",
+                "type": "boolean"
+              },
+              "in_reconciliation": {
+                "title": "In Reconciliation",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "in_reconciliation",
+              "in_engine_queue",
+              "finalized",
+              "ambiguity_reason"
+            ],
+            "title": "OrderReconciliation",
+            "type": "object"
+          },
+          "OrdersResponse": {
+            "additionalProperties": false,
+            "properties": {
+              "consistency": {
+                "const": "SINGLE_READ_TRANSACTION",
+                "title": "Consistency",
+                "type": "string"
+              },
+              "observed_at": {
+                "exclusiveMaximum": 100000000000.0,
+                "exclusiveMinimum": 0,
+                "title": "Observed At",
+                "type": "number"
+              },
+              "snapshot": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/OrdersSnapshotRead"
+                  },
+                  {
+                    "$ref": "#/$defs/OrdersSnapshotMissing"
+                  }
+                ],
+                "title": "Snapshot"
+              },
+              "source": {
+                "enum": [
+                  "core",
+                  "simulated"
+                ],
+                "title": "Source",
+                "type": "string"
+              }
+            },
+            "required": [
+              "source",
+              "observed_at",
+              "consistency",
+              "snapshot"
+            ],
+            "title": "OrdersResponse",
+            "type": "object"
+          },
+          "OrdersSnapshotMissing": {
+            "additionalProperties": false,
+            "description": "Lettura non riuscita: UNKNOWN (database occupato) o UNAVAILABLE (non leggibile).",
+            "properties": {
+              "reason": {
+                "maxLength": 64,
+                "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                "title": "Reason",
+                "type": "string"
+              },
+              "state": {
+                "enum": [
+                  "UNKNOWN",
+                  "UNAVAILABLE"
+                ],
+                "title": "State",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "title": "OrdersSnapshotMissing",
+            "type": "object"
+          },
+          "OrdersSnapshotRead": {
+            "additionalProperties": false,
+            "description": "Lettura riuscita. OK: completa. PARTIAL: righe illeggibili omesse o elenco troncato.\nSTALE: letta, ma la riconciliazione d'avvio del core non \u00e8 conclusa (pu\u00f2 non riflettere\nl'exchange).",
+            "properties": {
+              "omitted": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Omitted",
+                "type": "integer"
+              },
+              "orders": {
+                "items": {
+                  "$ref": "#/$defs/Order"
+                },
+                "maxItems": 500,
+                "title": "Orders",
+                "type": "array"
+              },
+              "reason": {
+                "anyOf": [
+                  {
+                    "maxLength": 64,
+                    "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Reason"
+              },
+              "state": {
+                "enum": [
+                  "OK",
+                  "PARTIAL",
+                  "STALE"
+                ],
+                "title": "State",
+                "type": "string"
+              },
+              "truncated": {
+                "title": "Truncated",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "state",
+              "reason",
+              "orders",
+              "omitted",
+              "truncated"
+            ],
+            "title": "OrdersSnapshotRead",
+            "type": "object"
+          },
+          "UpstreamInfo": {
+            "additionalProperties": false,
+            "properties": {
+              "certified": {
+                "title": "Certified",
+                "type": "boolean"
+              },
+              "kind": {
+                "enum": [
+                  "simulated",
+                  "http"
+                ],
+                "title": "Kind",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "certified"
+            ],
+            "title": "UpstreamInfo",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ListOrdersData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ErrorBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "request_id": {
+            "pattern": "^req_[0-9a-f]{32}$",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]{2,47}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool"
+          }
+        },
+        "required": [
+          "ok",
+          "request_id",
+          "tool",
+          "data",
+          "error"
+        ],
+        "title": "Envelope[ListOrdersData]",
+        "type": "object"
+      },
+      "route": "GET /v1/orders",
+      "scope": "read"
+    },
     "list_positions": {
       "input_schema": {
         "additionalProperties": false,
@@ -4094,6 +4751,412 @@
         "git_sha",
         "schema_hash"
       ],
+      "type": "object"
+    },
+    "orders": {
+      "$defs": {
+        "Order": {
+          "additionalProperties": false,
+          "properties": {
+            "avg_price_matched": {
+              "anyOf": [
+                {
+                  "maxLength": 48,
+                  "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Avg Price Matched"
+            },
+            "bet_id": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "pattern": "^[0-9A-Za-z._-]{1,32}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Bet Id"
+            },
+            "broker_view": {
+              "enum": [
+                "PRESENT",
+                "ABSENT",
+                "NOT_CHECKED"
+              ],
+              "title": "Broker View",
+              "type": "string"
+            },
+            "core_status": {
+              "maxLength": 64,
+              "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+              "title": "Core Status",
+              "type": "string"
+            },
+            "created_at": {
+              "exclusiveMaximum": 100000000000.0,
+              "exclusiveMinimum": 0,
+              "title": "Created At",
+              "type": "number"
+            },
+            "local_id": {
+              "maximum": 1000000000000000,
+              "minimum": 1,
+              "title": "Local Id",
+              "type": "integer"
+            },
+            "market_id": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "pattern": "^[0-9A-Za-z._-]{1,32}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Market Id"
+            },
+            "price": {
+              "anyOf": [
+                {
+                  "maxLength": 48,
+                  "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Price"
+            },
+            "reconciliation": {
+              "$ref": "#/$defs/OrderReconciliation"
+            },
+            "role": {
+              "enum": [
+                "ENTRY",
+                "HEDGE",
+                "DUTCHING_LEG"
+              ],
+              "title": "Role",
+              "type": "string"
+            },
+            "selection_id": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "pattern": "^[0-9A-Za-z._-]{1,32}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Selection Id"
+            },
+            "side": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "BACK",
+                    "LAY"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Side"
+            },
+            "size_matched": {
+              "anyOf": [
+                {
+                  "maxLength": 48,
+                  "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Size Matched"
+            },
+            "size_remaining": {
+              "anyOf": [
+                {
+                  "maxLength": 48,
+                  "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Size Remaining"
+            },
+            "stake": {
+              "anyOf": [
+                {
+                  "maxLength": 48,
+                  "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Stake"
+            },
+            "status": {
+              "enum": [
+                "PENDING",
+                "ACCEPTED",
+                "UNMATCHED",
+                "PARTIALLY_MATCHED",
+                "MATCHED",
+                "AMBIGUOUS",
+                "REJECTED",
+                "FAILED",
+                "DUPLICATE_BLOCKED",
+                "UNKNOWN"
+              ],
+              "title": "Status",
+              "type": "string"
+            },
+            "table_id": {
+              "anyOf": [
+                {
+                  "maximum": 10000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Table Id"
+            },
+            "unavailable": {
+              "items": {
+                "enum": [
+                  "bet_id",
+                  "market_id",
+                  "selection_id",
+                  "side",
+                  "price",
+                  "stake",
+                  "size_matched",
+                  "avg_price_matched",
+                  "size_remaining",
+                  "table_id"
+                ],
+                "type": "string"
+              },
+              "maxItems": 10,
+              "title": "Unavailable",
+              "type": "array",
+              "uniqueItems": true
+            },
+            "updated_at": {
+              "exclusiveMaximum": 100000000000.0,
+              "exclusiveMinimum": 0,
+              "title": "Updated At",
+              "type": "number"
+            }
+          },
+          "required": [
+            "local_id",
+            "bet_id",
+            "role",
+            "core_status",
+            "status",
+            "market_id",
+            "selection_id",
+            "side",
+            "price",
+            "stake",
+            "size_matched",
+            "avg_price_matched",
+            "size_remaining",
+            "table_id",
+            "created_at",
+            "updated_at",
+            "reconciliation",
+            "broker_view",
+            "unavailable"
+          ],
+          "title": "Order",
+          "type": "object"
+        },
+        "OrderReconciliation": {
+          "additionalProperties": false,
+          "properties": {
+            "ambiguity_reason": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ambiguity Reason"
+            },
+            "finalized": {
+              "title": "Finalized",
+              "type": "boolean"
+            },
+            "in_engine_queue": {
+              "title": "In Engine Queue",
+              "type": "boolean"
+            },
+            "in_reconciliation": {
+              "title": "In Reconciliation",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "in_reconciliation",
+            "in_engine_queue",
+            "finalized",
+            "ambiguity_reason"
+          ],
+          "title": "OrderReconciliation",
+          "type": "object"
+        },
+        "OrdersSnapshotMissing": {
+          "additionalProperties": false,
+          "description": "Lettura non riuscita: UNKNOWN (database occupato) o UNAVAILABLE (non leggibile).",
+          "properties": {
+            "reason": {
+              "maxLength": 64,
+              "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+              "title": "Reason",
+              "type": "string"
+            },
+            "state": {
+              "enum": [
+                "UNKNOWN",
+                "UNAVAILABLE"
+              ],
+              "title": "State",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state",
+            "reason"
+          ],
+          "title": "OrdersSnapshotMissing",
+          "type": "object"
+        },
+        "OrdersSnapshotRead": {
+          "additionalProperties": false,
+          "description": "Lettura riuscita. OK: completa. PARTIAL: righe illeggibili omesse o elenco troncato.\nSTALE: letta, ma la riconciliazione d'avvio del core non \u00e8 conclusa (pu\u00f2 non riflettere\nl'exchange).",
+          "properties": {
+            "omitted": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Omitted",
+              "type": "integer"
+            },
+            "orders": {
+              "items": {
+                "$ref": "#/$defs/Order"
+              },
+              "maxItems": 500,
+              "title": "Orders",
+              "type": "array"
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Reason"
+            },
+            "state": {
+              "enum": [
+                "OK",
+                "PARTIAL",
+                "STALE"
+              ],
+              "title": "State",
+              "type": "string"
+            },
+            "truncated": {
+              "title": "Truncated",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "state",
+            "reason",
+            "orders",
+            "omitted",
+            "truncated"
+          ],
+          "title": "OrdersSnapshotRead",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "consistency": {
+          "const": "SINGLE_READ_TRANSACTION",
+          "title": "Consistency",
+          "type": "string"
+        },
+        "observed_at": {
+          "exclusiveMaximum": 100000000000.0,
+          "exclusiveMinimum": 0,
+          "title": "Observed At",
+          "type": "number"
+        },
+        "snapshot": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OrdersSnapshotRead"
+            },
+            {
+              "$ref": "#/$defs/OrdersSnapshotMissing"
+            }
+          ],
+          "title": "Snapshot"
+        },
+        "source": {
+          "enum": [
+            "core",
+            "simulated"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "observed_at",
+        "consistency",
+        "snapshot"
+      ],
+      "title": "OrdersResponse",
       "type": "object"
     },
     "positions": {

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Annotated, Literal
 
 from pydantic import (
@@ -767,3 +768,192 @@ class PositionsResponse(StrictModel):
     def _declared(self) -> PositionsResponse:
         _check_unavailable({"positions": self.positions}, self.unavailable)
         return self
+
+
+# ---------------------------------------------------------------------------
+# MCP-01g — GET /v1/orders (contratto 1.4.0)
+#
+# Fonte: il ledger `orders` del core (stato durevole del ciclo di vita dell'ordine), letto in UNA
+# transazione di sola lettura. Stati: mappa ESPLICITA dagli stati reali del core; nessuno stato
+# inventato. APPROVED, CANCELLED e SETTLED non esistono nel ledger degli ordini: non compaiono.
+# ---------------------------------------------------------------------------
+
+_ACCEPTED_FAMILY = ("ACCEPTED", "UNMATCHED", "PARTIALLY_MATCHED", "MATCHED")
+# stato del core -> stati di contratto ammessi. Le suddivisioni UNMATCHED / PARTIALLY_MATCHED /
+# MATCHED di un ordine accettato si usano solo con quantità abbinata E residua esplicite.
+ORDER_STATUS_MAP: dict[str, tuple[str, ...]] = {
+    "INFLIGHT": ("PENDING",),
+    "HEDGE_PENDING": ("PENDING",),
+    "SUBMITTED": _ACCEPTED_FAMILY,
+    "ACCEPTED_FOR_PROCESSING": _ACCEPTED_FAMILY,
+    "HEDGE_PLACED": _ACCEPTED_FAMILY,
+    "HEDGE_UNMATCHED": ("UNMATCHED",),
+    "COMPLETED": ("MATCHED",),
+    "FAILED": ("FAILED",),
+    "HEDGE_FAILED": ("FAILED",),
+    "DENIED": ("REJECTED",),
+    "DUPLICATE_BLOCKED": ("DUPLICATE_BLOCKED",),
+    "AMBIGUOUS": ("AMBIGUOUS",),
+    "HEDGE_AMBIGUOUS": ("AMBIGUOUS",),
+}
+OrderStatus = Literal[
+    "PENDING",
+    "ACCEPTED",
+    "UNMATCHED",
+    "PARTIALLY_MATCHED",
+    "MATCHED",
+    "AMBIGUOUS",
+    "REJECTED",
+    "FAILED",
+    "DUPLICATE_BLOCKED",
+    "UNKNOWN",
+]
+OrderField = Literal[
+    "bet_id",
+    "market_id",
+    "selection_id",
+    "side",
+    "price",
+    "stake",
+    "size_matched",
+    "avg_price_matched",
+    "size_remaining",
+    "table_id",
+]
+ORDER_OPTIONAL_FIELDS: tuple[str, ...] = (
+    "bet_id",
+    "market_id",
+    "selection_id",
+    "side",
+    "price",
+    "stake",
+    "size_matched",
+    "avg_price_matched",
+    "size_remaining",
+    "table_id",
+)
+MAX_ORDERS = 500
+
+
+class OrderReconciliation(StrictModel):
+    # Stato non terminale del ledger che la riconciliazione del core considera aperto.
+    in_reconciliation: bool
+    # Presente nel registro delle ambiguità del ReconciliationEngine (in memoria).
+    in_engine_queue: bool
+    finalized: bool
+    ambiguity_reason: Code | None
+
+
+class Order(StrictModel):
+    local_id: Annotated[int, Field(ge=1, le=10**15)]
+    bet_id: Identifier | None
+    # ENTRY: ingresso del bot; HEDGE: hedge di un cashout (core/hedge_ref.py); DUTCHING_LEG: gamba
+    # di un lotto Dutching.
+    role: Literal["ENTRY", "HEDGE", "DUTCHING_LEG"]
+    core_status: Code
+    status: OrderStatus
+    market_id: Identifier | None
+    selection_id: Identifier | None
+    side: Literal["BACK", "LAY"] | None
+    price: DecimalStr | None
+    stake: DecimalStr | None
+    size_matched: DecimalStr | None
+    avg_price_matched: DecimalStr | None
+    size_remaining: DecimalStr | None
+    table_id: Annotated[int, Field(ge=1, le=10_000)] | None
+    created_at: EpochSeconds
+    updated_at: EpochSeconds
+    reconciliation: OrderReconciliation
+    # Confronto col broker SIM (ordini correnti in memoria): PRESENT/ABSENT; in LIVE o senza betId
+    # NOT_CHECKED (il core LIVE non tiene ordini in memoria: nessuna chiamata di rete per saperlo).
+    broker_view: Literal["PRESENT", "ABSENT", "NOT_CHECKED"]
+    unavailable: Annotated[
+        tuple[OrderField, ...],
+        Field(max_length=len(ORDER_OPTIONAL_FIELDS), json_schema_extra={"uniqueItems": True}),
+    ]
+
+    @model_validator(mode="after")
+    def _coherent(self) -> Order:
+        values: dict[str, object] = {
+            "bet_id": self.bet_id,
+            "market_id": self.market_id,
+            "selection_id": self.selection_id,
+            "side": self.side,
+            "price": self.price,
+            "stake": self.stake,
+            "size_matched": self.size_matched,
+            "avg_price_matched": self.avg_price_matched,
+            "size_remaining": self.size_remaining,
+            "table_id": self.table_id,
+        }
+        if tuple(values) != ORDER_OPTIONAL_FIELDS:
+            raise ValueError("optional field list out of sync")
+        _check_unavailable(values, self.unavailable)
+        if self.status not in ORDER_STATUS_MAP.get(self.core_status, ("UNKNOWN",)):
+            raise ValueError("status does not follow the core status map")
+        if self.status in ("UNMATCHED", "PARTIALLY_MATCHED", "MATCHED") and (
+            ORDER_STATUS_MAP.get(self.core_status) == _ACCEPTED_FAMILY
+        ):
+            if self.size_matched is None or self.size_remaining is None:
+                raise ValueError("matched split without explicit sizes")
+            matched, remaining = Decimal(self.size_matched), Decimal(self.size_remaining)
+            expected = (
+                "MATCHED"
+                if remaining == 0 and matched > 0
+                else "UNMATCHED"
+                if matched == 0 and remaining > 0
+                else "PARTIALLY_MATCHED"
+                if matched > 0 and remaining > 0
+                else None
+            )
+            if self.status != expected:
+                raise ValueError("matched split disagrees with the sizes")
+        if self.broker_view != "NOT_CHECKED" and self.bet_id is None:
+            raise ValueError("broker comparison without a bet id")
+        return self
+
+
+def _unique_orders(values: tuple[Order, ...]) -> tuple[Order, ...]:
+    ids = [o.local_id for o in values]
+    if len(set(ids)) != len(ids):
+        raise ValueError("duplicate local_id")
+    return values
+
+
+class OrdersSnapshotRead(StrictModel):
+    """Lettura riuscita. OK: completa. PARTIAL: righe illeggibili omesse o elenco troncato.
+    STALE: letta, ma la riconciliazione d'avvio del core non è conclusa (può non riflettere
+    l'exchange)."""
+
+    state: Literal["OK", "PARTIAL", "STALE"]
+    reason: Code | None
+    orders: Annotated[
+        tuple[Order, ...], Field(max_length=MAX_ORDERS), AfterValidator(_unique_orders)
+    ]
+    omitted: Count
+    truncated: bool
+
+    @model_validator(mode="after")
+    def _coherent(self) -> OrdersSnapshotRead:
+        if self.state == "OK" and (self.reason or self.omitted or self.truncated):
+            raise ValueError("OK snapshot with omissions or a reason")
+        if self.state == "PARTIAL" and not (self.reason and (self.omitted or self.truncated)):
+            raise ValueError("PARTIAL snapshot must say what is missing")
+        if self.state == "STALE" and not self.reason:
+            raise ValueError("STALE snapshot must say why")
+        return self
+
+
+class OrdersSnapshotMissing(StrictModel):
+    """Lettura non riuscita: UNKNOWN (database occupato) o UNAVAILABLE (non leggibile)."""
+
+    state: Literal["UNKNOWN", "UNAVAILABLE"]
+    reason: Code
+
+
+class OrdersResponse(StrictModel):
+    source: Source
+    observed_at: ObservedAt
+    # Tutte le righe da una sola transazione di lettura: nessun ordine a metà fra due stati.
+    consistency: Literal["SINGLE_READ_TRANSACTION"]
+    snapshot: OrdersSnapshotRead | OrdersSnapshotMissing

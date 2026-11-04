@@ -170,3 +170,6 @@ class HttpControlApiAdapter:
 
     async def get_positions_raw(self) -> bytes:
         return await self._get("/v1/positions")
+
+    async def get_orders_raw(self) -> bytes:
+        return await self._get("/v1/orders")

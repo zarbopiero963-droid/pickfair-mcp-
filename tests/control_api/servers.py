@@ -27,6 +27,7 @@ class Providers:
         self.account: Callable[[], dict[str, Any]] = bodies.account
         self.exposure: Callable[[], dict[str, Any]] = bodies.exposure
         self.positions: Callable[[], dict[str, Any]] = bodies.positions
+        self.orders: Callable[[], dict[str, Any]] = bodies.orders
         self.calls = 0
 
     def mapping(self) -> dict[str, Callable[[], dict[str, Any]]]:
@@ -50,7 +51,12 @@ class Providers:
             self.calls += 1
             return self.positions()
 
+        def orders() -> dict[str, Any]:
+            self.calls += 1
+            return self.orders()
+
         return {
+            "orders": orders,
             "positions": positions,
             "status": status,
             "reconciliation_status": recon,

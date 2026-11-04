@@ -5,7 +5,7 @@ Server MCP **locale su stdio** per controllare Pickfair attraverso strumenti aut
 un'autorità di trading**. Roserpina e l'Order Authority del core restano le uniche
 autorità finanziarie.
 
-Stato attuale (MCP-01a … MCP-01f, contratto 1.3.0):
+Stato attuale (MCP-01a … MCP-01g, contratto 1.4.0):
 
 - tool esposti, tutti di sola lettura: `get_meta` (handshake di contratto fail-closed),
   `get_status` e `get_reconciliation_status` (MCP-02a: stato runtime, modalità, readiness, STOP,
@@ -13,7 +13,9 @@ Stato attuale (MCP-01a … MCP-01f, contratto 1.3.0):
   snapshot dei fondi, desk mode, tavoli Roserpina, esposizione totale, capacità di recovery),
   diagnostica del motore e stato di 22 protezioni finanziarie dentro `get_status`
   (ACTIVE/INACTIVE/TRIGGERED/UNKNOWN/UNAVAILABLE: ciò che non è verificabile non è mai «sicuro») e
-  `list_positions` (MCP-01f, importi e quote in Decimal senza perdita); i
+  `list_positions` (MCP-01f, importi e quote in Decimal senza perdita) e `list_orders` (MCP-01g:
+  ledger degli ordini letto in sola lettura, stati del core con mappa esplicita, AMBIGUOUS mai
+  FAILED, stato dello snapshot OK/PARTIAL/STALE/UNKNOWN/UNAVAILABLE); i
   risultati dell'adapter simulato sono marcati `source: "simulated"` e sono fittizi;
 - le altre letture approvate rispondono `UPSTREAM_NOT_IMPLEMENTED` finché il core non le espone
   (la Control API risponde `501 NOT_IMPLEMENTED`, mai un dato);

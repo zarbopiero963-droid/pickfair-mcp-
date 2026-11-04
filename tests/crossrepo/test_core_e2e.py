@@ -44,6 +44,7 @@ READ_TOOLS = (
     "get_account",
     "get_exposure",
     "list_positions",
+    "list_orders",
 )
 
 
@@ -367,7 +368,7 @@ async def test_e2e_unserved_reads_are_not_implemented(core: Core) -> None:
     from pickfair_mcp.adapters.http import _LoopbackConnection  # niente DNS: socket IPv4 diretto
 
     token = core.token_path.read_text()
-    for path in ("/v1/orders", "/v1/config", "/v1/markets/1.2/book"):
+    for path in ("/v1/config", "/v1/markets/1.2/book", "/v1/operations/op-1"):
         conn = _LoopbackConnection(core.port, 5.0)
         conn.request("GET", path, headers={"Authorization": f"Bearer {token}"})
         resp = conn.getresponse()
@@ -420,3 +421,36 @@ async def test_e2e_diagnostics_protections_and_positions(core: Core, tmp_path: P
     em = after_stop[1]["data"]["status"]["protections"]["items"]["emergency_stop"]
     assert em["state"] == "TRIGGERED" and em["reason"] == "DAILY_LOSS_BREACH"
     assert em["as_of"] is not None
+
+
+async def test_e2e_orders_from_the_core_ledger(core: Core, tmp_path: Path) -> None:
+    """MCP-01g: list_orders dal ledger `orders` reale del core avviato in SIM."""
+    errlog = (tmp_path / "mcp.err").open("w+")
+    async with mcp(core, errlog) as s:
+        tools = {t.name: t for t in (await s.list_tools()).tools}
+        before = core.send("DIGEST")
+        written = core.send("ORDERS")  # comando al CORE
+        baseline = core.send("DIGEST")
+        result = await call(s, "list_orders")
+        after = core.send("DIGEST")
+    is_error, payload = result
+    assert is_error is False, payload
+    jsonschema.validate(payload, tools["list_orders"].outputSchema)
+    snap = payload["data"]["orders"]["snapshot"]
+    assert snap["state"] == "OK"
+    by_core = {o["core_status"]: o for o in snap["orders"]}
+    assert by_core["SUBMITTED"]["status"] == "PARTIALLY_MATCHED"
+    assert by_core["AMBIGUOUS"]["status"] == "AMBIGUOUS"
+    assert by_core["AMBIGUOUS"]["bet_id"] is None
+    assert by_core["AMBIGUOUS"]["reconciliation"]["ambiguity_reason"] == "TIMEOUT_AFTER_SUBMIT"
+    assert by_core["COMPLETED"]["status"] == "MATCHED"
+    assert by_core["SUBMITTED"]["broker_view"] == "ABSENT"  # nel ledger, non nel broker SIM
+    open_ids = sorted(
+        o["bet_id"] or "" for o in snap["orders"] if o["reconciliation"]["in_reconciliation"]
+    )
+    assert open_ids == written["open_bet_ids"]  # stesso betId della riconciliazione del core
+    text = json.dumps(payload)
+    assert "cref-secret" not in text and "Juventus" not in text
+    assert len(baseline["calls"]) >= len(before["calls"])
+    assert after["calls"] == baseline["calls"]  # la lettura non chiama broker né Betfair
+    assert after["db"] == baseline["db"] and after["balance"] == baseline["balance"]

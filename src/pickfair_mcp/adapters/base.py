@@ -75,3 +75,7 @@ class ControlApiAdapter(Protocol):
     async def get_positions_raw(self) -> bytes:
         """Corpo grezzo di GET /v1/positions (MCP-01f)."""
         ...
+
+    async def get_orders_raw(self) -> bytes:
+        """Corpo grezzo di GET /v1/orders (MCP-01g)."""
+        ...
