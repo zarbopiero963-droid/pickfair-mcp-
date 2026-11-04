@@ -33,12 +33,28 @@ chiave di `ambiguity_snapshot()` invariata. Un test riproduce esattamente quella
 testo d'errore mai esposto; senza betId resta null). Un nuovo stato del core finisce come `UNKNOWN`
 finché la mappa non viene estesa in una nuova versione del contratto.
 
-**Divergenza trovata nel core (segnalata a Claude B e Claude D):** esistono due estrattori del betId
+**Analisi P0 della divergenza del betId (conclusione: rischio LATENTE, nessun betId perso oggi).**
+Sonda sulle risposte REALI di ogni produttore del core, eseguita sul branch P0 di Claude D
+(`47e2aaa`, worktree locale, nessuna rete: `_post_jsonrpc` restituisce una risposta preparata):
+`BetfairClient.place_bet` (successo, risposta senza status, status sconosciuto, report con status
+sconosciuto, senza betId, rifiuto dichiarato), `OrderRouter._result`, `SimulationBroker.place_bet`.
+In 8 casi su 8 `Database._order_bet_id`, le forme di `_open_order_candidates` e il ponte restituiscono
+lo stesso betId (vuoto quando Betfair non ne ha assegnato uno). Le righe `orders` contengono la
+risposta di UN ordine: nel core non esistono chiamate `place_orders` a più istruzioni (solo
+`replace_orders`), quindi nessun betId di un'altra gamba può finire sull'ordine. Dopo un riavvio
+(nuovo runtime, stesso DB) la riga resta AMBIGUOUS con lo stesso betId; `in_engine_queue` torna
+false finché la riconciliazione del core non rimette l'ordine nel registro in memoria, mentre
+`in_reconciliation` resta true dal ledger. Evidenze: `evidence/betid_probe.txt`,
+`evidence/restart_probe.txt` nel pacchetto.
+
+**Divergenza (latente) fra i due estrattori del core:** esistono due estrattori del betId
 con precedenze diverse. `Database._order_bet_id` restituisce `""` per `{"result": {"betId": "222"}}`
 (che `_open_order_candidates` riconosce) e preferisce il betId diretto a quello del primo report
 (`{"betId": "1", "instructionReports": [{"betId": "2"}]}` → `"1"` contro `"2"` della
 riconciliazione). Il ponte segue la riconciliazione (identità usata al riavvio) e un test confronta i
-due risultati. Proposta: un solo helper pubblico, usato da entrambi i percorsi e dal ponte.
+due risultati. Nessun produttore attuale genera queste forme: diventerebbero un difetto con una
+risposta a più istruzioni salvata su una riga, o con un betId diretto diverso da quello del primo
+report. Proposta: un solo helper pubblico, usato da entrambi i percorsi e dal ponte.
 
 **Altre proposte (decide Claude B):** la colonna `finalized` usata in modo uniforme dai percorsi
 terminali. Branch di Claude D che toccano i dati letti (tutti non mergiati): `d-f23-market-tradable`
@@ -51,7 +67,8 @@ terminali. Branch di Claude D che toccano i dati letti (tutti non mergiati): `d-
 | RED: test nuovi contro il ponte di MCP-01f | errore di raccolta (vista assente) |
 | `tests/control_api/` | 145 passed (125 precedenti + 20 MCP-01g) |
 | Mutazioni `control_api` (`--fail-under 100`) | 51/51 KILLED, GATE PASS (le due barriere di scrittura sopravvivevano finché il test le provava solo insieme: ora ognuna ha il suo test) |
-| E2E fra processi (`tests/crossrepo`) | 11/11, su 3 esecuzioni |
+| E2E fra processi (`tests/crossrepo`) | 11/11, su 3 esecuzioni (patch finale) |
+| Mutanti critici MCP (catalogo completo) | vedere il messaggio di handoff; campagna su `e9cc8993`, equivalenza col commit finale dimostrata (stesso codice e test; stesse modifiche dei 152 mutanti; H01–H11 della campagna = O01–O11 del catalogo finale) |
 | Regressione completa del core (`1bcfd7e1`, `pytest -n 4 tests`) | 11926 passed, 0 failed, 16 skipped, 56 xfailed |
 
 ## 4. Verifica e rollback
