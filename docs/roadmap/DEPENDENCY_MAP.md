@@ -105,3 +105,13 @@ per ciascuna (il GO limitato attuale copre lo sviluppo su branch, non la PR).
 - Claude C non modifica catalogo/dispatcher di #606: propone le suite MCP come voci del catalogo, che Claude B
   integra (o l'owner autorizza una PR dedicata dopo il merge di #606).
 - Nel repository MCP: una PR alla volta, dopo GO; nessun merge da parte di Claude C (K7).
+
+## 8. Separazione dei repository (direttiva owner 04/11/2026)
+
+| Repository | Chi scrive | Cosa |
+|---|---|---|
+| pickfair-mcp- | Claude C | MCP, adapter, contratti, `pickfair_control_api` (server, token, self-check), test, handoff |
+| Pickfair-nogui | Claude B | ponte `control_api/` (viste del runtime, launcher), integrazione, packaging |
+
+Ogni capacità che richiede codice nel core è CORE_BLOCKED finché Claude B non integra la relativa
+patch (`docs/handoff/`). Prima patch consegnata: ponte di sola lettura su `main` `ada40765`.

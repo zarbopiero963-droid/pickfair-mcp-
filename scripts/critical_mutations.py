@@ -735,8 +735,8 @@ MUTANTS: tuple[Mutant, ...] = (
         (
             (
                 MO,
-                "unavailable: Annotated[tuple[StatusField, ...], Field(max_length=len(STATUS_OPTIONAL_FIELDS))]",
-                "unavailable: Annotated[tuple[str, ...], Field(max_length=len(STATUS_OPTIONAL_FIELDS))]",
+                "        tuple[StatusField, ...],\n        Field(max_length=len(STATUS_OPTIONAL_FIELDS)",
+                "        tuple[str, ...],\n        Field(max_length=len(STATUS_OPTIONAL_FIELDS)",
             ),
         ),
     ),

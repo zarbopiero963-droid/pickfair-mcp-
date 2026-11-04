@@ -10,8 +10,8 @@ Stato attuale (MCP-01a … MCP-02a):
 - tool esposti, tutti di sola lettura: `get_meta` (handshake di contratto fail-closed),
   `get_status` e `get_reconciliation_status` (MCP-02a: stato runtime, modalità, readiness, STOP,
   riconciliazione; i risultati dell'adapter simulato sono marcati `source: "simulated"`);
-- adapter verso la Control API: **solo simulato** e dichiarato `certified: false`;
-- adapter HTTP reale: **BLOCKED_CORE** finché la Control API (PF-API-0/1) non esiste;
+- adapter verso la Control API: simulato oppure **HTTP di prodotto** (MCP-01d), entrambi
+  dichiarati `certified: false` finché non c'è una certificazione (MCP-07b);
 - comandi (ordini, cashout, STOP, config, modalità): **non esposti**
   (`MCP_MUTATION_EXPOSURE = BLOCKED_UNTIL_CORE_AUTHORITY_READY`);
 - nessun LIVE, nessuna credenziale Betfair, nessun accesso al DB Pickfair.
@@ -51,7 +51,10 @@ Esempio di configurazione per un client MCP desktop (stdio):
 }
 ```
 
-`--adapter http` termina con codice 2 e messaggio `BLOCKED_CORE`. Diagnostica e audit
+Adapter di prodotto verso la Control API locale (MCP-01d): `pickfair-mcp serve --adapter http
+--control-api-port 8765 --control-api-token-file /percorso/assoluto/control_api.token` (solo
+127.0.0.1, token 0600, nessun fallback verso il simulato). La Control API stessa è il package
+`pickfair_control_api`; il ponte verso il motore è consegnato a Pickfair-nogui (`docs/handoff/`). Diagnostica e audit
 (JSON per riga, campi in allowlist) vanno su stderr; stdout è riservato al protocollo.
 
 ## Risultato di `get_meta`

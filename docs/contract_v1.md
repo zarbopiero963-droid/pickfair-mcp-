@@ -206,3 +206,29 @@ Limiti noti:
   di stato non cambia l'hash (algoritmo comune da ratificare in PF-API-0);
 - l'adapter HTTP (MCP-01d) non esiste: le prove con il core reale usano un harness di test nel
   repository Pickfair-nogui (`tests/control_api/test_mcp_chain_crossrepo.py`) e non certificano MCP-01d.
+
+## MCP-01d — adapter HTTP di prodotto e contratto 1.1.0
+
+- **Adapter** `src/pickfair_mcp/adapters/http.py`: unico modulo con import di rete (`http.client`,
+  `socket`), eccezione alle guardie circoscritta e verificata da `tests/guards/test_no_bypass.py`.
+  Socket IPv4 diretto verso `127.0.0.1` (nessuna risoluzione di nomi), nessun proxy, nessun redirect,
+  timeout, corpo letto al massimo fino a 64 KiB + 1, status 200 e `application/json; charset=utf-8`
+  obbligatori. Errori tipizzati: `UPSTREAM_TIMEOUT`, `UPSTREAM_UNAVAILABLE` (ritentabili),
+  `UPSTREAM_UNAUTHORIZED` (nuovo, non ritentabile), `UPSTREAM_INVALID_RESPONSE:HTTP_<n>|CONTENT_TYPE|…`.
+  Ogni guasto, 401 o rilettura del token incrementa `connection_epoch` ⇒ nuovo handshake.
+  Nessun fallback verso il simulato.
+- **CLI**: `pickfair-mcp serve --adapter http --control-api-port <p> --control-api-token-file <path>`;
+  configurazione errata ⇒ exit 2 con `CONFIG_ERROR: <codice>`, mai un adapter diverso.
+- **Token (D-11, prima implementazione)**: file 0600 dello stesso utente, cartella non scrivibile da
+  altri, niente symlink, alfabeto URL-safe 43–128 caratteri; su 401 una rilettura e un solo nuovo
+  tentativo (rotazione). Su sistemi non POSIX il file è rifiutato (`TOKEN_PLATFORM_UNSUPPORTED`)
+  finché non esiste una verifica equivalente delle ACL.
+- **Contratto 1.1.0**: descrittore canonico generato dal codice (`pickfair-mcp contract-descriptor`),
+  due copie identiche (`src/pickfair_mcp/contract/descriptor_v1.json`,
+  `src/pickfair_control_api/contract_v1.json`); lo schema hash copre route, schemi upstream,
+  input/output dei tool, codici d'errore e semantica. Nuovo campo obbligatorio
+  `consistency = "PER_FIELD_NON_ATOMIC"` nelle risposte di stato.
+- **Control API** (`src/pickfair_control_api/`, solo libreria standard): server di sola lettura con
+  provider del core, auto-verifica di ogni risposta (`CONTRACT_SELF_CHECK`), token nuovo a ogni avvio
+  e rotazione a doppia accettazione. Il ponte verso il `RuntimeController` appartiene a Pickfair-nogui:
+  consegnato a Claude B in `docs/handoff/`.

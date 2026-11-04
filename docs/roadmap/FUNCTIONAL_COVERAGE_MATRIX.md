@@ -23,9 +23,10 @@ con uno stato motivato (`RETIRED`, `OUT_OF_SCOPE`) approvato dall'owner.
 
 - **L1 Core:** `P` presente, non certificato · `F` fix mergiato su main, certificazione #586 da registrare ·
   `Pz` parziale · `A` assente · `V` da localizzare (primo passo della scheda) · `—` non applicabile.
-- **L2 API/MCP:** `NO` · `SIM` solo adapter simulato (non vale come integrazione) · `HRN` catena reale
-  MCP → Control API → core verificata su branch con trasporto HTTP di test (harness; MCP-01d assente):
-  non è prodotto, non è mergiata · `SI` reale e di prodotto.
+- **L2 API/MCP:** `NO` · `SIM` solo adapter simulato (non vale come integrazione) · `HRN` catena
+  reale MCP di prodotto (adapter HTTP MCP-01d) → Control API → RuntimeController verificata fra
+  processi, ma con il ponte del core ancora NON integrato in Pickfair-nogui (patch consegnata a
+  Claude B, `docs/handoff/`): non è prodotto completo · `SI` reale, integrato e di prodotto.
 - **L3 Certificazione:** `NR` NOT_RUN · `PASS` · `FAIL` · `BLK` BLOCKED.
 
 Una capacità è **COMPLETA** solo con L1, L2 e L3 tutti PASS / SI dove applicabili. Oggi: **0 complete**.
@@ -42,10 +43,10 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 
 | ID | Capacità | Core: componente | Endpoint | Tool MCP | Schede | Stato | L1/L2/L3 |
 |---|---|---|---|---|---|---|---|
-| CAP-MET-01 | Versione, capability, git SHA, schema hash | (nuovo) Control API | `GET /v1/meta` | `get_meta` | 004 · MCP-01a | NOT_IMPLEMENTED | —/SIM/NR |
-| CAP-MET-02 | Compat matrix e re-handshake a ogni riconnessione | MCP `policy/handshake.py` | `GET /v1/meta` | `get_meta` | 004 · MCP-01a/01d | NOT_IMPLEMENTED | —/SIM/NR |
-| CAP-MET-03 | Descrittore canonico e algoritmo di schema hash condiviso | (nuovo) | — | — | 003, 004 · PF-API-0 | CORE_BLOCKED | A/NO/NR |
-| CAP-MET-04 | Errori tipizzati con codici fissi, mai testo upstream | MCP `errors.py` + Control API | tutte | tutti | 006 | NOT_IMPLEMENTED | A/SIM/NR |
+| CAP-MET-01 | Versione, capability, git SHA, schema hash | (nuovo) Control API | `GET /v1/meta` | `get_meta` | 004 · MCP-01a | NOT_IMPLEMENTED | —/HRN/NR |
+| CAP-MET-02 | Compat matrix e re-handshake a ogni riconnessione | MCP `policy/handshake.py` | `GET /v1/meta` | `get_meta` | 004 · MCP-01a/01d | NOT_IMPLEMENTED | —/HRN/NR |
+| CAP-MET-03 | Descrittore canonico e algoritmo di schema hash condiviso | (nuovo) | — | — | 003, 004 · PF-API-0 | CORE_BLOCKED | A/HRN/NR |
+| CAP-MET-04 | Errori tipizzati con codici fissi, mai testo upstream | MCP `errors.py` + Control API | tutte | tutti | 006 | NOT_IMPLEMENTED | A/HRN/NR |
 | CAP-MET-05 | `request_id` generato dal MCP | MCP `journal/` | — | tutti | 006 · MCP-01b | NOT_IMPLEMENTED | —/SIM/NR |
 | CAP-MET-06 | `operation_id` e `correlation_id` dal core | (assente: 0 occorrenze) | tutte le mutazioni | comandi | 006 · PF-API-0 | CORE_BLOCKED | A/NO/NR |
 | CAP-MET-07 | Catena request→operation→correlation→customer_ref→bet_id | `core/order_identity.py`, PR47 | `GET /v1/audit/{id}` | `get_audit_trail` | 007 · PR47 | CORE_BLOCKED | Pz/NO/NR |
@@ -54,7 +55,7 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | CAP-MET-10 | Recovery MCP: `NOT_SENT` / `AMBIGUOUS`, mai replay | MCP `journal/` | — | — | 020 · MCP-01b/05c | NOT_IMPLEMENTED | —/SIM/NR |
 | CAP-MET-11 | Rifiuto campi extra, NaN, Inf, bool numerici | MCP `contract/parsing.py`; core PR27 | tutte | tutti | 006, 023 | NOT_IMPLEMENTED | Pz/SIM/NR |
 | CAP-MET-12 | Retry solo per letture idempotenti | MCP `journal/retry.py` | letture | letture | 006 | NOT_IMPLEMENTED | —/SIM/NR |
-| CAP-MET-13 | Timeout configurati per chiamata | MCP + Control API | tutte | tutti | 006, 022 | NOT_IMPLEMENTED | A/SIM/NR |
+| CAP-MET-13 | Timeout configurati per chiamata | MCP + Control API | tutte | tutti | 006, 022 | NOT_IMPLEMENTED | A/HRN/NR |
 | CAP-MET-14 | Stato operazione asincrona | (nuovo) registro operazioni | `GET /v1/operations/{id}` | `get_operation` | 006, 013 · MCP-02d | CORE_BLOCKED | A/NO/NR |
 | CAP-MET-15 | Operazioni pendenti | (nuovo) | `GET /v1/operations?status=pending` | `list_pending_operations` | 013 · MCP-02d | CORE_BLOCKED | A/NO/NR |
 | CAP-MET-16 | Provenienza `order_origin=MCP` | PF-API-0 | mutazioni | comandi | 004 · PF-API-0 | CORE_BLOCKED | A/NO/NR |
@@ -326,16 +327,16 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 
 | ID | Capacità | Core: componente | Endpoint | Tool MCP | Schede | Stato | L1/L2/L3 |
 |---|---|---|---|---|---|---|---|
-| CAP-SEC-01 | Autenticazione MCP ↔ Control API (D-11) | (nuovo) | tutte | tutti | 005 · MCP-01d | CORE_BLOCKED | A/NO/NR |
+| CAP-SEC-01 | Autenticazione MCP ↔ Control API (D-11) | (nuovo) | tutte | tutti | 005 · MCP-01d | CORE_BLOCKED | A/HRN/NR |
 | CAP-SEC-02 | Autorizzazione per tool (scope) | MCP `auth/` | — | tutti | 005 · MCP-01c | NOT_IMPLEMENTED | —/SIM/NR |
 | CAP-SEC-03 | Sei livelli di privilegio | proposta | — | tutti | 034 | OWNER_BLOCKED (K4) | —/NO/NR |
 | CAP-SEC-04 | Four-eyes: conferma verificata fuori dall'agente | (nuovo) | — | — | 036, 005 | OWNER_BLOCKED (K5) | A/NO/NR |
 | CAP-SEC-05 | Prompt injection: dati upstream = dati | MCP | — | tutti | 023 | NOT_IMPLEMENTED | —/SIM/NR |
-| CAP-SEC-06 | Solo loopback letterale, porta esplicita | MCP + Control API | — | — | 023 · MCP-01d | NOT_IMPLEMENTED | A/NO/NR |
-| CAP-SEC-07 | Redazione segreti in output e log | `core/redaction.py`, MCP | tutte | tutti | 023 | NOT_IMPLEMENTED | P/SIM/NR |
+| CAP-SEC-06 | Solo loopback letterale, porta esplicita | MCP + Control API | — | — | 023 · MCP-01d | NOT_IMPLEMENTED | A/HRN/NR |
+| CAP-SEC-07 | Redazione segreti in output e log | `core/redaction.py`, MCP | tutte | tutti | 023 | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-SEC-08 | Rate limit e quote della Control API | (nuovo) | tutte | — | 023 | CORE_BLOCKED | A/NO/NR |
 | CAP-SEC-09 | Anti-replay e anti-spoofing (handle, nonce, scadenza) | (nuovo) | mutazioni | comandi | 023, 036 | CORE_BLOCKED | A/NO/NR |
-| CAP-SEC-10 | No-bypass statico e runtime (MCP non importa core/Betfair/DB) | MCP `tests/guards` | — | — | 023 | NOT_IMPLEMENTED | —/SIM/NR |
+| CAP-SEC-10 | No-bypass statico e runtime (MCP non importa core/Betfair/DB) | MCP `tests/guards` | — | — | 023 | NOT_IMPLEMENTED | —/HRN/NR |
 | CAP-SEC-11 | Nessun accesso dell'agente alle credenziali Betfair | invariante | — | — | 023 | NOT_IMPLEMENTED | P/SIM/NR |
 
 ### 2.17 REL / LIV — Rilascio e LIVE (8)
@@ -375,7 +376,7 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | **Totale** | **228** | **131** | **65** | **29** | **3** | **0** |
 
 Denominatore applicabile v0.2 = 228 − 3 RETIRED (duplicati, ID conservati) − 0 OUT_OF_SCOPE = **225**. COMPLETE = **0/225**.
-Capacità con catena reale su branch (L2 = `HRN`): **12** — non contano come COMPLETE.
+Capacità con catena reale su branch (L2 = `HRN`): **21** — non contano come COMPLETE.
 
 Il catalogo è **incompleto per costruzione** (PF-MCP-001): mancano la GUI riga per riga (42 chiavi),
 le singole strategie del perimetro storico, lo streaming (gap #586), la sicurezza applicativa del core,
@@ -432,3 +433,10 @@ esiste più nel core. Analisi statica in sola lettura: non importa né esegue il
 `7a70062`: 140/140 segnali tracciati (135 mappati, 5 giustificati), exit 0.
 Limiti: copre metodi pubblici del runtime, eventi letterali del bus e campi Roserpina; non copre
 ancora GUI riga per riga, altri servizi, chiavi di `settings_service`, dossier B1 (#506).
+
+## 7. Aggiornamento 04/11/2026 (MCP-01d)
+
+Adapter HTTP di prodotto, token D-11, contratto 1.1.0 e Control API (`pickfair_control_api`) nel
+repository MCP; ponte del core consegnato a Claude B come patch. Capacità con L2 = `HRN`: 21
+(aggiunte MET-01/02/03/04/13, SEC-01/06/07/10). COMPLETE: ancora **0/225**: nessuna è integrata
+in Pickfair-nogui né certificata in modo indipendente.

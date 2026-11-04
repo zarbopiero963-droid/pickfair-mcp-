@@ -4,6 +4,19 @@ Versione **0.1-DRAFT** · 03/11/2026. Una scheda ≠ una PR: ogni scheda diventa
 una PR aperta alla volta per repository. Gli ID storici (MCP-xx in pickfair-mcp- #3–#32; PF-API-0/1/commands,
 PRxx in #461/#491; B-xxx in #586) restano validi: ogni scheda dichiara quali assorbe o da quali dipende.
 
+## Aggiornamento 04/11/2026
+
+- **PF-MCP-004 / MCP-01d**: lato MCP FATTO su branch (adapter HTTP di prodotto, Control API come
+  package `pickfair_control_api`, contratto 1.1.0); ponte del core consegnato a Claude B
+  (`docs/handoff/`). Stato: in attesa di integrazione nel core.
+- **PF-MCP-005 / D-11**: prima implementazione FATTA (token 0600, rotazione a doppia accettazione,
+  rilettura su 401). Decisione definitiva D-11 ancora aperta.
+- **PF-MCP-006**: timeout, errori tipizzati (`UPSTREAM_UNAUTHORIZED`), epoch e nuovo handshake FATTI;
+  `operation_id` resta CORE_BLOCKED.
+- **PF-MCP-008**: catena reale fra processi PASS (7/7) con il ponte applicato a una copia del core.
+- Direttiva owner «autonomia permanente»: Claude C non modifica Pickfair-nogui; ogni parte del core
+  è una patch per Claude B.
+
 ## 0. Standard comune (vale per ogni scheda salvo deroga scritta)
 
 **STD-TEST** — batteria minima (MCP-HT-1 di pickfair-mcp- #1 + CLAUDE.md di Pickfair-nogui):
