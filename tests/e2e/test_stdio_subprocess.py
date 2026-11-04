@@ -47,7 +47,11 @@ async def test_stdio_initialize_list_and_call_get_meta(tmp_path: Path) -> None:
             init = await session.initialize()
             assert init.serverInfo.name == "pickfair-mcp"
             tools = (await session.list_tools()).tools
-            assert [t.name for t in tools] == ["get_meta"]
+            assert [t.name for t in tools] == [
+                "get_meta",
+                "get_status",
+                "get_reconciliation_status",
+            ]
             result = await session.call_tool("get_meta", {})
             assert result.isError is False
             assert result.structuredContent is not None
@@ -119,5 +123,5 @@ def test_contract_info_prints_version_and_hash() -> None:
     assert info["supported_contract_version"] == "1.0.0"
     assert len(info["schema_hash"]) == 64
     assert info["routes"] == 25
-    assert info["tools"] == ["get_meta"]
+    assert info["tools"] == ["get_meta", "get_status", "get_reconciliation_status"]
     assert info["mutation_exposure"] == "BLOCKED_UNTIL_CORE_AUTHORITY_READY"

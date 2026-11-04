@@ -41,10 +41,14 @@ def test_catalog_maps_25_names_onto_the_25_routes() -> None:
     assert set(APPROVED_TOOL_ROUTES.values()) == {route_key(r) for r in APPROVED_ROUTES}
 
 
-def test_default_registry_exposes_only_get_meta() -> None:
+def test_default_registry_exposes_only_read_tools() -> None:
     from pickfair_mcp.tools import build_default_registry
 
-    assert build_default_registry().names() == ("get_meta",)
+    assert build_default_registry().names() == (
+        "get_meta",
+        "get_status",
+        "get_reconciliation_status",
+    )
 
 
 def test_read_tool_with_approved_name_registers() -> None:

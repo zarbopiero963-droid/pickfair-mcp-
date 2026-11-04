@@ -224,7 +224,10 @@ async def test_incompatible_contract_blocks_before_any_read(
 
 @pytest.mark.parametrize(
     ("tool", "missing"),
-    [("get_status", "GET /v1/status"), ("get_reconciliation_status", "GET /v1/reconciliation/status")],
+    [
+        ("get_status", "GET /v1/status"),
+        ("get_reconciliation_status", "GET /v1/reconciliation/status"),
+    ],
 )
 async def test_missing_capability_blocks_before_read(tool: str, missing: str) -> None:
     adapter = SimulatedControlApiAdapter(Scenario.META_ONLY)

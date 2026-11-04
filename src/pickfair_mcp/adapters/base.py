@@ -39,3 +39,11 @@ class ControlApiAdapter(Protocol):
     async def get_meta_raw(self) -> bytes:
         """Corpo grezzo di GET /v1/meta."""
         ...
+
+    async def get_status_raw(self) -> bytes:
+        """Corpo grezzo di GET /v1/status (MCP-02a)."""
+        ...
+
+    async def get_reconciliation_status_raw(self) -> bytes:
+        """Corpo grezzo di GET /v1/reconciliation/status (MCP-02a)."""
+        ...

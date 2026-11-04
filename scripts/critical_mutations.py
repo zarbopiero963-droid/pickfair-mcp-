@@ -46,6 +46,7 @@ A = "src/pickfair_mcp/audit.py"
 ME = "src/pickfair_mcp/tools/meta.py"
 J = "src/pickfair_mcp/journal/store.py"
 JR = "src/pickfair_mcp/journal/retry.py"
+ST = "src/pickfair_mcp/tools/status.py"
 
 MUTANTS: tuple[Mutant, ...] = (
     Mutant(
@@ -643,6 +644,94 @@ MUTANTS: tuple[Mutant, ...] = (
         "A15",
         "resume declassato a write (revoca stop EMERGENCY da non-owner)",
         ((APO, '"resume": Scope.OWNER', '"resume": Scope.WRITE'),),
+    ),
+    Mutant(
+        "S01",
+        "sorgente simulata accettata come core (o viceversa)",
+        ((ST, "if snapshot.source != _expected_source(adapter):", "if False:"),),
+    ),
+    Mutant(
+        "S02",
+        "snapshot stantio o nel futuro accettato",
+        ((ST, "if age > MAX_SNAPSHOT_AGE_S or age < -MAX_CLOCK_SKEW_S:", "if False:"),),
+    ),
+    Mutant(
+        "S03",
+        "capability della route non richiesta all'handshake",
+        (
+            (
+                ST,
+                'await guard.require_compatible(frozenset({"GET /v1/meta", route}))',
+                'await guard.require_compatible(frozenset({"GET /v1/meta"}))',
+            ),
+        ),
+    ),
+    Mutant(
+        "S04",
+        "campo null non dichiarato in unavailable accettato",
+        ((MO, 'raise ValueError("null field and unavailable list disagree")', "pass"),),
+    ),
+    Mutant(
+        "S05",
+        "ready con blocker accettato",
+        ((MO, "if self.ready and self.blockers:", "if False:"),),
+    ),
+    Mutant(
+        "S06",
+        "ready e level incoerenti accettati",
+        ((MO, 'if self.ready != (self.level == "READY"):', "if False:"),),
+    ),
+    Mutant(
+        "S07",
+        "codici a testo libero (injection) accettati",
+        ((MO, 'CODE_PATTERN = r"^[A-Z][A-Z0-9_]{0,63}$"', 'CODE_PATTERN = r"^(?s:.){1,64}$"'),),
+    ),
+    Mutant(
+        "S08",
+        "sorgente libera accettata",
+        ((MO, 'Source = Literal["core", "simulated"]', "Source = str"),),
+    ),
+    Mutant(
+        "S09",
+        "modalita diversa da SIM/LIVE accettata",
+        ((MO, 'execution_mode: Literal["SIM", "LIVE"] | None', "execution_mode: str | None"),),
+    ),
+    Mutant(
+        "S10",
+        "retry di lettura oltre il limite",
+        ((ST, "READ_ATTEMPTS: Final = 2", "READ_ATTEMPTS: Final = 5"),),
+    ),
+    Mutant(
+        "S11",
+        "riconciliazione NOT_RUN con esito accettata",
+        ((MO, 'if self.state == "NOT_RUN" and (', "if False and ("),),
+    ),
+    Mutant(
+        "S12",
+        "blocker duplicati accettati",
+        ((MO, 'raise ValueError("duplicate codes")', "pass"),),
+    ),
+    Mutant(
+        "S13",
+        "contatori negativi accettati",
+        (
+            (
+                MO,
+                "Count = Annotated[int, Field(ge=0, le=1_000_000)]",
+                "Count = Annotated[int, Field(le=1_000_000)]",
+            ),
+        ),
+    ),
+    Mutant(
+        "S14",
+        "unavailable con nomi di campo arbitrari accettato",
+        (
+            (
+                MO,
+                "unavailable: Annotated[tuple[StatusField, ...], Field(max_length=len(STATUS_OPTIONAL_FIELDS))]",
+                "unavailable: Annotated[tuple[str, ...], Field(max_length=len(STATUS_OPTIONAL_FIELDS))]",
+            ),
+        ),
     ),
 )
 

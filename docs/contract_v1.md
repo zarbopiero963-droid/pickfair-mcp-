@@ -6,10 +6,10 @@ crea route né semantiche di prodotto. Le 25 route sono quelle approvate in pick
 
 ## Route approvate (copia verificata dai test)
 
-| Tipo | Metodo | Route | Tool MCP | Stato in MCP-01a |
+| Tipo | Metodo | Route | Tool MCP | Stato |
 |---|---|---|---|---|
 | Read | GET | `/v1/meta` | `get_meta` | Esposto, adapter simulato |
-| Read | GET | `/v1/status` | `get_status` | Non esposto (MCP-02) |
+| Read | GET | `/v1/status` | `get_status` | Esposto, adapter simulato (MCP-02a) |
 | Read | GET | `/v1/account` | `get_account` | Non esposto (MCP-02) |
 | Read | GET | `/v1/exposure` | `get_exposure` | Non esposto (MCP-02) |
 | Read | GET | `/v1/config` | `get_config` | Non esposto (MCP-02/03) |
@@ -20,7 +20,7 @@ crea route né semantiche di prodotto. Le 25 route sono quelle approvate in pick
 | Read | GET | `/v1/positions` | `list_positions` | Non esposto (MCP-02) |
 | Read | GET | `/v1/operations/{id}` | `get_operation` | Non esposto (MCP-02) |
 | Read | GET | `/v1/operations?status=pending` | `list_pending_operations` | Non esposto (MCP-02) |
-| Read | GET | `/v1/reconciliation/status` | `get_reconciliation_status` | Non esposto (MCP-02) |
+| Read | GET | `/v1/reconciliation/status` | `get_reconciliation_status` | Esposto, adapter simulato (MCP-02a) |
 | Read | GET | `/v1/audit/{correlation_id}` | `get_audit_trail` | Non esposto (MCP-02) |
 | Command | POST | `/v1/preview` | `preview_order` | Bloccato (BLOCKED_CORE) |
 | Command | POST | `/v1/orders` | `place_order` | Bloccato (BLOCKED_CORE) |
@@ -165,3 +165,44 @@ hash (descrittore canonico comune ai due repository) e nomi delle capability.
 - Principal: `id` `[a-z0-9][a-z0-9_-]{0,31}`, scope non vuoti; `parse_principal` accetta solo le chiavi `id` e `scopes` (chiavi extra, es. credenziali, ⇒ rifiuto); nessun campo credenziale esiste, quindi nessuna credenziale può comparire in stdout, stderr, audit o journal.
 - Processo stdio (`pickfair-mcp serve`): principal fisso `local-stdio` con solo `read`; nessun flag/variabile/file lo eleva.
 - Aperti: D-11 (autenticazione MCP ↔ Control API, MCP-01d); conferma MANUAL owner-only da agganciare quando il relativo tool sarà definito.
+
+## MCP-02a — `get_status` e `get_reconciliation_status` (pickfair-mcp- #7)
+
+Schemi PROVISIONAL, definiti sui dati che il core possiede davvero (verificato su
+Pickfair-nogui `7a70062`, `RuntimeController` reale). Modelli strict in `contract/models.py`,
+tool in `tools/status.py`.
+
+Regole comuni alle due risposte:
+
+- `source`: `"core"` o `"simulated"`. Il tool rifiuta (`UPSTREAM_INVALID_RESPONSE:SOURCE_MISMATCH`)
+  una risposta la cui sorgente non coincide con l'adapter: un risultato simulato non passa mai per
+  dato Pickfair. Il risultato porta anche `upstream.kind` / `upstream.certified`.
+- `observed_at` (epoch s) e `age_s`: snapshot più vecchio di 30 s o nel futuro oltre 5 s ⇒
+  `STALE_SNAPSHOT`.
+- Un campo che il core non possiede è `null` **ed** è elencato in `unavailable`; le due condizioni
+  si implicano (mai un default).
+- Codici e motivi sono token `^[A-Z][A-Z0-9_]{0,63}$`: niente testo libero dall'upstream.
+- Handshake compatibile con la capability della route prima di ogni lettura; retry solo per
+  timeout/indisponibilità, al massimo 2 tentativi.
+
+`GET /v1/status`: `runtime_state` (STOPPED/ACTIVE/PAUSED/LOCKDOWN), `execution_mode` (solo SIM/LIVE;
+il core usa `SIMULATION` e la Control API lo mappa), `live_enabled`, `readiness` (`level`, `ready`,
+`blockers`, `mcp_aware` — oggi sempre `false`: la readiness MCP-aware è di PF-API-0), `stop`
+(`emergency_stopped`, `emergency_reason`, `risk_stop_reason`, `daily_loss_pending_stop`,
+`kill_switch_active`).
+
+`GET /v1/reconciliation/status`: `startup` (`NOT_RUN`/`OK`/`REQUIRED`, `reason`, `recovery_failure`),
+`ambiguities_pending`, `ghosts` (`ghost_orders`, `suspected_ghosts`, `unconfirmed_inflight`),
+`hedge_registry_unreliable`, `recovery_state` (`unreadable`, `persist_failed`).
+
+Scenari dell'adapter simulato (`--sim-status-scenario`): `sim_ready`, `live_blocked`, `stop_active`,
+`reconciliation_required`, `not_started` e i casi ostili (`malformed`, `extra_field`, `non_finite`,
+`oversized`, `injection_text`, `inconsistent`, `wrong_source`, `stale`, `future`, `timeout`,
+`unavailable`).
+
+Limiti noti:
+
+- lo schema hash condiviso copre ancora solo route e schema di `/v1/meta`: una modifica agli schemi
+  di stato non cambia l'hash (algoritmo comune da ratificare in PF-API-0);
+- l'adapter HTTP (MCP-01d) non esiste: le prove con il core reale usano un harness di test nel
+  repository Pickfair-nogui (`tests/control_api/test_mcp_chain_crossrepo.py`) e non certificano MCP-01d.

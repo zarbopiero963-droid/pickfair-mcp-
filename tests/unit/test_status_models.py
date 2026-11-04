@@ -71,7 +71,9 @@ def test_valid_reconciliation_parses() -> None:
     assert recon.startup is not None and recon.startup.state == "OK"
 
 
-@pytest.mark.parametrize("mode", ["SIMULATION", "PAPER", "LIVE_DATA_SIM", "HYBRID_REAL_EXECUTION", "", "sim"])
+@pytest.mark.parametrize(
+    "mode", ["SIMULATION", "PAPER", "LIVE_DATA_SIM", "HYBRID_REAL_EXECUTION", "", "sim"]
+)
 def test_execution_mode_only_sim_or_live(mode: str) -> None:
     assert reason_of(parse_status, raw(status_body(execution_mode=mode))) == "SCHEMA_VIOLATION"
 

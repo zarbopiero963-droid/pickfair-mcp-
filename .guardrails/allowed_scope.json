@@ -122,7 +122,7 @@
     },
     "claude-c-audit-20261103": {
       "issue": "pickfair-mcp- #1",
-      "scheda": "audit e master roadmap Claude C (sola documentazione)",
+      "scheda": "audit, master roadmap, revisione catalogo v0.2 e controllo di deriva (Claude C)",
       "files": [
         ".guardrails/allowed_scope.json",
         "docs/audit/claude_c_audit_2026-11-03.md",
@@ -131,7 +131,10 @@
         "docs/roadmap/PR_CARDS.md",
         "docs/roadmap/HARD_TEST_CAMPAIGN.md",
         "docs/roadmap/CERTIFICATION_GATES.md",
-        "docs/roadmap/DEPENDENCY_MAP.md"
+        "docs/roadmap/DEPENDENCY_MAP.md",
+        "scripts/capability_drift.py",
+        "docs/roadmap/core_signal_map.json",
+        "tests/unit/test_capability_drift.py"
       ]
     },
     "mcp02a-status-reconciliation": {
@@ -141,7 +144,24 @@
       "files": [
         ".guardrails/allowed_scope.json",
         "tests/unit/test_status_models.py",
-        "tests/integration/test_status_tools.py"
+        "tests/integration/test_status_tools.py",
+        "src/pickfair_mcp/adapters/base.py",
+        "src/pickfair_mcp/adapters/simulated.py",
+        "src/pickfair_mcp/contract/models.py",
+        "src/pickfair_mcp/contract/parsing.py",
+        "src/pickfair_mcp/server.py",
+        "src/pickfair_mcp/tools/__init__.py",
+        "src/pickfair_mcp/tools/status.py",
+        "tests/unit/test_cli.py",
+        "tests/unit/test_registry_guard.py",
+        "tests/integration/test_server_inprocess.py",
+        "tests/e2e/test_stdio_raw.py",
+        "tests/e2e/test_stdio_subprocess.py",
+        "src/pickfair_mcp/cli.py",
+        "tests/e2e/test_status_process.py",
+        "scripts/critical_mutations.py",
+        "docs/contract_v1.md",
+        "README.md"
       ]
     }
   }

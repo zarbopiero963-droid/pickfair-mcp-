@@ -14,7 +14,7 @@ from typing import Any, Final
 
 from pydantic import ValidationError
 
-from pickfair_mcp.contract.models import MetaResponse
+from pickfair_mcp.contract.models import MetaResponse, ReconciliationStatusResponse, StatusResponse
 
 MAX_UPSTREAM_BYTES: Final = 64 * 1024
 
@@ -82,5 +82,30 @@ def parse_meta(raw: bytes) -> MetaResponse:
         obj = {**obj, "capabilities": tuple(capabilities)}
     try:
         return MetaResponse.model_validate(obj)
+    except ValidationError:
+        raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None
+
+
+def _tuplify(value: Any) -> Any:
+    """Il JSON non ha tuple: le liste diventano tuple prima della validazione strict."""
+    if isinstance(value, list):
+        return tuple(_tuplify(v) for v in value)
+    if isinstance(value, dict):
+        return {k: _tuplify(v) for k, v in value.items()}
+    return value
+
+
+def parse_status(raw: bytes) -> StatusResponse:
+    obj = parse_json_object(raw)
+    try:
+        return StatusResponse.model_validate(_tuplify(obj))
+    except ValidationError:
+        raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None
+
+
+def parse_reconciliation_status(raw: bytes) -> ReconciliationStatusResponse:
+    obj = parse_json_object(raw)
+    try:
+        return ReconciliationStatusResponse.model_validate(_tuplify(obj))
     except ValidationError:
         raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None

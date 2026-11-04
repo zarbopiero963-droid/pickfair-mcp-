@@ -5,9 +5,11 @@ Server MCP **locale su stdio** per controllare Pickfair attraverso strumenti aut
 un'autorità di trading**. Roserpina e l'Order Authority del core restano le uniche
 autorità finanziarie.
 
-Stato attuale (MCP-01a):
+Stato attuale (MCP-01a … MCP-02a):
 
-- unico tool esposto: `get_meta` (sola lettura, handshake di contratto fail-closed);
+- tool esposti, tutti di sola lettura: `get_meta` (handshake di contratto fail-closed),
+  `get_status` e `get_reconciliation_status` (MCP-02a: stato runtime, modalità, readiness, STOP,
+  riconciliazione; i risultati dell'adapter simulato sono marcati `source: "simulated"`);
 - adapter verso la Control API: **solo simulato** e dichiarato `certified: false`;
 - adapter HTTP reale: **BLOCKED_CORE** finché la Control API (PF-API-0/1) non esiste;
 - comandi (ordini, cashout, STOP, config, modalità): **non esposti**
@@ -33,6 +35,7 @@ pip install --no-deps -e .
 pickfair-mcp contract-info                      # versione e schema hash supportati
 pickfair-mcp serve --adapter simulated          # server MCP su stdio
 pickfair-mcp serve --sim-scenario incompatible_major   # prova del fail-closed
+pickfair-mcp serve --sim-status-scenario live_blocked  # scenario di stato simulato
 ```
 
 Esempio di configurazione per un client MCP desktop (stdio):

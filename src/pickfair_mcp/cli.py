@@ -20,7 +20,7 @@ from mcp.server.lowlevel import Server
 from mcp.server.stdio import stdio_server
 
 from pickfair_mcp import __version__
-from pickfair_mcp.adapters.simulated import Scenario, SimulatedControlApiAdapter
+from pickfair_mcp.adapters.simulated import Scenario, SimulatedControlApiAdapter, StatusScenario
 from pickfair_mcp.audit import audit_event, configure_stderr_logging
 from pickfair_mcp.auth import Principal, Scope
 from pickfair_mcp.config import BLOCKED_CORE_MESSAGE, ConfigError, validate_timeout
@@ -52,6 +52,12 @@ def _parser() -> argparse.ArgumentParser:
         choices=[s.value for s in Scenario],
         default=Scenario.COMPATIBLE.value,
         help="solo adapter simulato: scenario deterministico",
+    )
+    serve.add_argument(
+        "--sim-status-scenario",
+        choices=[s.value for s in StatusScenario],
+        default=StatusScenario.SIM_READY.value,
+        help="solo adapter simulato: scenario di GET /v1/status e /v1/reconciliation/status",
     )
     serve.add_argument("--upstream-timeout", type=float, default=5.0)
     sub.add_parser("contract-info", help="stampa versione e schema hash del contratto supportato")
@@ -187,7 +193,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(BLOCKED_CORE_MESSAGE, file=sys.stderr)
         return EXIT_USAGE
     configure_stderr_logging()
-    adapter = SimulatedControlApiAdapter(Scenario(args.sim_scenario))
+    adapter = SimulatedControlApiAdapter(
+        Scenario(args.sim_scenario), status_scenario=StatusScenario(args.sim_status_scenario)
+    )
     tracker = InterruptTracker(_force_interrupted_exit)
     try:
         anyio.run(_serve, adapter, timeout_s, tracker)
