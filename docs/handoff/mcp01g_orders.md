@@ -52,7 +52,7 @@ terminali. Branch di Claude D che toccano i dati letti (tutti non mergiati): `d-
 | `tests/control_api/` | 145 passed (125 precedenti + 20 MCP-01g) |
 | Mutazioni `control_api` (`--fail-under 100`) | 51/51 KILLED, GATE PASS (le due barriere di scrittura sopravvivevano finché il test le provava solo insieme: ora ognuna ha il suo test) |
 | E2E fra processi (`tests/crossrepo`) | 11/11, su 3 esecuzioni |
-| Regressione completa del core (`1bcfd7e1`, `pytest -n 4 tests`) | vedere il messaggio di handoff |
+| Regressione completa del core (`1bcfd7e1`, `pytest -n 4 tests`) | 11926 passed, 0 failed, 16 skipped, 56 xfailed |
 
 ## 4. Verifica e rollback
 

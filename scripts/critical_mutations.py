@@ -964,7 +964,7 @@ MUTANTS: tuple[Mutant, ...] = (
         ((CK, "        if (value.get(name) is None) != (name in declared):", "        if False:"),),
     ),
     Mutant(
-        "H01",
+        "O01",
         "ordine AMBIGUOUS accettato come FAILED",
         (
             (
@@ -975,7 +975,7 @@ MUTANTS: tuple[Mutant, ...] = (
         ),
     ),
     Mutant(
-        "H02",
+        "O02",
         "stato del core sconosciuto accettato con qualunque stato",
         (
             (
@@ -986,7 +986,7 @@ MUTANTS: tuple[Mutant, ...] = (
         ),
     ),
     Mutant(
-        "H03",
+        "O03",
         "abbinamento dichiarato senza quantità esplicite",
         (
             (
@@ -997,7 +997,7 @@ MUTANTS: tuple[Mutant, ...] = (
         ),
     ),
     Mutant(
-        "H04",
+        "O04",
         "abbinamento in contrasto con le quantità accettato",
         (
             (
@@ -1008,7 +1008,7 @@ MUTANTS: tuple[Mutant, ...] = (
         ),
     ),
     Mutant(
-        "H05",
+        "O05",
         "confronto col broker senza betId accettato",
         (
             (
@@ -1019,12 +1019,12 @@ MUTANTS: tuple[Mutant, ...] = (
         ),
     ),
     Mutant(
-        "H06",
+        "O06",
         "ordini duplicati accettati",
         ((MO, '        raise ValueError("duplicate local_id")', "        pass"),),
     ),
     Mutant(
-        "H07",
+        "O07",
         "snapshot OK con righe omesse accettato",
         (
             (
@@ -1035,7 +1035,7 @@ MUTANTS: tuple[Mutant, ...] = (
         ),
     ),
     Mutant(
-        "H08",
+        "O08",
         "snapshot PARTIAL senza dire cosa manca accettato",
         (
             (
@@ -1046,7 +1046,7 @@ MUTANTS: tuple[Mutant, ...] = (
         ),
     ),
     Mutant(
-        "H09",
+        "O09",
         "list_orders legge la route sbagliata",
         (
             (
@@ -1057,7 +1057,7 @@ MUTANTS: tuple[Mutant, ...] = (
         ),
     ),
     Mutant(
-        "H10",
+        "O10",
         "valore d'ordine nullo non dichiarato accettato",
         (
             (
@@ -1068,7 +1068,7 @@ MUTANTS: tuple[Mutant, ...] = (
         ),
     ),
     Mutant(
-        "H11",
+        "O11",
         "snapshot non letto senza motivo accettato",
         (
             (
@@ -1381,6 +1381,10 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--json", type=Path)
     args = parser.parse_args()
+    idents = [m.ident for m in MUTANTS]
+    if len(set(idents)) != len(idents):
+        print("CATALOGO NON VALIDO: identificativi di mutante duplicati")
+        return 2
     with tempfile.TemporaryDirectory(prefix="pf-mcp-mut-") as base:
         clean = Path(base) / "clean"
         clean.mkdir()
