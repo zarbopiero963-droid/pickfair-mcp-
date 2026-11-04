@@ -65,16 +65,17 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | ID | Capacità | Core: componente | Endpoint | Tool MCP | Schede | Stato | L1/L2/L3 |
 |---|---|---|---|---|---|---|---|
 | CAP-RT-01 | Stato runtime STOPPED/ACTIVE/PAUSED/LOCKDOWN | `RuntimeController.get_status`, `RuntimeMode` | `GET /v1/status` | `get_status` | 008 · MCP-02a | NOT_IMPLEMENTED | P/HRN/NR |
-| CAP-RT-02 | Desk mode NORMAL/EXPANSION/DEFENSE/LOCKDOWN | `DeskMode`, `core/risk_desk.py` | `GET /v1/status` | `get_status` | 008, 011 | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-RT-02 | Desk mode NORMAL/EXPANSION/DEFENSE/LOCKDOWN | `DeskMode`, `core/risk_desk.py` | `GET /v1/status` | `get_status` | 008, 011 · MCP-01f | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-RT-03 | Readiness SIM | `RuntimeController` | `GET /v1/status` | `get_status` | 008 · MCP-02a | NOT_IMPLEMENTED | Pz/HRN/NR |
 | CAP-RT-04 | Readiness LIVE e blocker | `evaluate_live_readiness`, `is_live_allowed` | `GET /v1/status` | `get_status` | 008 · MCP-02a | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-RT-05 | Readiness MCP-aware (Telegram non blocker se l'ingresso è MCP) | — | `GET /v1/status` | `get_status` | 008 · PF-API-0 | CORE_BLOCKED | A/NO/NR |
 | CAP-RT-06 | Stato del deploy gate | `get_deploy_gate_status` | `GET /v1/status` | `get_status` | 008 | NOT_IMPLEMENTED | P/NO/NR |
-| CAP-RT-07 | Salute I/O e diagnostica runtime | `runtime_io_snapshot`, `observability/` | `GET /v1/status` | `get_status` | 008, 033 | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-RT-07 | Salute I/O e diagnostica runtime | `runtime_io_snapshot`, `observability/` | `GET /v1/status` | `get_status` | 008, 033 · MCP-01f | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-RT-08 | Autorità runtime e fencing | `core/runtime_authority.py`, PR32 | `GET /v1/status` | `get_status` | 008, 021 | NOT_IMPLEMENTED | Pz/NO/NR |
 | CAP-RT-09 | Avvio del runtime (START) | `RuntimeController.start` | RC-01 | (candidato `start`) | 019 | OWNER_BLOCKED | P/NO/NR |
 | CAP-RT-10 | Reset ciclo Roserpina | `reset_cycle` | RC-02 | (candidato) | 015 | OWNER_BLOCKED | P/NO/NR |
 | CAP-RT-11 | Sincronizzazione catalogo su comando | `catalog_sync`, `CatalogSyncService` | RC-03 | (candidato) | 009 | OWNER_BLOCKED | P/NO/NR |
+| CAP-RT-12 | Diagnostica del motore: componenti, connessione Betfair senza credenziali, feed, I/O, bus, code operative, modalità configurata vs effettiva | `TradingEngine.readiness`, `BetfairService`, `streaming_feed`, `runtime_io_snapshot`, `EventBus` | `GET /v1/status` | `get_status` | MCP-01f | NOT_IMPLEMENTED | P/HRN/NR |
 
 ### 2.3 MOD — Modalità e switch (11)
 
@@ -134,6 +135,7 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | CAP-ORD-20 | MANUAL a doppia conferma | assente | `POST /v1/preview` + `POST /v1/orders` | `preview_order`, `place_order` | 036 · MCP-04c | CORE_BLOCKED | A/NO/NR |
 | CAP-ORD-21 | Ingresso automatico (principal automation) | — | `POST /v1/orders` | `place_order` | 034 · MCP-04f | NOT_IMPLEMENTED | —/NO/NR |
 | CAP-ORD-22 | Mercato sospeso / feed perso = nessun ingresso (PF-EXEC-05) | safety gates | `POST /v1/orders` | `place_order` | 016, 022 | NOT_IMPLEMENTED | Pz/NO/NR |
+| CAP-ORD-23 | Posizioni aperte: mercato, selezione, lato, size, prezzo medio, P&L, esposizione, liability in Decimal senza perdita | `PnLEngine`, `PositionLedger` | `GET /v1/positions` | `list_positions` | 013 · MCP-01f | NOT_IMPLEMENTED | P/HRN/NR |
 
 ### 2.6 DUT — Dutching (15)
 
@@ -221,7 +223,7 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | CAP-BKR-03 | Capitale impegnato ed esposizione totale | `controller_event_exposure`, PR29 | `GET /v1/exposure` | `get_exposure` | 012 · MCP-02b · MCP-01e | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-BKR-04 | Esposizione per ordine / mercato / evento / tavolo | cap `max_*_exposure` | `GET /v1/exposure` | `get_exposure` | 012 | NOT_IMPLEMENTED | P/NO/NR |
 | CAP-BKR-05 | Drawdown e peak separati per modalità | PR15, DD-01..04 (#586) | `GET /v1/exposure` | `get_exposure` | 012 | CORE_BLOCKED | Pz/NO/NR |
-| CAP-BKR-06 | Perdita giornaliera e di sessione | `daily_loss_store`, `loss_limits` | `GET /v1/exposure` | `get_exposure` | 012 | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-BKR-06 | Perdita giornaliera e di sessione | `daily_loss_store`, `loss_limits` | `GET /v1/exposure` | `get_exposure` | 012 · MCP-01f | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-BKR-07 | Rifiuto sopra `max_single_bet` con stake richiesto | MM | `POST /v1/preview` | `preview_order` | 012, 016 | NOT_IMPLEMENTED | P/NO/NR |
 | CAP-BKR-08 | Rifiuto sotto il minimo configurato | MM | idem | idem | 012 | NOT_IMPLEMENTED | P/NO/NR |
 | CAP-BKR-09 | Commissione configurabile senza default nascosti | `commission_pct` (t80u) | `GET /v1/config` | `get_config` | 012 | CORE_BLOCKED | Pz/NO/NR |
@@ -280,9 +282,10 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | CAP-STP-05 | RESUME solo dopo nuova readiness completa | `resume` | `POST /v1/resume` | `resume` (owner) | 019 · MCP-05a | NOT_IMPLEMENTED | P/NO/NR |
 | CAP-STP-06 | Reset di RISK_STOP / EMERGENCY | `reset_risk_stop`, `reset_emergency` | `POST /v1/resume` (estensione) | `resume` | 019 | OWNER_BLOCKED (K3) | P/NO/NR |
 | CAP-STP-07 | Lockdown forzato | `force_lockdown` | `POST /v1/stop` | `stop` | 019 | NOT_IMPLEMENTED | P/NO/NR |
-| CAP-STP-08 | STOP persistente al riavvio (PF-EXEC-06) | `restore_risk_stop` | `GET /v1/status` | `get_status` | 019, 020 | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-STP-08 | STOP persistente al riavvio (PF-EXEC-06) | `restore_risk_stop` | `GET /v1/status` | `get_status` | 019, 020 · MCP-01f | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-STP-09 | Nessun ingresso ritardato dopo STOP (in volo riconciliato) | PR37 | — | — | 019, 021 | CORE_BLOCKED | Pz/NO/NR |
-| CAP-STP-10 | Stop per esposizione (`max_exposure_stop`) | `exposure_stop_reason` | `GET /v1/status` | `get_status` | 019, 012 | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-STP-10 | Stop per esposizione (`max_exposure_stop`) | `exposure_stop_reason` | `GET /v1/status` | `get_status` | 019, 012 · MCP-01f | NOT_IMPLEMENTED | P/HRN/NR |
+| CAP-STP-11 | Stato di ogni protezione finanziaria (ACTIVE/INACTIVE/TRIGGERED/UNKNOWN/UNAVAILABLE), con origine, limite e istante; non verificabile mai «sicuro» | kill switch, emergency, lockdown, drawdown, loss limits, cap, gate fondi, book, anti-duplicato, breaker | `GET /v1/status` | `get_status` | MCP-01f | NOT_IMPLEMENTED | P/HRN/NR |
 
 ### 2.14 REC / SET — Riconciliazione, recovery, settlement (13)
 
@@ -357,10 +360,10 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | Area | Capacità | NOT_IMPLEMENTED | CORE_BLOCKED | OWNER_BLOCKED | RETIRED (duplicati) | OUT_OF_SCOPE |
 |---|---:|---:|---:|---:|---:|---:|
 | MET | 16 | 9 | 6 | 1 | 0 | 0 |
-| RT | 11 | 7 | 1 | 3 | 0 | 0 |
+| RT | 12 | 8 | 1 | 3 | 0 | 0 |
 | MOD | 11 | 4 | 5 | 2 | 0 | 0 |
 | MKT | 11 | 6 | 4 | 1 | 0 | 0 |
-| ORD | 22 | 17 | 4 | 0 | 1 | 0 |
+| ORD | 23 | 18 | 4 | 0 | 1 | 0 |
 | DUT | 15 | 9 | 6 | 0 | 0 | 0 |
 | CSH | 20 | 13 | 7 | 0 | 0 | 0 |
 | SLT | 7 | 5 | 2 | 0 | 0 | 0 |
@@ -368,15 +371,15 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | BKR | 20 | 16 | 4 | 0 | 0 | 0 |
 | CFG | 10 | 6 | 4 | 0 | 0 | 0 |
 | STR/SIG | 12 | 1 | 6 | 4 | 1 | 0 |
-| STP | 10 | 8 | 1 | 1 | 0 | 0 |
+| STP | 11 | 9 | 1 | 1 | 0 | 0 |
 | REC/SET | 14 | 10 | 4 | 0 | 0 | 0 |
 | AUD | 15 | 2 | 4 | 8 | 1 | 0 |
 | SEC | 11 | 6 | 3 | 2 | 0 | 0 |
 | REL/LIV | 8 | 2 | 3 | 3 | 0 | 0 |
-| **Totale** | **228** | **133** | **65** | **27** | **3** | **0** |
+| **Totale** | **231** | **136** | **65** | **27** | **3** | **0** |
 
-Denominatore applicabile v0.2 = 228 − 3 RETIRED (duplicati, ID conservati) − 0 OUT_OF_SCOPE = **225**. COMPLETE = **0/225**.
-Capacità con catena reale su branch (L2 = `HRN`): **27** — non contano come COMPLETE.
+Denominatore applicabile v0.2 = 231 − 3 RETIRED (duplicati, ID conservati) − 0 OUT_OF_SCOPE = **228**. COMPLETE = **0/228**.
+Capacità con catena reale su branch (L2 = `HRN`): **35** — non contano come COMPLETE.
 
 Il catalogo è **incompleto per costruzione** (PF-MCP-001): mancano la GUI riga per riga (42 chiavi),
 le singole strategie del perimetro storico, lo streaming (gap #586), la sicurezza applicativa del core,
@@ -449,3 +452,11 @@ core consegnato a Claude B come patch incrementale (dipende da MCP-01d). Capacit
 a NOT_IMPLEMENTED: la vista dei tavoli usa la route già approvata `GET /v1/exposure` (OWN-MCP-02F:
 prima si estendono le route esistenti), quindi K3 non serve per loro. COMPLETE: ancora **0/225**.
 Inventario per area funzionale: [INTEGRATION_INVENTORY.md](INTEGRATION_INVENTORY.md).
+
+## 9. Aggiornamento 04/11/2026 (MCP-01f)
+
+Diagnostica del motore e stato delle protezioni finanziarie in `GET /v1/status`, posizioni in
+`GET /v1/positions` (contratto 1.3.0, importi e quote in Decimal). Nuove voci: CAP-RT-12 (diagnostica
+del motore), CAP-ORD-23 (posizioni aperte), CAP-STP-11 (stato delle protezioni): denominatore 228.
+L2 = `HRN` anche per RT-02, RT-07, BKR-06, STP-08, STP-10. Capacità con L2 = `HRN`: 35. COMPLETE:
+ancora **0/228**.

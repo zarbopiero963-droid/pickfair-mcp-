@@ -13,6 +13,8 @@ from pickfair_mcp.contract.parsing import (
     parse_status,
 )
 
+NEW = ("engine", "protections")  # campi 1.3.0 indisponibili nei corpi di questo modulo
+
 
 def status_body(**overrides: Any) -> dict[str, Any]:
     body: dict[str, Any] = {
@@ -30,7 +32,10 @@ def status_body(**overrides: Any) -> dict[str, Any]:
             "daily_loss_pending_stop": False,
             "kill_switch_active": False,
         },
-        "unavailable": [],
+        # MCP-01f (1.3.0): diagnostica e protezioni sono campi del contratto; qui indisponibili.
+        "engine": None,
+        "protections": None,
+        "unavailable": ["engine", "protections"],
     }
     body.update(overrides)
     return body
@@ -88,22 +93,22 @@ def test_runtime_state_closed_enum(state: str) -> None:
 def test_null_field_must_be_declared_unavailable() -> None:
     body = status_body(readiness=None)
     assert reason_of(parse_status, raw(body)) == "SCHEMA_VIOLATION"
-    body["unavailable"] = ["readiness"]
+    body["unavailable"] = ["readiness", *NEW]
     assert parse_status(raw(body)).readiness is None
 
 
 def test_declared_unavailable_field_must_be_null() -> None:
-    body = status_body(unavailable=["readiness"])
+    body = status_body(unavailable=["readiness", *NEW])
     assert reason_of(parse_status, raw(body)) == "SCHEMA_VIOLATION"
 
 
 def test_unavailable_only_names_real_fields() -> None:
-    body = status_body(unavailable=["balance"])
+    body = status_body(unavailable=["balance", *NEW])
     assert reason_of(parse_status, raw(body)) == "SCHEMA_VIOLATION"
 
 
 def test_unavailable_no_duplicates() -> None:
-    body = status_body(readiness=None, unavailable=["readiness", "readiness"])
+    body = status_body(readiness=None, unavailable=["readiness", "readiness", *NEW])
     assert reason_of(parse_status, raw(body)) == "SCHEMA_VIOLATION"
 
 
@@ -152,7 +157,7 @@ def test_emergency_reason_is_token_only() -> None:
 def test_booleans_are_strict(value: Any) -> None:
     body = status_body(live_enabled=value)
     if value is None:
-        body["unavailable"] = []
+        body["unavailable"] = list(NEW)
     assert reason_of(parse_status, raw(body)) == "SCHEMA_VIOLATION"
 
 

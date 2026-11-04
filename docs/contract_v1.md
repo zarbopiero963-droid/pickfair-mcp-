@@ -266,3 +266,37 @@ Regole aggiunte:
 - **Un solo elenco di tool**: `tools.register_read_tools` alimenta sia il server reale sia il
   descrittore del contratto (guardia `tests/guards/test_tool_surface.py`; prima di MCP-01e il server
   aveva un elenco proprio e le due cose potevano divergere).
+
+## MCP-01f — diagnostica, protezioni e posizioni (contratto 1.3.0)
+
+Nessuna route nuova: `GET /v1/status` si estende (OWN-MCP-02F) e `GET /v1/positions` è già approvata.
+
+**`get_status` → `engine`** (sezioni nullabili con `unavailable` proprio): `trading_engine` (stato e
+componenti calcolati dal core all'avvio del motore, `evaluated_at = ENGINE_START`; READY solo se ogni
+componente è READY), `betfair` (connesso, cliente, SIMULATION/LIVE, errore presente sì/no, keepalive;
+mai credenziali né testo d'errore), `stream`, `io`, `event_bus`, `queues` (cashout in volo e incerti,
+ordini DIRECT), `modes` (modalità configurata, flag SIM, LIVE abilitato, readiness LIVE, cliente
+effettivo; `read_only_mode = "NOT_IN_CORE"`: il core non ha una modalità READ_ONLY), `last_signal_at`.
+
+**`get_status` → `protections`**: 22 voci fisse (kill switch, emergency, lockdown del runtime e del
+desk, stop drawdown % e assoluto, perdita di sessione e giornaliera, risk stop, stop di esposizione,
+cap di esposizione, percentuali obbligatorie, freschezza dei fondi, book, stato negoziabile, anti-
+duplicazione, circuit breaker degli ordini, stato di recovery). Ogni voce: `state`, `reason`, `source`,
+`limit` (Decimal), `as_of` (epoch). Regole:
+- `ACTIVE` è l'unico stato senza motivo (nello schema: unione di due forme, la verifica anche la
+  Control API); `INACTIVE` dice perché (non configurata, disattivata, applicata solo in LIVE);
+- `UNKNOWN`: il core ha la protezione ma il valore non è leggibile (lettura fallita, lock occupato,
+  limite illeggibile); `UNAVAILABLE`: il core non la espone ancora. **Nessuno dei due vale come
+  sicuro**; gli elenchi derivati `disabled` e `unverifiable` devono coincidere con le voci;
+- le regole sono quelle del core chiamate direttamente; nessun limite nuovo, nessun ricalcolo.
+
+**`list_positions`**: `market_id`, `selection_id`, `side` (BACK/LAY/FLAT), `table_id`, `open_size`,
+`avg_entry_price`, `realized_pnl`, `unrealized_pnl` (ultimo mark-to-market del core), `exposure`,
+`liability`. `amounts_source = LEDGER_DECIMAL` (registro Decimal, senza perdita) o `CORE_FLOAT`
+(solo prezzo e size dal float del core, il resto indisponibile). Nomi di eventi e riferimenti interni
+non escono.
+
+**Decimal**: stringa canonica `^(?:-?[1-9]\d{0,14}(\.\d{1,28})?|0(\.\d{1,28})?|-0\.\d{0,27}[1-9])$`
+(niente esponente, «+», zeri iniziali o zero negativo). Il MCP non fa aritmetica su questi valori. Gli
+importi di `get_account`/`get_exposure` (1.2.0) restano float: migrarli è una modifica di contratto
+separata, non retroattiva.

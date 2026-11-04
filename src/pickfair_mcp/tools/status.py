@@ -25,6 +25,7 @@ from pickfair_mcp.auth import Scope
 from pickfair_mcp.contract.models import (
     AccountResponse,
     ExposureResponse,
+    PositionsResponse,
     ReconciliationStatusResponse,
     StatusResponse,
     StrictModel,
@@ -56,7 +57,10 @@ SUFFIX = (
 STATUS_DESCRIPTION = (
     "Read-only. Returns the authoritative Pickfair runtime status from the local Control API "
     "(GET /v1/status): runtime state, execution mode (SIM/LIVE), readiness and blockers, "
-    "STOP/emergency state." + SUFFIX
+    "STOP/emergency state, trading engine diagnostics (components, Betfair connection without "
+    "credentials, stream, I/O, event bus, operational queues, configured vs effective mode) and "
+    "the state of every financial protection as ACTIVE/INACTIVE/TRIGGERED/UNKNOWN/UNAVAILABLE. "
+    "UNKNOWN and UNAVAILABLE mean NOT verified: never treat them as safe." + SUFFIX
 )
 RECONCILIATION_DESCRIPTION = (
     "Read-only. Returns the Pickfair reconciliation status from the local Control API "
@@ -84,7 +88,12 @@ class GetReconciliationStatusData(StrictModel):
 
 
 SnapshotT = TypeVar(
-    "SnapshotT", StatusResponse, ReconciliationStatusResponse, AccountResponse, ExposureResponse
+    "SnapshotT",
+    StatusResponse,
+    ReconciliationStatusResponse,
+    AccountResponse,
+    ExposureResponse,
+    PositionsResponse,
 )
 
 

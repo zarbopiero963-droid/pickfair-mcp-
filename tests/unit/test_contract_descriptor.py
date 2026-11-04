@@ -21,6 +21,7 @@ from pickfair_mcp.contract.parsing import (
     UpstreamInvalidResponse,
     parse_account,
     parse_exposure,
+    parse_positions,
     parse_reconciliation_status,
     parse_status,
 )
@@ -43,8 +44,8 @@ def test_both_committed_copies_equal_the_generated_descriptor() -> None:
 
 def test_hash_and_version_are_shared() -> None:
     assert api_contract.schema_hash() == contract_schema_hash()
-    assert api_contract.CONTRACT_VERSION == SUPPORTED_CONTRACT_VERSION == "1.2.0"
-    assert COMPAT_MATRIX == {"1.2.0": frozenset({contract_schema_hash()})}
+    assert api_contract.CONTRACT_VERSION == SUPPORTED_CONTRACT_VERSION == "1.3.0"
+    assert COMPAT_MATRIX == {"1.3.0": frozenset({contract_schema_hash()})}
 
 
 def test_descriptor_covers_tools_errors_and_semantics() -> None:
@@ -55,6 +56,7 @@ def test_descriptor_covers_tools_errors_and_semantics() -> None:
         "get_reconciliation_status",
         "get_account",
         "get_exposure",
+        "list_positions",
     }
     for tool in d["tools"].values():
         assert tool["input_schema"]["additionalProperties"] is False
@@ -68,6 +70,7 @@ def test_descriptor_covers_tools_errors_and_semantics() -> None:
         "reconciliation_status",
         "account",
         "exposure",
+        "positions",
         "error",
     }
     assert {"unavailable", "codes", "consistency", "freshness", "money", "not_implemented"} <= set(
@@ -318,3 +321,92 @@ def test_cross_field_rules_are_enforced_by_the_mcp(
     body = getattr(bodies, name)(**override)
     assert not _mcp_accepts(parse, body)
     assert _api_accepts(name, body)  # se questo cambia, la regola è passata anche nello schema
+
+
+# ------------------------------------------------------------------ MCP-01f (contratto 1.3.0)
+
+
+def _status_with_protection(**item: Any) -> dict[str, Any]:
+    return bodies.status(protections=bodies.protections(kill_switch=bodies.protection(**item)))
+
+
+HOSTILE_STATUS_13 = [
+    _status_with_protection(state="SAFE"),
+    _status_with_protection(state="ACTIVE", reason="X"),  # ACTIVE con motivo
+    _status_with_protection(state="UNKNOWN", reason=None),  # non verificabile senza motivo
+    _status_with_protection(state="TRIGGERED", reason=None),
+    _status_with_protection(state="ACTIVE", reason=None, limit=10.0),  # float
+    _status_with_protection(state="ACTIVE", reason=None, limit="1e3"),
+    _status_with_protection(state="ACTIVE", reason=None, limit="-0"),
+    bodies.status(engine={**bodies.engine(), "secret": "x"}),
+    bodies.status(engine={**bodies.engine(), "stream": None, "unavailable": []}),
+    bodies.status(
+        engine={**bodies.engine(), "modes": {**bodies.engine()["modes"], "read_only_mode": "ON"}}
+    ),
+]
+
+
+@pytest.mark.parametrize("body", HOSTILE_STATUS_13, ids=range(len(HOSTILE_STATUS_13)))
+def test_hostile_13_status_rejected_by_both_sides(body: dict[str, Any]) -> None:
+    assert not _mcp_accepts(parse_status, body)
+    assert not _api_accepts("status", body)
+
+
+HOSTILE_POSITIONS = [
+    bodies.positions(positions=[bodies.position(open_size=10.0)]),
+    bodies.positions(positions=[bodies.position(open_size="1e1")]),
+    bodies.positions(positions=[bodies.position(side="BUY")]),
+    bodies.positions(positions=[bodies.position(event_key="x")]),
+    bodies.positions(positions=[bodies.position(exposure=None)]),  # null non dichiarato
+    bodies.positions(positions=None),
+    bodies.positions(positions=[bodies.position()] * 513),
+]
+
+
+@pytest.mark.parametrize("body", HOSTILE_POSITIONS, ids=range(len(HOSTILE_POSITIONS)))
+def test_hostile_positions_rejected_by_both_sides(body: dict[str, Any]) -> None:
+    assert not _mcp_accepts(parse_positions, body)
+    assert not _api_accepts("positions", body)
+
+
+def test_valid_13_bodies_accepted_by_both_sides() -> None:
+    for name, parse, body in (
+        ("status", parse_status, bodies.status()),
+        ("positions", parse_positions, bodies.positions()),
+        ("positions", parse_positions, bodies.positions(positions=[])),
+        ("positions", parse_positions, bodies.positions(positions=None, unavailable=["positions"])),
+    ):
+        assert _mcp_accepts(parse, body), name
+        assert _api_accepts(name, body), name
+
+
+# Regole fra campi solo-MCP introdotte in 1.3.0 (JSON Schema non le esprime).
+MCP_ONLY_RULES_13 = [
+    (
+        "status",
+        parse_status,
+        {**bodies.status(), "protections": {**bodies.protections(), "unverifiable": []}},
+    ),  # elenco che tace UNAVAILABLE
+    (
+        "status",
+        parse_status,
+        {**bodies.status(), "protections": {**bodies.protections(), "disabled": ["kill_switch"]}},
+    ),
+    (
+        "positions",
+        parse_positions,
+        bodies.positions(positions=[bodies.position(side="FLAT", exposure="5")]),
+    ),
+]
+
+
+@pytest.mark.parametrize(("name", "parse", "body"), MCP_ONLY_RULES_13)
+def test_13_cross_field_rules_are_enforced_by_the_mcp(name: str, parse: Any, body: Any) -> None:
+    assert not _mcp_accepts(parse, body)
+    assert _api_accepts(name, body)
+
+
+def test_13_semantics_are_part_of_the_hash() -> None:
+    d = build_contract_descriptor()
+    assert "protections" in d["semantics"] and "positions" in d["upstream_schemas"]
+    assert "UNKNOWN" in d["semantics"]["protections"]

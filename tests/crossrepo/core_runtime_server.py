@@ -109,7 +109,8 @@ def spy(obj: Any, prefix: str, allowed: set[str]) -> None:
 broker = rc.betfair_service.get_client()
 balance_fn = rc.betfair_service.simulation_snapshot
 balance_at_start = balance_fn()
-spy(rc.betfair_service, "betfair", {"status", "get_client"})
+# MCP-01f: `keepalive_status()` legge solo lo stato locale del keepalive (nessuna rete).
+spy(rc.betfair_service, "betfair", {"status", "get_client", "keepalive_status"})
 spy(broker, "broker", set())
 for name in (
     "get_status",
@@ -230,6 +231,29 @@ for line in sys.stdin:
             meta={"customer_ref": "cref-secret-1"},
         )
         reply(event="ACTIVATE", total=rc.table_manager.total_exposure())
+    elif cmd[0] == "FILL":
+        # Comando impartito al CORE: un fill registrato dal motore P&L (posizione reale in SIM).
+        rc.pnl_engine._on_filled(
+            {
+                "event_key": "Juventus v Inter|1.234567|47972",
+                "market_id": "1.234567",
+                "selection_id": 47972,
+                "side": "LAY",
+                "price": 3.1,
+                "matched_size": 4.0,
+                "table_id": 2,
+                "customer_ref": "cref-secret-2",
+                "bet_id": "b-e2e",
+            }
+        )
+        ledger = next(iter(rc.pnl_engine._position_ledgers.values()))
+        exposure, liability = ledger._residual_exposure_liability()
+        reply(
+            event="FILL",
+            open_size=str(ledger._open_size),
+            avg=str(ledger._avg_entry_price()),
+            exposure=str(exposure),
+        )
     elif cmd[0] == "DIGEST":
         state["recording"] = False  # la misura stessa non deve contare come chiamata
         current = dict(server.request_counts()) if server is not None else {}

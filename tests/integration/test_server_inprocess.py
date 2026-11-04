@@ -57,6 +57,7 @@ async def test_list_tools_exposes_only_read_tools_with_strict_schemas() -> None:
         "get_reconciliation_status",
         "get_account",
         "get_exposure",
+        "list_positions",
     ]
     tool = tools[0]
     assert tool.inputSchema["type"] == "object"

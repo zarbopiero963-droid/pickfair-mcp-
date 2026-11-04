@@ -18,6 +18,7 @@ from pickfair_mcp.contract.models import (
     AccountResponse,
     ExposureResponse,
     MetaResponse,
+    PositionsResponse,
     ReconciliationStatusResponse,
     StatusResponse,
 )
@@ -129,5 +130,13 @@ def parse_exposure(raw: bytes) -> ExposureResponse:
     obj = parse_json_object(raw)
     try:
         return ExposureResponse.model_validate(_tuplify(obj))
+    except ValidationError:
+        raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None
+
+
+def parse_positions(raw: bytes) -> PositionsResponse:
+    obj = parse_json_object(raw)
+    try:
+        return PositionsResponse.model_validate(_tuplify(obj))
     except ValidationError:
         raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None

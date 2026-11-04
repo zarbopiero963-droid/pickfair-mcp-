@@ -21,6 +21,7 @@ from typing import Any, Final
 from pickfair_mcp.contract.models import (
     AccountResponse,
     ExposureResponse,
+    PositionsResponse,
     ReconciliationStatusResponse,
     StatusResponse,
 )
@@ -64,7 +65,16 @@ SEMANTICS: Final = {
     ),
     "money": (
         "Amounts are finite floats in EUR exactly as the core holds them, never rounded or "
-        "defaulted; execution_mode SIM means the simulated broker's fictitious balance."
+        "defaulted; execution_mode SIM means the simulated broker's fictitious balance. "
+        "Since 1.3.0 new amounts and prices are canonical decimal strings (no exponent, no "
+        "float): lossless from the core's Decimal, or the shortest repr of the core's float "
+        "when the core holds a float (declared by amounts_source)."
+    ),
+    "protections": (
+        "Each protection is ACTIVE, INACTIVE, TRIGGERED, UNKNOWN or UNAVAILABLE; only ACTIVE has "
+        "no reason. A protection that cannot be verified is UNKNOWN (core has it, value not "
+        "readable) or UNAVAILABLE (core does not expose it yet), never ACTIVE or INACTIVE; the "
+        "derived lists `disabled` and `unverifiable` must match the items."
     ),
     "not_implemented": (
         "An approved read route the Control API does not serve yet answers 501 NOT_IMPLEMENTED; "
@@ -125,6 +135,7 @@ def build_contract_descriptor() -> dict[str, Any]:
             "reconciliation_status": _schema(ReconciliationStatusResponse),
             "account": _schema(AccountResponse),
             "exposure": _schema(ExposureResponse),
+            "positions": _schema(PositionsResponse),
             "error": error_schema,
         },
         "tools": tools,

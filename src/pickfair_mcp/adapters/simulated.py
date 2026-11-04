@@ -47,6 +47,7 @@ SIMULATED_CAPABILITIES = [
     "GET /v1/reconciliation/status",
     "GET /v1/account",
     "GET /v1/exposure",
+    "GET /v1/positions",
 ]
 
 
@@ -105,6 +106,7 @@ class SimulatedControlApiAdapter:
         self.reconciliation_calls = 0
         self.account_calls = 0
         self.exposure_calls = 0
+        self.positions_calls = 0
 
     @property
     def kind(self) -> AdapterKind:
@@ -155,6 +157,10 @@ class SimulatedControlApiAdapter:
         self.exposure_calls += 1
         return await self._status_like(_exposure_body)
 
+    async def get_positions_raw(self) -> bytes:
+        self.positions_calls += 1
+        return await self._status_like(_positions_body)
+
     async def _status_like(self, build: Callable[[StatusScenario, float], dict[str, Any]]) -> bytes:
         if self._delay_s > 0:
             await anyio.sleep(self._delay_s)
@@ -177,7 +183,7 @@ class SimulatedControlApiAdapter:
 _SCENARIO_BODIES: dict[Scenario, bytes] = {
     Scenario.COMPATIBLE: _encode(_meta()),
     Scenario.INCOMPATIBLE_MAJOR: _encode(_meta(contract_version="2.0.0")),
-    Scenario.UNSUPPORTED_MINOR: _encode(_meta(contract_version="1.3.0")),
+    Scenario.UNSUPPORTED_MINOR: _encode(_meta(contract_version="1.4.0")),
     Scenario.SCHEMA_HASH_MISMATCH: _encode(_meta(schema_hash="0" * 64)),
     Scenario.MISSING_META_CAPABILITY: _encode(_meta(capabilities=["GET /v1/status"])),
     Scenario.META_ONLY: _encode(_meta(capabilities=["GET /v1/meta"])),
@@ -227,6 +233,8 @@ def _status_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
         "live_enabled": False,
         "readiness": {"level": "DEGRADED", "ready": False, "blockers": [], "mcp_aware": False},
         "stop": stop,
+        "engine": _engine(),
+        "protections": _protections({}),
         "unavailable": [],
     }
     if scenario is StatusScenario.LIVE_BLOCKED:
@@ -240,10 +248,27 @@ def _status_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
     elif scenario is StatusScenario.STOP_ACTIVE:
         body["runtime_state"] = "STOPPED"
         body["stop"] = {**stop, "emergency_stopped": True, "emergency_reason": "DAILY_LOSS_BREACH"}
+        body["protections"] = _protections(
+            {
+                "emergency_stop": _protection(
+                    "TRIGGERED", reason="DAILY_LOSS_BREACH", source="RUNTIME", as_of=now - 60
+                ),
+                "daily_loss": _protection(
+                    "TRIGGERED",
+                    reason="DAILY_LOSS_BREACHED",
+                    source="DAILY_LOSS_MONITOR",
+                    limit="50",
+                    as_of=now - 60,
+                ),
+            }
+        )
     elif scenario is StatusScenario.RECONCILIATION_REQUIRED:
         body["runtime_state"] = "PAUSED"
     elif scenario is StatusScenario.NOT_STARTED:
         body["runtime_state"] = "STOPPED"
+        body["protections"] = _protections(
+            {"risk_stop": _protection("UNKNOWN", reason="LOCK_BUSY", source="RUNTIME")}
+        )
     elif scenario is StatusScenario.EXTRA_FIELD:
         body["balance"] = 1000.0
     elif scenario is StatusScenario.INJECTION_TEXT:
@@ -396,4 +421,168 @@ def _exposure_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
         body["tables"][0] = {**body["tables"][0], "market_id": _INJECTION}
     elif scenario is StatusScenario.INCONSISTENT:
         body["recovery"] = None
+    return body
+
+
+def _protection(state: str = "ACTIVE", **overrides: Any) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "state": state,
+        "reason": None if state == "ACTIVE" else "NOT_CONFIGURED",
+        "source": "CONFIG",
+        "limit": None,
+        "as_of": None,
+    }
+    data.update(overrides)
+    return data
+
+
+_PROTECTION_NAMES = (
+    "kill_switch",
+    "emergency_stop",
+    "runtime_lockdown",
+    "desk_lockdown",
+    "drawdown_pct_hard_stop",
+    "drawdown_abs_hard_stop",
+    "session_loss",
+    "daily_loss",
+    "risk_stop",
+    "exposure_stop",
+    "max_open_exposure",
+    "max_order_exposure",
+    "max_market_exposure",
+    "max_event_exposure_abs",
+    "max_total_exposure_pct",
+    "max_event_exposure_pct",
+    "funds_freshness",
+    "book_guard",
+    "market_tradability",
+    "anti_duplication",
+    "order_circuit_breaker",
+    "recovery_state",
+)
+
+
+def _protections(overrides: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    items: dict[str, dict[str, Any]] = {name: _protection() for name in _PROTECTION_NAMES}
+    items["drawdown_pct_hard_stop"] = _protection("INACTIVE", reason="ENFORCED_ONLY_IN_LIVE")
+    items["max_total_exposure_pct"] = _protection(limit="40")
+    items["max_event_exposure_pct"] = _protection(limit="10")
+    items["book_guard"] = _protection(limit="110")
+    items["funds_freshness"] = _protection("UNAVAILABLE", reason="CORE_PENDING_F16", source="NONE")
+    items["market_tradability"] = _protection(
+        "UNAVAILABLE", reason="CORE_PENDING_F23", source="NONE"
+    )
+    items.update(overrides)
+    return {
+        "items": items,
+        "disabled": sorted(k for k, v in items.items() if v["state"] == "INACTIVE"),
+        "unverifiable": sorted(
+            k for k, v in items.items() if v["state"] in ("UNKNOWN", "UNAVAILABLE")
+        ),
+    }
+
+
+def _engine() -> dict[str, Any]:
+    return {
+        "trading_engine": {
+            "state": "DEGRADED",
+            "evaluated_at": "ENGINE_START",
+            "risk_gate_wired": True,
+            "components": [
+                {"name": "db", "state": "READY", "reason": None},
+                {"name": "executor", "state": "DEGRADED", "reason": "MISSING"},
+            ],
+        },
+        "betfair": {
+            "connected": True,
+            "has_client": True,
+            "client_kind": "SIMULATION",
+            "error_present": False,
+            "keepalive": {
+                "running": False,
+                "failure_count": 0,
+                "last_ok_at": None,
+                "error_present": False,
+            },
+        },
+        "stream": None,
+        "io": {
+            "last_status": "UNKNOWN",
+            "total_count": 0,
+            "slow_count": 0,
+            "degraded_count": 0,
+            "unavailable_count": 0,
+            "last_latency_ms": 0.0,
+            "error_present": False,
+        },
+        "event_bus": {
+            "queue_depth": 0,
+            "queue_high_watermark": 1,
+            "enqueued_total": 4,
+            "dequeued_total": 4,
+            "running": True,
+            "accepting": True,
+            "seconds_since_last_dequeue": 2.0,
+        },
+        "queues": {"cashout_inflight": 0, "cashout_uncertain": 0, "direct_unmatched": 0},
+        "modes": {
+            "configured_execution_mode": "SIM",
+            "simulation_flag": True,
+            "live_enabled": False,
+            "live_readiness_ok": False,
+            "client_kind": "SIMULATION",
+            "read_only_mode": "NOT_IN_CORE",
+        },
+        "last_signal_at": None,
+        "unavailable": ["stream", "last_signal_at"],
+    }
+
+
+def _position(**overrides: Any) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "market_id": "1.200000001",
+        "selection_id": "47972",
+        "side": "BACK",
+        "table_id": 1,
+        "open_size": "10",
+        "avg_entry_price": "2.5",
+        "realized_pnl": "0",
+        "unrealized_pnl": "1.25",
+        "exposure": "10",
+        "liability": "10",
+        "amounts_source": "LEDGER_DECIMAL",
+        "unrealized_basis": "LAST_MARK",
+        "unavailable": [],
+    }
+    data.update(overrides)
+    return data
+
+
+def _positions_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
+    body: dict[str, Any] = {
+        **_sectioned(scenario, now),
+        "positions": [
+            _position(),
+            _position(
+                market_id="1.200000002",
+                selection_id="58805",
+                side="LAY",
+                table_id=2,
+                open_size="4",
+                avg_entry_price="3.1",
+                unrealized_pnl="-0.4",
+                exposure="8.4",
+                liability="8.4",
+            ),
+        ],
+        "unavailable": [],
+    }
+    if scenario is StatusScenario.NOT_STARTED:
+        body["positions"] = []
+    elif scenario is StatusScenario.EXTRA_FIELD:
+        body["positions"][0] = {**body["positions"][0], "customer_ref": "abc"}
+    elif scenario is StatusScenario.INJECTION_TEXT:
+        body["positions"][0] = {**body["positions"][0], "market_id": _INJECTION}
+    elif scenario is StatusScenario.INCONSISTENT:
+        body["positions"] = None
     return body

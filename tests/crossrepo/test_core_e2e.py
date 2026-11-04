@@ -38,7 +38,13 @@ pytestmark = [
 ]
 REPO_ROOT = Path(__file__).resolve().parents[2]
 HELPER = Path(__file__).with_name("core_runtime_server.py")
-READ_TOOLS = ("get_status", "get_reconciliation_status", "get_account", "get_exposure")
+READ_TOOLS = (
+    "get_status",
+    "get_reconciliation_status",
+    "get_account",
+    "get_exposure",
+    "list_positions",
+)
 
 
 @pytest.fixture
@@ -361,7 +367,7 @@ async def test_e2e_unserved_reads_are_not_implemented(core: Core) -> None:
     from pickfair_mcp.adapters.http import _LoopbackConnection  # niente DNS: socket IPv4 diretto
 
     token = core.token_path.read_text()
-    for path in ("/v1/orders", "/v1/positions", "/v1/config", "/v1/markets/1.2/book"):
+    for path in ("/v1/orders", "/v1/config", "/v1/markets/1.2/book"):
         conn = _LoopbackConnection(core.port, 5.0)
         conn.request("GET", path, headers={"Authorization": f"Bearer {token}"})
         resp = conn.getresponse()
@@ -375,3 +381,42 @@ async def test_e2e_unserved_reads_are_not_implemented(core: Core) -> None:
         conn.request(method, "/v1/orders", body=b"{}", headers={"Authorization": f"Bearer {token}"})
         assert conn.getresponse().status == 405  # nessun comando servito
         conn.close()
+
+
+async def test_e2e_diagnostics_protections_and_positions(core: Core, tmp_path: Path) -> None:
+    """MCP-01f: diagnostica, protezioni e posizioni dal RuntimeController reale avviato in SIM."""
+    from decimal import Decimal
+
+    errlog = (tmp_path / "mcp.err").open("w+")
+    async with mcp(core, errlog) as s:
+        tools = {t.name: t for t in (await s.list_tools()).tools}
+        status = await call(s, "get_status")
+        empty = await call(s, "list_positions")
+        filled = core.send("FILL")  # comando al CORE, non alla Control API
+        positions = await call(s, "list_positions")
+        core.send("EMERGENCY")
+        after_stop = await call(s, "get_status")
+    for name, (is_error, payload) in (("get_status", status), ("list_positions", positions)):
+        assert is_error is False, payload
+        jsonschema.validate(payload, tools[name].outputSchema)
+    st = status[1]["data"]["status"]
+    prot = st["protections"]
+    assert len(prot["items"]) == 22
+    assert prot["items"]["market_tradability"]["state"] == "UNAVAILABLE"
+    assert set(prot["unverifiable"]) == {
+        k for k, v in prot["items"].items() if v["state"] in ("UNKNOWN", "UNAVAILABLE")
+    }
+    assert all((v["state"] == "ACTIVE") == (v["reason"] is None) for v in prot["items"].values())
+    assert st["engine"]["betfair"]["client_kind"] == "SIMULATION"
+    assert st["engine"]["modes"]["read_only_mode"] == "NOT_IN_CORE"
+    assert empty[1]["data"]["positions"]["positions"] == []
+    pos = positions[1]["data"]["positions"]["positions"][0]
+    assert pos["side"] == "LAY" and pos["amounts_source"] == "LEDGER_DECIMAL"
+    assert Decimal(pos["open_size"]) == Decimal(filled["open_size"])
+    assert Decimal(pos["avg_entry_price"]) == Decimal(filled["avg"])
+    assert Decimal(pos["exposure"]) == Decimal(filled["exposure"])
+    text = json.dumps(positions)
+    assert "Juventus" not in text and "cref-secret" not in text
+    em = after_stop[1]["data"]["status"]["protections"]["items"]["emergency_stop"]
+    assert em["state"] == "TRIGGERED" and em["reason"] == "DAILY_LOSS_BREACH"
+    assert em["as_of"] is not None

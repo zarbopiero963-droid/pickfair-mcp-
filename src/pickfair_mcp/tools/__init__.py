@@ -1,5 +1,6 @@
 """Tool MCP. Registro di default: `get_meta` (MCP-01a), `get_status` e
-`get_reconciliation_status` (MCP-02a), `get_account` e `get_exposure` (MCP-01e). Nessun comando.
+`get_reconciliation_status` (MCP-02a), `get_account` e `get_exposure` (MCP-01e),
+`list_positions` (MCP-01f). Nessun comando.
 
 `register_read_tools` è l'UNICO elenco dei tool esposti: lo usano sia il server reale
 (`server.build_server`) sia il descrittore del contratto, così ciò che il contratto dichiara e ciò
@@ -11,7 +12,7 @@ from __future__ import annotations
 from pickfair_mcp.adapters.base import ControlApiAdapter
 from pickfair_mcp.adapters.simulated import SimulatedControlApiAdapter
 from pickfair_mcp.policy.handshake import HandshakeGuard
-from pickfair_mcp.tools.finance import make_get_account, make_get_exposure
+from pickfair_mcp.tools.finance import make_get_account, make_get_exposure, make_list_positions
 from pickfair_mcp.tools.meta import make_get_meta
 from pickfair_mcp.tools.registry import ToolRegistry
 from pickfair_mcp.tools.status import make_get_reconciliation_status, make_get_status
@@ -31,6 +32,7 @@ def register_read_tools(
     registry.register(make_get_reconciliation_status(adapter, guard, timeout_s=timeout_s))
     registry.register(make_get_account(adapter, guard, timeout_s=timeout_s))
     registry.register(make_get_exposure(adapter, guard, timeout_s=timeout_s))
+    registry.register(make_list_positions(adapter, guard, timeout_s=timeout_s))
     return registry
 
 

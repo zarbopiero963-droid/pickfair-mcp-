@@ -128,13 +128,285 @@ class StopState(StrictModel):
     kill_switch_active: bool
 
 
-StatusField = Literal["runtime_state", "execution_mode", "live_enabled", "readiness", "stop"]
+# ---------------------------------------------------------------------------
+# MCP-01f — diagnostica del motore e protezioni (contratto 1.3.0, dentro GET /v1/status)
+#
+# Importi e quote: stringhe decimali (DecimalStr), mai float. La forma è canonica e senza
+# esponente: «12.5», «-3», «0.0000001». Il MCP non fa aritmetica su questi valori.
+# ---------------------------------------------------------------------------
+
+# Forma canonica, nello stesso pattern per MCP e Control API: niente esponente, niente «+», niente
+# zeri iniziali, niente zero negativo («-0», «-0.00»: un negativo minore di 1 termina con una cifra
+# non nulla); al più 15 cifre intere e 28 decimali; nessun lookahead (valido in Rust e Python).
+DECIMAL_PATTERN = (
+    r"^(?:-?[1-9][0-9]{0,14}(?:\.[0-9]{1,28})?"
+    r"|0(?:\.[0-9]{1,28})?"
+    r"|-0\.[0-9]{0,27}[1-9])$"
+)
+DecimalStr = Annotated[str, StringConstraints(pattern=DECIMAL_PATTERN, max_length=48)]
+ExecutionMode = Literal["SIM", "LIVE"]
+EpochSeconds = Annotated[float, Field(gt=0, lt=1e11)]
+BigCount = Annotated[int, Field(ge=0, le=10**15)]
+
+
+class _ProtectionBase(StrictModel):
+    source: Code
+    limit: DecimalStr | None
+    as_of: EpochSeconds | None
+
+
+class ActiveProtection(_ProtectionBase):
+    """Protezione armata e non scattata: l'unico stato senza motivo."""
+
+    state: Literal["ACTIVE"]
+    reason: None
+
+
+class FlaggedProtection(_ProtectionBase):
+    """Ogni altro stato dice perché. Ciò che non è verificabile è UNKNOWN/UNAVAILABLE, mai SAFE."""
+
+    state: Literal["INACTIVE", "TRIGGERED", "UNKNOWN", "UNAVAILABLE"]
+    reason: Code
+
+
+# Unione nello schema condiviso: la regola «solo ACTIVE è senza motivo» la verifica anche la
+# Control API prima di rispondere, non solo il MCP.
+Protection = ActiveProtection | FlaggedProtection
+
+
+class ProtectionItems(StrictModel):
+    kill_switch: Protection
+    emergency_stop: Protection
+    runtime_lockdown: Protection
+    desk_lockdown: Protection
+    drawdown_pct_hard_stop: Protection
+    drawdown_abs_hard_stop: Protection
+    session_loss: Protection
+    daily_loss: Protection
+    risk_stop: Protection
+    exposure_stop: Protection
+    max_open_exposure: Protection
+    max_order_exposure: Protection
+    max_market_exposure: Protection
+    max_event_exposure_abs: Protection
+    max_total_exposure_pct: Protection
+    max_event_exposure_pct: Protection
+    funds_freshness: Protection
+    book_guard: Protection
+    market_tradability: Protection
+    anti_duplication: Protection
+    order_circuit_breaker: Protection
+    recovery_state: Protection
+
+
+PROTECTION_NAMES: tuple[str, ...] = tuple(ProtectionItems.model_fields)
+ProtectionName = Literal[
+    "kill_switch",
+    "emergency_stop",
+    "runtime_lockdown",
+    "desk_lockdown",
+    "drawdown_pct_hard_stop",
+    "drawdown_abs_hard_stop",
+    "session_loss",
+    "daily_loss",
+    "risk_stop",
+    "exposure_stop",
+    "max_open_exposure",
+    "max_order_exposure",
+    "max_market_exposure",
+    "max_event_exposure_abs",
+    "max_total_exposure_pct",
+    "max_event_exposure_pct",
+    "funds_freshness",
+    "book_guard",
+    "market_tradability",
+    "anti_duplication",
+    "order_circuit_breaker",
+    "recovery_state",
+]
+ProtectionNames = Annotated[
+    tuple[ProtectionName, ...],
+    Field(max_length=len(PROTECTION_NAMES), json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_codes),
+]
+
+
+class Protections(StrictModel):
+    items: ProtectionItems
+    # Elenchi derivati, controllati: una protezione disattivata o non verificabile non può tacere.
+    disabled: ProtectionNames
+    unverifiable: ProtectionNames
+
+    @model_validator(mode="after")
+    def _derived(self) -> Protections:
+        states = {name: item.state for name, item in self.items}
+        disabled = sorted(n for n, s in states.items() if s == "INACTIVE")
+        unverifiable = sorted(n for n, s in states.items() if s in ("UNKNOWN", "UNAVAILABLE"))
+        if list(self.disabled) != disabled or list(self.unverifiable) != unverifiable:
+            raise ValueError("derived protection lists disagree with the items")
+        return self
+
+
+EngineState = Literal["READY", "DEGRADED", "NOT_READY"]
+ComponentName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,31}$")]
+
+
+class EngineComponent(StrictModel):
+    name: ComponentName
+    state: EngineState
+    reason: Code | None
+
+
+def _unique_components(values: tuple[EngineComponent, ...]) -> tuple[EngineComponent, ...]:
+    names = [c.name for c in values]
+    if len(set(names)) != len(names):
+        raise ValueError("duplicate component")
+    return values
+
+
+class TradingEngineHealth(StrictModel):
+    state: EngineState
+    # La salute dei componenti è calcolata dal core all'avvio del motore, non a ogni lettura.
+    evaluated_at: Literal["ENGINE_START"]
+    risk_gate_wired: bool
+    components: Annotated[
+        tuple[EngineComponent, ...], Field(max_length=32), AfterValidator(_unique_components)
+    ]
+
+    @model_validator(mode="after")
+    def _coherent(self) -> TradingEngineHealth:
+        if self.state == "READY" and any(c.state != "READY" for c in self.components):
+            raise ValueError("READY engine with a non-ready component")
+        return self
+
+
+ClientKind = Literal["SIMULATION", "LIVE"]
+
+
+class Keepalive(StrictModel):
+    running: bool
+    failure_count: Count
+    last_ok_at: EpochSeconds | None
+    error_present: bool
+
+
+class BetfairConnection(StrictModel):
+    """Stato della connessione come lo tiene il servizio: nessuna credenziale, nessun testo."""
+
+    connected: bool
+    has_client: bool
+    client_kind: ClientKind
+    error_present: bool
+    keepalive: Keepalive
+
+
+class StreamFeed(StrictModel):
+    running: bool
+    connected: bool
+    degraded: bool
+    auth_degraded: bool
+    auth_failure_count: Count
+    keepalive_failure_count: Count
+    error_present: bool
+    last_message_at: EpochSeconds | None
+
+
+class RuntimeIo(StrictModel):
+    last_status: Code
+    total_count: BigCount
+    slow_count: BigCount
+    degraded_count: BigCount
+    unavailable_count: BigCount
+    last_latency_ms: Annotated[float, Field(ge=0, le=1e7)]
+    error_present: bool
+
+
+class EventBusPressure(StrictModel):
+    queue_depth: BigCount
+    queue_high_watermark: BigCount
+    enqueued_total: BigCount
+    dequeued_total: BigCount
+    running: bool
+    accepting: bool
+    seconds_since_last_dequeue: Annotated[float, Field(ge=0, le=1e9)] | None
+
+
+class OperationalQueues(StrictModel):
+    cashout_inflight: Count
+    cashout_uncertain: Count
+    direct_unmatched: Count
+
+
+class Modes(StrictModel):
+    """Configurazione, capacità e cliente effettivo, tenuti distinti (nessuna deduzione)."""
+
+    configured_execution_mode: ExecutionMode
+    simulation_flag: bool
+    live_enabled: bool
+    live_readiness_ok: bool
+    client_kind: Literal["SIMULATION", "LIVE", "NONE"]
+    # Il core non ha una modalità READ_ONLY: dichiarato, mai inventato.
+    read_only_mode: Literal["NOT_IN_CORE"]
+
+
+EngineField = Literal[
+    "trading_engine", "betfair", "stream", "io", "event_bus", "queues", "modes", "last_signal_at"
+]
+ENGINE_OPTIONAL_FIELDS: tuple[str, ...] = (
+    "trading_engine",
+    "betfair",
+    "stream",
+    "io",
+    "event_bus",
+    "queues",
+    "modes",
+    "last_signal_at",
+)
+
+
+class EngineDiagnostics(StrictModel):
+    trading_engine: TradingEngineHealth | None
+    betfair: BetfairConnection | None
+    stream: StreamFeed | None
+    io: RuntimeIo | None
+    event_bus: EventBusPressure | None
+    queues: OperationalQueues | None
+    modes: Modes | None
+    last_signal_at: EpochSeconds | None
+    unavailable: Annotated[
+        tuple[EngineField, ...],
+        Field(max_length=len(ENGINE_OPTIONAL_FIELDS), json_schema_extra={"uniqueItems": True}),
+    ]
+
+    @model_validator(mode="after")
+    def _declared(self) -> EngineDiagnostics:
+        values: dict[str, object] = {
+            "trading_engine": self.trading_engine,
+            "betfair": self.betfair,
+            "stream": self.stream,
+            "io": self.io,
+            "event_bus": self.event_bus,
+            "queues": self.queues,
+            "modes": self.modes,
+            "last_signal_at": self.last_signal_at,
+        }
+        if tuple(values) != ENGINE_OPTIONAL_FIELDS:
+            raise ValueError("optional field list out of sync")
+        _check_unavailable(values, self.unavailable)
+        return self
+
+
+StatusField = Literal[
+    "runtime_state", "execution_mode", "live_enabled", "readiness", "stop", "engine", "protections"
+]
 STATUS_OPTIONAL_FIELDS: tuple[str, ...] = (
     "runtime_state",
     "execution_mode",
     "live_enabled",
     "readiness",
     "stop",
+    "engine",
+    "protections",
 )
 
 
@@ -147,6 +419,8 @@ class StatusResponse(StrictModel):
     live_enabled: bool | None
     readiness: Readiness | None
     stop: StopState | None
+    engine: EngineDiagnostics | None
+    protections: Protections | None
     unavailable: Annotated[
         tuple[StatusField, ...],
         Field(max_length=len(STATUS_OPTIONAL_FIELDS), json_schema_extra={"uniqueItems": True}),
@@ -160,6 +434,8 @@ class StatusResponse(StrictModel):
             "live_enabled": self.live_enabled,
             "readiness": self.readiness,
             "stop": self.stop,
+            "engine": self.engine,
+            "protections": self.protections,
         }
         if tuple(values) != STATUS_OPTIONAL_FIELDS:
             raise ValueError("optional field list out of sync")
@@ -252,7 +528,6 @@ Money = Annotated[float, Field(ge=-MONEY_LIMIT, le=MONEY_LIMIT)]
 NonNegativeMoney = Annotated[float, Field(ge=0, le=MONEY_LIMIT)]
 Percent = Annotated[float, Field(ge=0, le=100)]
 SectionConsistency = Literal["PER_SECTION_LOCKED"]
-ExecutionMode = Literal["SIM", "LIVE"]
 # Identificativi di mercato/selezione: mai testo libero (niente nomi di eventi).
 IDENTIFIER_PATTERN = r"^[0-9A-Za-z._-]{1,32}$"
 Identifier = Annotated[str, StringConstraints(pattern=IDENTIFIER_PATTERN, max_length=32)]
@@ -415,4 +690,80 @@ class ExposureResponse(StrictModel):
         if tuple(values) != EXPOSURE_OPTIONAL_FIELDS:
             raise ValueError("optional field list out of sync")
         _check_unavailable(values, self.unavailable)
+        return self
+
+
+# ---------------------------------------------------------------------------
+# MCP-01f — GET /v1/positions (contratto 1.3.0)
+# ---------------------------------------------------------------------------
+
+PositionField = Literal[
+    "open_size", "avg_entry_price", "realized_pnl", "unrealized_pnl", "exposure", "liability"
+]
+POSITION_OPTIONAL_FIELDS: tuple[str, ...] = (
+    "open_size",
+    "avg_entry_price",
+    "realized_pnl",
+    "unrealized_pnl",
+    "exposure",
+    "liability",
+)
+MAX_POSITIONS = 512
+
+
+class Position(StrictModel):
+    market_id: Identifier
+    selection_id: Identifier
+    side: Literal["BACK", "LAY", "FLAT"]
+    table_id: Annotated[int, Field(ge=1, le=10_000)] | None
+    open_size: DecimalStr | None
+    avg_entry_price: DecimalStr | None
+    realized_pnl: DecimalStr | None
+    unrealized_pnl: DecimalStr | None
+    exposure: DecimalStr | None
+    liability: DecimalStr | None
+    # LEDGER_DECIMAL: valori Decimal del registro di posizione, senza perdita. CORE_FLOAT: posizione
+    # senza registro, solo prezzo e size come float del core (resto indisponibile).
+    amounts_source: Literal["LEDGER_DECIMAL", "CORE_FLOAT"]
+    # Il P&L non realizzato è quello dell'ultimo mark-to-market eseguito dal core, non ricalcolato.
+    unrealized_basis: Literal["LAST_MARK"]
+    unavailable: Annotated[
+        tuple[PositionField, ...],
+        Field(max_length=len(POSITION_OPTIONAL_FIELDS), json_schema_extra={"uniqueItems": True}),
+    ]
+
+    @model_validator(mode="after")
+    def _declared(self) -> Position:
+        values: dict[str, object] = {
+            "open_size": self.open_size,
+            "avg_entry_price": self.avg_entry_price,
+            "realized_pnl": self.realized_pnl,
+            "unrealized_pnl": self.unrealized_pnl,
+            "exposure": self.exposure,
+            "liability": self.liability,
+        }
+        if tuple(values) != POSITION_OPTIONAL_FIELDS:
+            raise ValueError("optional field list out of sync")
+        _check_unavailable(values, self.unavailable)
+        if self.side == "FLAT" and self.exposure not in (None, "0"):
+            raise ValueError("flat position with exposure")
+        return self
+
+
+PositionsField = Literal["positions"]
+
+
+class PositionsResponse(StrictModel):
+    source: Source
+    observed_at: ObservedAt
+    consistency: SectionConsistency
+    # Tutte le posizioni in una sola acquisizione del lock del motore P&L.
+    positions: Annotated[tuple[Position, ...], Field(max_length=MAX_POSITIONS)] | None
+    unavailable: Annotated[
+        tuple[PositionsField, ...], Field(max_length=1, json_schema_extra={"uniqueItems": True})
+    ]
+
+    @model_validator(mode="after")
+    def _declared(self) -> PositionsResponse:
+        _check_unavailable({"positions": self.positions}, self.unavailable)
         return self

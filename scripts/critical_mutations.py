@@ -964,6 +964,127 @@ MUTANTS: tuple[Mutant, ...] = (
         ((CK, "        if (value.get(name) is None) != (name in declared):", "        if False:"),),
     ),
     Mutant(
+        "G01",
+        "protezione ACTIVE con un motivo accettata (stato non verificato mascherato)",
+        (
+            (
+                MO,
+                '    state: Literal["ACTIVE"]\n    reason: None',
+                '    state: Literal["ACTIVE"]\n    reason: Code | None',
+            ),
+        ),
+    ),
+    Mutant(
+        "G02",
+        "protezione non verificabile senza motivo accettata",
+        (
+            (
+                MO,
+                '    state: Literal["INACTIVE", "TRIGGERED", "UNKNOWN", "UNAVAILABLE"]\n    reason: Code',
+                '    state: Literal["INACTIVE", "TRIGGERED", "UNKNOWN", "UNAVAILABLE"]\n    reason: Code | None',
+            ),
+        ),
+    ),
+    Mutant(
+        "G03",
+        "elenchi derivati disabled/unverifiable non controllati",
+        (
+            (
+                MO,
+                "        if list(self.disabled) != disabled or list(self.unverifiable) != unverifiable:",
+                "        if False:",
+            ),
+        ),
+    ),
+    Mutant(
+        "G04",
+        "UNAVAILABLE omesso dalle protezioni non verificabili",
+        (
+            (
+                MO,
+                '        unverifiable = sorted(n for n, s in states.items() if s in ("UNKNOWN", "UNAVAILABLE"))',
+                '        unverifiable = sorted(n for n, s in states.items() if s == "UNKNOWN")',
+            ),
+        ),
+    ),
+    Mutant(
+        "G05",
+        "notazione esponenziale accettata negli importi Decimal",
+        (
+            (
+                MO,
+                '    r"|0(?:\\.[0-9]{1,28})?"',
+                '    r"|0(?:\\.[0-9]{1,28})?|[0-9.]+[eE][-+]?[0-9]+"',
+            ),
+        ),
+    ),
+    Mutant(
+        "G06",
+        "posizione FLAT con esposizione accettata",
+        (
+            (
+                MO,
+                '        if self.side == "FLAT" and self.exposure not in (None, "0"):',
+                "        if False:",
+            ),
+        ),
+    ),
+    Mutant(
+        "G07",
+        "importo di posizione nullo non dichiarato accettato",
+        (
+            (
+                MO,
+                '        if tuple(values) != POSITION_OPTIONAL_FIELDS:\n            raise ValueError("optional field list out of sync")\n        _check_unavailable(values, self.unavailable)',
+                '        if tuple(values) != POSITION_OPTIONAL_FIELDS:\n            raise ValueError("optional field list out of sync")',
+            ),
+        ),
+    ),
+    Mutant(
+        "G08",
+        "motore READY con un componente non pronto accettato",
+        (
+            (
+                MO,
+                '        if self.state == "READY" and any(c.state != "READY" for c in self.components):',
+                "        if False:",
+            ),
+        ),
+    ),
+    Mutant(
+        "G09",
+        "modalità READ_ONLY inventata accettata",
+        (
+            (
+                MO,
+                '    read_only_mode: Literal["NOT_IN_CORE"]',
+                "    read_only_mode: str",
+            ),
+        ),
+    ),
+    Mutant(
+        "G10",
+        "list_positions legge la route sbagliata",
+        (
+            (
+                FI,
+                "            read=adapter.get_positions_raw,",
+                "            read=adapter.get_exposure_raw,",
+            ),
+        ),
+    ),
+    Mutant(
+        "G11",
+        "sezione diagnostica nulla non dichiarata accettata",
+        (
+            (
+                MO,
+                '        if tuple(values) != ENGINE_OPTIONAL_FIELDS:\n            raise ValueError("optional field list out of sync")\n        _check_unavailable(values, self.unavailable)',
+                '        if tuple(values) != ENGINE_OPTIONAL_FIELDS:\n            raise ValueError("optional field list out of sync")',
+            ),
+        ),
+    ),
+    Mutant(
         "F01",
         "cassa verificata senza importo (o viceversa) accettata",
         (

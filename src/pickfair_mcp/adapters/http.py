@@ -167,3 +167,6 @@ class HttpControlApiAdapter:
 
     async def get_exposure_raw(self) -> bytes:
         return await self._get("/v1/exposure")
+
+    async def get_positions_raw(self) -> bytes:
+        return await self._get("/v1/positions")

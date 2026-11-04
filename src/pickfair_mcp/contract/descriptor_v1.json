@@ -1,6 +1,6 @@
 {
   "contract_name": "pickfair-control-api",
-  "contract_version": "1.2.0",
+  "contract_version": "1.3.0",
   "error_codes": {
     "control_api": [
       "BAD_HOST",
@@ -160,8 +160,9 @@
       "max_clock_skew_s": 5.0,
       "max_snapshot_age_s": 30.0
     },
-    "money": "Amounts are finite floats in EUR exactly as the core holds them, never rounded or defaulted; execution_mode SIM means the simulated broker's fictitious balance.",
+    "money": "Amounts are finite floats in EUR exactly as the core holds them, never rounded or defaulted; execution_mode SIM means the simulated broker's fictitious balance. Since 1.3.0 new amounts and prices are canonical decimal strings (no exponent, no float): lossless from the core's Decimal, or the shortest repr of the core's float when the core holds a float (declared by amounts_source).",
     "not_implemented": "An approved read route the Control API does not serve yet answers 501 NOT_IMPLEMENTED; a path outside the approved routes answers 404 NOT_FOUND; any method other than GET answers 405 METHOD_NOT_ALLOWED. No command route is served.",
+    "protections": "Each protection is ACTIVE, INACTIVE, TRIGGERED, UNKNOWN or UNAVAILABLE; only ACTIVE has no reason. A protection that cannot be verified is UNKNOWN (core has it, value not readable) or UNAVAILABLE (core does not expose it yet), never ACTIVE or INACTIVE; the derived lists `disabled` and `unverifiable` must match the items.",
     "source": "Responses declare source=core; the simulated adapter declares source=simulated.",
     "transport": "HTTP/1.1 GET only on 127.0.0.1, Authorization Bearer token required, Host must be 127.0.0.1:<port>, no redirects, Content-Type application/json; charset=utf-8, body at most 65536 bytes.",
     "unavailable": "A field is null if and only if its name is listed in `unavailable`; a value the core does not hold is never replaced by a default."
@@ -1697,6 +1698,259 @@
       },
       "output_schema": {
         "$defs": {
+          "ActiveProtection": {
+            "additionalProperties": false,
+            "description": "Protezione armata e non scattata: l'unico stato senza motivo.",
+            "properties": {
+              "as_of": {
+                "anyOf": [
+                  {
+                    "exclusiveMaximum": 100000000000.0,
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "As Of"
+              },
+              "limit": {
+                "anyOf": [
+                  {
+                    "maxLength": 48,
+                    "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Limit"
+              },
+              "reason": {
+                "title": "Reason",
+                "type": "null"
+              },
+              "source": {
+                "maxLength": 64,
+                "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                "title": "Source",
+                "type": "string"
+              },
+              "state": {
+                "const": "ACTIVE",
+                "title": "State",
+                "type": "string"
+              }
+            },
+            "required": [
+              "source",
+              "limit",
+              "as_of",
+              "state",
+              "reason"
+            ],
+            "title": "ActiveProtection",
+            "type": "object"
+          },
+          "BetfairConnection": {
+            "additionalProperties": false,
+            "description": "Stato della connessione come lo tiene il servizio: nessuna credenziale, nessun testo.",
+            "properties": {
+              "client_kind": {
+                "enum": [
+                  "SIMULATION",
+                  "LIVE"
+                ],
+                "title": "Client Kind",
+                "type": "string"
+              },
+              "connected": {
+                "title": "Connected",
+                "type": "boolean"
+              },
+              "error_present": {
+                "title": "Error Present",
+                "type": "boolean"
+              },
+              "has_client": {
+                "title": "Has Client",
+                "type": "boolean"
+              },
+              "keepalive": {
+                "$ref": "#/$defs/Keepalive"
+              }
+            },
+            "required": [
+              "connected",
+              "has_client",
+              "client_kind",
+              "error_present",
+              "keepalive"
+            ],
+            "title": "BetfairConnection",
+            "type": "object"
+          },
+          "EngineComponent": {
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "pattern": "^[a-z][a-z0-9_]{0,31}$",
+                "title": "Name",
+                "type": "string"
+              },
+              "reason": {
+                "anyOf": [
+                  {
+                    "maxLength": 64,
+                    "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Reason"
+              },
+              "state": {
+                "enum": [
+                  "READY",
+                  "DEGRADED",
+                  "NOT_READY"
+                ],
+                "title": "State",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "state",
+              "reason"
+            ],
+            "title": "EngineComponent",
+            "type": "object"
+          },
+          "EngineDiagnostics": {
+            "additionalProperties": false,
+            "properties": {
+              "betfair": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/BetfairConnection"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "event_bus": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/EventBusPressure"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "io": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/RuntimeIo"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "last_signal_at": {
+                "anyOf": [
+                  {
+                    "exclusiveMaximum": 100000000000.0,
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Last Signal At"
+              },
+              "modes": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Modes"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "queues": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/OperationalQueues"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "stream": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/StreamFeed"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "trading_engine": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/TradingEngineHealth"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "unavailable": {
+                "items": {
+                  "enum": [
+                    "trading_engine",
+                    "betfair",
+                    "stream",
+                    "io",
+                    "event_bus",
+                    "queues",
+                    "modes",
+                    "last_signal_at"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 8,
+                "title": "Unavailable",
+                "type": "array",
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "trading_engine",
+              "betfair",
+              "stream",
+              "io",
+              "event_bus",
+              "queues",
+              "modes",
+              "last_signal_at",
+              "unavailable"
+            ],
+            "title": "EngineDiagnostics",
+            "type": "object"
+          },
           "ErrorBody": {
             "additionalProperties": false,
             "properties": {
@@ -1775,6 +2029,130 @@
             "title": "ErrorDetails",
             "type": "object"
           },
+          "EventBusPressure": {
+            "additionalProperties": false,
+            "properties": {
+              "accepting": {
+                "title": "Accepting",
+                "type": "boolean"
+              },
+              "dequeued_total": {
+                "maximum": 1000000000000000,
+                "minimum": 0,
+                "title": "Dequeued Total",
+                "type": "integer"
+              },
+              "enqueued_total": {
+                "maximum": 1000000000000000,
+                "minimum": 0,
+                "title": "Enqueued Total",
+                "type": "integer"
+              },
+              "queue_depth": {
+                "maximum": 1000000000000000,
+                "minimum": 0,
+                "title": "Queue Depth",
+                "type": "integer"
+              },
+              "queue_high_watermark": {
+                "maximum": 1000000000000000,
+                "minimum": 0,
+                "title": "Queue High Watermark",
+                "type": "integer"
+              },
+              "running": {
+                "title": "Running",
+                "type": "boolean"
+              },
+              "seconds_since_last_dequeue": {
+                "anyOf": [
+                  {
+                    "maximum": 1000000000.0,
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Seconds Since Last Dequeue"
+              }
+            },
+            "required": [
+              "queue_depth",
+              "queue_high_watermark",
+              "enqueued_total",
+              "dequeued_total",
+              "running",
+              "accepting",
+              "seconds_since_last_dequeue"
+            ],
+            "title": "EventBusPressure",
+            "type": "object"
+          },
+          "FlaggedProtection": {
+            "additionalProperties": false,
+            "description": "Ogni altro stato dice perch\u00e9. Ci\u00f2 che non \u00e8 verificabile \u00e8 UNKNOWN/UNAVAILABLE, mai SAFE.",
+            "properties": {
+              "as_of": {
+                "anyOf": [
+                  {
+                    "exclusiveMaximum": 100000000000.0,
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "As Of"
+              },
+              "limit": {
+                "anyOf": [
+                  {
+                    "maxLength": 48,
+                    "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Limit"
+              },
+              "reason": {
+                "maxLength": 64,
+                "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                "title": "Reason",
+                "type": "string"
+              },
+              "source": {
+                "maxLength": 64,
+                "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                "title": "Source",
+                "type": "string"
+              },
+              "state": {
+                "enum": [
+                  "INACTIVE",
+                  "TRIGGERED",
+                  "UNKNOWN",
+                  "UNAVAILABLE"
+                ],
+                "title": "State",
+                "type": "string"
+              }
+            },
+            "required": [
+              "source",
+              "limit",
+              "as_of",
+              "state",
+              "reason"
+            ],
+            "title": "FlaggedProtection",
+            "type": "object"
+          },
           "GetStatusData": {
             "additionalProperties": false,
             "properties": {
@@ -1797,6 +2175,480 @@
               "upstream"
             ],
             "title": "GetStatusData",
+            "type": "object"
+          },
+          "Keepalive": {
+            "additionalProperties": false,
+            "properties": {
+              "error_present": {
+                "title": "Error Present",
+                "type": "boolean"
+              },
+              "failure_count": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Failure Count",
+                "type": "integer"
+              },
+              "last_ok_at": {
+                "anyOf": [
+                  {
+                    "exclusiveMaximum": 100000000000.0,
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Last Ok At"
+              },
+              "running": {
+                "title": "Running",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "running",
+              "failure_count",
+              "last_ok_at",
+              "error_present"
+            ],
+            "title": "Keepalive",
+            "type": "object"
+          },
+          "Modes": {
+            "additionalProperties": false,
+            "description": "Configurazione, capacit\u00e0 e cliente effettivo, tenuti distinti (nessuna deduzione).",
+            "properties": {
+              "client_kind": {
+                "enum": [
+                  "SIMULATION",
+                  "LIVE",
+                  "NONE"
+                ],
+                "title": "Client Kind",
+                "type": "string"
+              },
+              "configured_execution_mode": {
+                "enum": [
+                  "SIM",
+                  "LIVE"
+                ],
+                "title": "Configured Execution Mode",
+                "type": "string"
+              },
+              "live_enabled": {
+                "title": "Live Enabled",
+                "type": "boolean"
+              },
+              "live_readiness_ok": {
+                "title": "Live Readiness Ok",
+                "type": "boolean"
+              },
+              "read_only_mode": {
+                "const": "NOT_IN_CORE",
+                "title": "Read Only Mode",
+                "type": "string"
+              },
+              "simulation_flag": {
+                "title": "Simulation Flag",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "configured_execution_mode",
+              "simulation_flag",
+              "live_enabled",
+              "live_readiness_ok",
+              "client_kind",
+              "read_only_mode"
+            ],
+            "title": "Modes",
+            "type": "object"
+          },
+          "OperationalQueues": {
+            "additionalProperties": false,
+            "properties": {
+              "cashout_inflight": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Cashout Inflight",
+                "type": "integer"
+              },
+              "cashout_uncertain": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Cashout Uncertain",
+                "type": "integer"
+              },
+              "direct_unmatched": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Direct Unmatched",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "cashout_inflight",
+              "cashout_uncertain",
+              "direct_unmatched"
+            ],
+            "title": "OperationalQueues",
+            "type": "object"
+          },
+          "ProtectionItems": {
+            "additionalProperties": false,
+            "properties": {
+              "anti_duplication": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ActiveProtection"
+                  },
+                  {
+                    "$ref": "#/$defs/FlaggedProtection"
+                  }
+                ],
+                "title": "Anti Duplication"
+              },
+              "book_guard": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ActiveProtection"
+                  },
+                  {
+                    "$ref": "#/$defs/FlaggedProtection"
+                  }
+                ],
+                "title": "Book Guard"
+              },
+              "daily_loss": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ActiveProtection"
+                  },
+                  {
+                    "$ref": "#/$defs/FlaggedProtection"
+                  }
+                ],
+                "title": "Daily Loss"
+              },
+              "desk_lockdown": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ActiveProtection"
+                  },
+                  {
+                    "$ref": "#/$defs/FlaggedProtection"
+                  }
+                ],
+                "title": "Desk Lockdown"
+              },
+              "drawdown_abs_hard_stop": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ActiveProtection"
+                  },
+                  {
+                    "$ref": "#/$defs/FlaggedProtection"
+                  }
+                ],
+                "title": "Drawdown Abs Hard Stop"
+              },
+              "drawdown_pct_hard_stop": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ActiveProtection"
+                  },
+                  {
+                    "$ref": "#/$defs/FlaggedProtection"
+                  }
+                ],
+                "title": "Drawdown Pct Hard Stop"
+              },
+              "emergency_stop": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ActiveProtection"
+                  },
+                  {
+                    "$ref": "#/$defs/FlaggedProtection"
+                  }
+                ],
+                "title": "Emergency Stop"
+              },
+              "exposure_stop": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ActiveProtection"
+                  },
+                  {
+                    "$ref": "#/$defs/FlaggedProtection"
+                  }
+                ],
+                "title": "Exposure Stop"
+              },
+              "funds_freshness": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ActiveProtection"
+                  },
+                  {
+                    "$ref": "#/$defs/FlaggedProtection"
+                  }
+                ],
+                "title": "Funds Freshness"
+              },
+              "kill_switch": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ActiveProtection"
+                  },
+                  {
+                    "$ref": "#/$defs/FlaggedProtection"
+                  }
+                ],
+                "title": "Kill Switch"
+              },
+              "market_tradability": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ActiveProtection"
+                  },
+                  {
+                    "$ref": "#/$defs/FlaggedProtection"
+                  }
+                ],
+                "title": "Market Tradability"
+              },
+              "max_event_exposure_abs": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ActiveProtection"
+                  },
+                  {
+                    "$ref": "#/$defs/FlaggedProtection"
+                  }
+                ],
+                "title": "Max Event Exposure Abs"
+              },
+              "max_event_exposure_pct": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ActiveProtection"
+                  },
+                  {
+                    "$ref": "#/$defs/FlaggedProtection"
+                  }
+                ],
+                "title": "Max Event Exposure Pct"
+              },
+              "max_market_exposure": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ActiveProtection"
+                  },
+                  {
+                    "$ref": "#/$defs/FlaggedProtection"
+                  }
+                ],
+                "title": "Max Market Exposure"
+              },
+              "max_open_exposure": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ActiveProtection"
+                  },
+                  {
+                    "$ref": "#/$defs/FlaggedProtection"
+                  }
+                ],
+                "title": "Max Open Exposure"
+              },
+              "max_order_exposure": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ActiveProtection"
+                  },
+                  {
+                    "$ref": "#/$defs/FlaggedProtection"
+                  }
+                ],
+                "title": "Max Order Exposure"
+              },
+              "max_total_exposure_pct": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ActiveProtection"
+                  },
+                  {
+                    "$ref": "#/$defs/FlaggedProtection"
+                  }
+                ],
+                "title": "Max Total Exposure Pct"
+              },
+              "order_circuit_breaker": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ActiveProtection"
+                  },
+                  {
+                    "$ref": "#/$defs/FlaggedProtection"
+                  }
+                ],
+                "title": "Order Circuit Breaker"
+              },
+              "recovery_state": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ActiveProtection"
+                  },
+                  {
+                    "$ref": "#/$defs/FlaggedProtection"
+                  }
+                ],
+                "title": "Recovery State"
+              },
+              "risk_stop": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ActiveProtection"
+                  },
+                  {
+                    "$ref": "#/$defs/FlaggedProtection"
+                  }
+                ],
+                "title": "Risk Stop"
+              },
+              "runtime_lockdown": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ActiveProtection"
+                  },
+                  {
+                    "$ref": "#/$defs/FlaggedProtection"
+                  }
+                ],
+                "title": "Runtime Lockdown"
+              },
+              "session_loss": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ActiveProtection"
+                  },
+                  {
+                    "$ref": "#/$defs/FlaggedProtection"
+                  }
+                ],
+                "title": "Session Loss"
+              }
+            },
+            "required": [
+              "kill_switch",
+              "emergency_stop",
+              "runtime_lockdown",
+              "desk_lockdown",
+              "drawdown_pct_hard_stop",
+              "drawdown_abs_hard_stop",
+              "session_loss",
+              "daily_loss",
+              "risk_stop",
+              "exposure_stop",
+              "max_open_exposure",
+              "max_order_exposure",
+              "max_market_exposure",
+              "max_event_exposure_abs",
+              "max_total_exposure_pct",
+              "max_event_exposure_pct",
+              "funds_freshness",
+              "book_guard",
+              "market_tradability",
+              "anti_duplication",
+              "order_circuit_breaker",
+              "recovery_state"
+            ],
+            "title": "ProtectionItems",
+            "type": "object"
+          },
+          "Protections": {
+            "additionalProperties": false,
+            "properties": {
+              "disabled": {
+                "items": {
+                  "enum": [
+                    "kill_switch",
+                    "emergency_stop",
+                    "runtime_lockdown",
+                    "desk_lockdown",
+                    "drawdown_pct_hard_stop",
+                    "drawdown_abs_hard_stop",
+                    "session_loss",
+                    "daily_loss",
+                    "risk_stop",
+                    "exposure_stop",
+                    "max_open_exposure",
+                    "max_order_exposure",
+                    "max_market_exposure",
+                    "max_event_exposure_abs",
+                    "max_total_exposure_pct",
+                    "max_event_exposure_pct",
+                    "funds_freshness",
+                    "book_guard",
+                    "market_tradability",
+                    "anti_duplication",
+                    "order_circuit_breaker",
+                    "recovery_state"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 22,
+                "title": "Disabled",
+                "type": "array",
+                "uniqueItems": true
+              },
+              "items": {
+                "$ref": "#/$defs/ProtectionItems"
+              },
+              "unverifiable": {
+                "items": {
+                  "enum": [
+                    "kill_switch",
+                    "emergency_stop",
+                    "runtime_lockdown",
+                    "desk_lockdown",
+                    "drawdown_pct_hard_stop",
+                    "drawdown_abs_hard_stop",
+                    "session_loss",
+                    "daily_loss",
+                    "risk_stop",
+                    "exposure_stop",
+                    "max_open_exposure",
+                    "max_order_exposure",
+                    "max_market_exposure",
+                    "max_event_exposure_abs",
+                    "max_total_exposure_pct",
+                    "max_event_exposure_pct",
+                    "funds_freshness",
+                    "book_guard",
+                    "market_tradability",
+                    "anti_duplication",
+                    "order_circuit_breaker",
+                    "recovery_state"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 22,
+                "title": "Unverifiable",
+                "type": "array",
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "items",
+              "disabled",
+              "unverifiable"
+            ],
+            "title": "Protections",
             "type": "object"
           },
           "Readiness": {
@@ -1840,6 +2692,62 @@
             "title": "Readiness",
             "type": "object"
           },
+          "RuntimeIo": {
+            "additionalProperties": false,
+            "properties": {
+              "degraded_count": {
+                "maximum": 1000000000000000,
+                "minimum": 0,
+                "title": "Degraded Count",
+                "type": "integer"
+              },
+              "error_present": {
+                "title": "Error Present",
+                "type": "boolean"
+              },
+              "last_latency_ms": {
+                "maximum": 10000000.0,
+                "minimum": 0,
+                "title": "Last Latency Ms",
+                "type": "number"
+              },
+              "last_status": {
+                "maxLength": 64,
+                "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                "title": "Last Status",
+                "type": "string"
+              },
+              "slow_count": {
+                "maximum": 1000000000000000,
+                "minimum": 0,
+                "title": "Slow Count",
+                "type": "integer"
+              },
+              "total_count": {
+                "maximum": 1000000000000000,
+                "minimum": 0,
+                "title": "Total Count",
+                "type": "integer"
+              },
+              "unavailable_count": {
+                "maximum": 1000000000000000,
+                "minimum": 0,
+                "title": "Unavailable Count",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "last_status",
+              "total_count",
+              "slow_count",
+              "degraded_count",
+              "unavailable_count",
+              "last_latency_ms",
+              "error_present"
+            ],
+            "title": "RuntimeIo",
+            "type": "object"
+          },
           "StatusResponse": {
             "additionalProperties": false,
             "properties": {
@@ -1847,6 +2755,16 @@
                 "const": "PER_FIELD_NON_ATOMIC",
                 "title": "Consistency",
                 "type": "string"
+              },
+              "engine": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/EngineDiagnostics"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "execution_mode": {
                 "anyOf": [
@@ -1879,6 +2797,16 @@
                 "exclusiveMinimum": 0,
                 "title": "Observed At",
                 "type": "number"
+              },
+              "protections": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Protections"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "readiness": {
                 "anyOf": [
@@ -1932,11 +2860,13 @@
                     "execution_mode",
                     "live_enabled",
                     "readiness",
-                    "stop"
+                    "stop",
+                    "engine",
+                    "protections"
                   ],
                   "type": "string"
                 },
-                "maxItems": 5,
+                "maxItems": 7,
                 "title": "Unavailable",
                 "type": "array",
                 "uniqueItems": true
@@ -1951,6 +2881,8 @@
               "live_enabled",
               "readiness",
               "stop",
+              "engine",
+              "protections",
               "unavailable"
             ],
             "title": "StatusResponse",
@@ -2006,6 +2938,107 @@
               "kill_switch_active"
             ],
             "title": "StopState",
+            "type": "object"
+          },
+          "StreamFeed": {
+            "additionalProperties": false,
+            "properties": {
+              "auth_degraded": {
+                "title": "Auth Degraded",
+                "type": "boolean"
+              },
+              "auth_failure_count": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Auth Failure Count",
+                "type": "integer"
+              },
+              "connected": {
+                "title": "Connected",
+                "type": "boolean"
+              },
+              "degraded": {
+                "title": "Degraded",
+                "type": "boolean"
+              },
+              "error_present": {
+                "title": "Error Present",
+                "type": "boolean"
+              },
+              "keepalive_failure_count": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Keepalive Failure Count",
+                "type": "integer"
+              },
+              "last_message_at": {
+                "anyOf": [
+                  {
+                    "exclusiveMaximum": 100000000000.0,
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Last Message At"
+              },
+              "running": {
+                "title": "Running",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "running",
+              "connected",
+              "degraded",
+              "auth_degraded",
+              "auth_failure_count",
+              "keepalive_failure_count",
+              "error_present",
+              "last_message_at"
+            ],
+            "title": "StreamFeed",
+            "type": "object"
+          },
+          "TradingEngineHealth": {
+            "additionalProperties": false,
+            "properties": {
+              "components": {
+                "items": {
+                  "$ref": "#/$defs/EngineComponent"
+                },
+                "maxItems": 32,
+                "title": "Components",
+                "type": "array"
+              },
+              "evaluated_at": {
+                "const": "ENGINE_START",
+                "title": "Evaluated At",
+                "type": "string"
+              },
+              "risk_gate_wired": {
+                "title": "Risk Gate Wired",
+                "type": "boolean"
+              },
+              "state": {
+                "enum": [
+                  "READY",
+                  "DEGRADED",
+                  "NOT_READY"
+                ],
+                "title": "State",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "evaluated_at",
+              "risk_gate_wired",
+              "components"
+            ],
+            "title": "TradingEngineHealth",
             "type": "object"
           },
           "UpstreamInfo": {
@@ -2087,6 +3120,421 @@
         "type": "object"
       },
       "route": "GET /v1/status",
+      "scope": "read"
+    },
+    "list_positions": {
+      "input_schema": {
+        "additionalProperties": false,
+        "description": "Nessun argomento ammesso.",
+        "properties": {},
+        "title": "NoInput",
+        "type": "object"
+      },
+      "output_schema": {
+        "$defs": {
+          "ErrorBody": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "$ref": "#/$defs/ErrorCode"
+              },
+              "details": {
+                "$ref": "#/$defs/ErrorDetails"
+              },
+              "message": {
+                "maxLength": 200,
+                "title": "Message",
+                "type": "string"
+              },
+              "retryable": {
+                "title": "Retryable",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "retryable",
+              "details"
+            ],
+            "title": "ErrorBody",
+            "type": "object"
+          },
+          "ErrorCode": {
+            "enum": [
+              "INVALID_REQUEST",
+              "UNKNOWN_TOOL",
+              "CONTRACT_INCOMPATIBLE",
+              "UPSTREAM_TIMEOUT",
+              "UPSTREAM_UNAVAILABLE",
+              "UPSTREAM_INVALID_RESPONSE",
+              "UPSTREAM_UNAUTHORIZED",
+              "UPSTREAM_NOT_IMPLEMENTED",
+              "INTERNAL_ERROR",
+              "JOURNAL_UNAVAILABLE",
+              "FORBIDDEN"
+            ],
+            "title": "ErrorCode",
+            "type": "string"
+          },
+          "ErrorDetails": {
+            "additionalProperties": false,
+            "properties": {
+              "handshake_status": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Z_]{1,32}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Handshake Status"
+              },
+              "reasons": {
+                "items": {
+                  "maxLength": 160,
+                  "pattern": "^[A-Z_]+(:[A-Za-z0-9_{}/?=. -]{1,140})?$",
+                  "type": "string"
+                },
+                "maxItems": 32,
+                "title": "Reasons",
+                "type": "array"
+              }
+            },
+            "required": [
+              "reasons",
+              "handshake_status"
+            ],
+            "title": "ErrorDetails",
+            "type": "object"
+          },
+          "ListPositionsData": {
+            "additionalProperties": false,
+            "properties": {
+              "age_s": {
+                "maximum": 30.0,
+                "minimum": 0,
+                "title": "Age S",
+                "type": "number"
+              },
+              "positions": {
+                "$ref": "#/$defs/PositionsResponse"
+              },
+              "upstream": {
+                "$ref": "#/$defs/UpstreamInfo"
+              }
+            },
+            "required": [
+              "positions",
+              "age_s",
+              "upstream"
+            ],
+            "title": "ListPositionsData",
+            "type": "object"
+          },
+          "Position": {
+            "additionalProperties": false,
+            "properties": {
+              "amounts_source": {
+                "enum": [
+                  "LEDGER_DECIMAL",
+                  "CORE_FLOAT"
+                ],
+                "title": "Amounts Source",
+                "type": "string"
+              },
+              "avg_entry_price": {
+                "anyOf": [
+                  {
+                    "maxLength": 48,
+                    "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Avg Entry Price"
+              },
+              "exposure": {
+                "anyOf": [
+                  {
+                    "maxLength": 48,
+                    "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Exposure"
+              },
+              "liability": {
+                "anyOf": [
+                  {
+                    "maxLength": 48,
+                    "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Liability"
+              },
+              "market_id": {
+                "maxLength": 32,
+                "pattern": "^[0-9A-Za-z._-]{1,32}$",
+                "title": "Market Id",
+                "type": "string"
+              },
+              "open_size": {
+                "anyOf": [
+                  {
+                    "maxLength": 48,
+                    "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Open Size"
+              },
+              "realized_pnl": {
+                "anyOf": [
+                  {
+                    "maxLength": 48,
+                    "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Realized Pnl"
+              },
+              "selection_id": {
+                "maxLength": 32,
+                "pattern": "^[0-9A-Za-z._-]{1,32}$",
+                "title": "Selection Id",
+                "type": "string"
+              },
+              "side": {
+                "enum": [
+                  "BACK",
+                  "LAY",
+                  "FLAT"
+                ],
+                "title": "Side",
+                "type": "string"
+              },
+              "table_id": {
+                "anyOf": [
+                  {
+                    "maximum": 10000,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Table Id"
+              },
+              "unavailable": {
+                "items": {
+                  "enum": [
+                    "open_size",
+                    "avg_entry_price",
+                    "realized_pnl",
+                    "unrealized_pnl",
+                    "exposure",
+                    "liability"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 6,
+                "title": "Unavailable",
+                "type": "array",
+                "uniqueItems": true
+              },
+              "unrealized_basis": {
+                "const": "LAST_MARK",
+                "title": "Unrealized Basis",
+                "type": "string"
+              },
+              "unrealized_pnl": {
+                "anyOf": [
+                  {
+                    "maxLength": 48,
+                    "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Unrealized Pnl"
+              }
+            },
+            "required": [
+              "market_id",
+              "selection_id",
+              "side",
+              "table_id",
+              "open_size",
+              "avg_entry_price",
+              "realized_pnl",
+              "unrealized_pnl",
+              "exposure",
+              "liability",
+              "amounts_source",
+              "unrealized_basis",
+              "unavailable"
+            ],
+            "title": "Position",
+            "type": "object"
+          },
+          "PositionsResponse": {
+            "additionalProperties": false,
+            "properties": {
+              "consistency": {
+                "const": "PER_SECTION_LOCKED",
+                "title": "Consistency",
+                "type": "string"
+              },
+              "observed_at": {
+                "exclusiveMaximum": 100000000000.0,
+                "exclusiveMinimum": 0,
+                "title": "Observed At",
+                "type": "number"
+              },
+              "positions": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "$ref": "#/$defs/Position"
+                    },
+                    "maxItems": 512,
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Positions"
+              },
+              "source": {
+                "enum": [
+                  "core",
+                  "simulated"
+                ],
+                "title": "Source",
+                "type": "string"
+              },
+              "unavailable": {
+                "items": {
+                  "const": "positions",
+                  "type": "string"
+                },
+                "maxItems": 1,
+                "title": "Unavailable",
+                "type": "array",
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "source",
+              "observed_at",
+              "consistency",
+              "positions",
+              "unavailable"
+            ],
+            "title": "PositionsResponse",
+            "type": "object"
+          },
+          "UpstreamInfo": {
+            "additionalProperties": false,
+            "properties": {
+              "certified": {
+                "title": "Certified",
+                "type": "boolean"
+              },
+              "kind": {
+                "enum": [
+                  "simulated",
+                  "http"
+                ],
+                "title": "Kind",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "certified"
+            ],
+            "title": "UpstreamInfo",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ListPositionsData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ErrorBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "request_id": {
+            "pattern": "^req_[0-9a-f]{32}$",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]{2,47}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool"
+          }
+        },
+        "required": [
+          "ok",
+          "request_id",
+          "tool",
+          "data",
+          "error"
+        ],
+        "title": "Envelope[ListPositionsData]",
+        "type": "object"
+      },
+      "route": "GET /v1/positions",
       "scope": "read"
     }
   },
@@ -2648,6 +4096,230 @@
       ],
       "type": "object"
     },
+    "positions": {
+      "$defs": {
+        "Position": {
+          "additionalProperties": false,
+          "properties": {
+            "amounts_source": {
+              "enum": [
+                "LEDGER_DECIMAL",
+                "CORE_FLOAT"
+              ],
+              "title": "Amounts Source",
+              "type": "string"
+            },
+            "avg_entry_price": {
+              "anyOf": [
+                {
+                  "maxLength": 48,
+                  "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Avg Entry Price"
+            },
+            "exposure": {
+              "anyOf": [
+                {
+                  "maxLength": 48,
+                  "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exposure"
+            },
+            "liability": {
+              "anyOf": [
+                {
+                  "maxLength": 48,
+                  "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Liability"
+            },
+            "market_id": {
+              "maxLength": 32,
+              "pattern": "^[0-9A-Za-z._-]{1,32}$",
+              "title": "Market Id",
+              "type": "string"
+            },
+            "open_size": {
+              "anyOf": [
+                {
+                  "maxLength": 48,
+                  "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Open Size"
+            },
+            "realized_pnl": {
+              "anyOf": [
+                {
+                  "maxLength": 48,
+                  "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Realized Pnl"
+            },
+            "selection_id": {
+              "maxLength": 32,
+              "pattern": "^[0-9A-Za-z._-]{1,32}$",
+              "title": "Selection Id",
+              "type": "string"
+            },
+            "side": {
+              "enum": [
+                "BACK",
+                "LAY",
+                "FLAT"
+              ],
+              "title": "Side",
+              "type": "string"
+            },
+            "table_id": {
+              "anyOf": [
+                {
+                  "maximum": 10000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Table Id"
+            },
+            "unavailable": {
+              "items": {
+                "enum": [
+                  "open_size",
+                  "avg_entry_price",
+                  "realized_pnl",
+                  "unrealized_pnl",
+                  "exposure",
+                  "liability"
+                ],
+                "type": "string"
+              },
+              "maxItems": 6,
+              "title": "Unavailable",
+              "type": "array",
+              "uniqueItems": true
+            },
+            "unrealized_basis": {
+              "const": "LAST_MARK",
+              "title": "Unrealized Basis",
+              "type": "string"
+            },
+            "unrealized_pnl": {
+              "anyOf": [
+                {
+                  "maxLength": 48,
+                  "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Unrealized Pnl"
+            }
+          },
+          "required": [
+            "market_id",
+            "selection_id",
+            "side",
+            "table_id",
+            "open_size",
+            "avg_entry_price",
+            "realized_pnl",
+            "unrealized_pnl",
+            "exposure",
+            "liability",
+            "amounts_source",
+            "unrealized_basis",
+            "unavailable"
+          ],
+          "title": "Position",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "consistency": {
+          "const": "PER_SECTION_LOCKED",
+          "title": "Consistency",
+          "type": "string"
+        },
+        "observed_at": {
+          "exclusiveMaximum": 100000000000.0,
+          "exclusiveMinimum": 0,
+          "title": "Observed At",
+          "type": "number"
+        },
+        "positions": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Position"
+              },
+              "maxItems": 512,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Positions"
+        },
+        "source": {
+          "enum": [
+            "core",
+            "simulated"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "unavailable": {
+          "items": {
+            "const": "positions",
+            "type": "string"
+          },
+          "maxItems": 1,
+          "title": "Unavailable",
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "source",
+        "observed_at",
+        "consistency",
+        "positions",
+        "unavailable"
+      ],
+      "title": "PositionsResponse",
+      "type": "object"
+    },
     "reconciliation_status": {
       "$defs": {
         "GhostCounters": {
@@ -2855,6 +4527,857 @@
     },
     "status": {
       "$defs": {
+        "ActiveProtection": {
+          "additionalProperties": false,
+          "description": "Protezione armata e non scattata: l'unico stato senza motivo.",
+          "properties": {
+            "as_of": {
+              "anyOf": [
+                {
+                  "exclusiveMaximum": 100000000000.0,
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "As Of"
+            },
+            "limit": {
+              "anyOf": [
+                {
+                  "maxLength": 48,
+                  "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Limit"
+            },
+            "reason": {
+              "title": "Reason",
+              "type": "null"
+            },
+            "source": {
+              "maxLength": 64,
+              "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+              "title": "Source",
+              "type": "string"
+            },
+            "state": {
+              "const": "ACTIVE",
+              "title": "State",
+              "type": "string"
+            }
+          },
+          "required": [
+            "source",
+            "limit",
+            "as_of",
+            "state",
+            "reason"
+          ],
+          "title": "ActiveProtection",
+          "type": "object"
+        },
+        "BetfairConnection": {
+          "additionalProperties": false,
+          "description": "Stato della connessione come lo tiene il servizio: nessuna credenziale, nessun testo.",
+          "properties": {
+            "client_kind": {
+              "enum": [
+                "SIMULATION",
+                "LIVE"
+              ],
+              "title": "Client Kind",
+              "type": "string"
+            },
+            "connected": {
+              "title": "Connected",
+              "type": "boolean"
+            },
+            "error_present": {
+              "title": "Error Present",
+              "type": "boolean"
+            },
+            "has_client": {
+              "title": "Has Client",
+              "type": "boolean"
+            },
+            "keepalive": {
+              "$ref": "#/$defs/Keepalive"
+            }
+          },
+          "required": [
+            "connected",
+            "has_client",
+            "client_kind",
+            "error_present",
+            "keepalive"
+          ],
+          "title": "BetfairConnection",
+          "type": "object"
+        },
+        "EngineComponent": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "pattern": "^[a-z][a-z0-9_]{0,31}$",
+              "title": "Name",
+              "type": "string"
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Reason"
+            },
+            "state": {
+              "enum": [
+                "READY",
+                "DEGRADED",
+                "NOT_READY"
+              ],
+              "title": "State",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "state",
+            "reason"
+          ],
+          "title": "EngineComponent",
+          "type": "object"
+        },
+        "EngineDiagnostics": {
+          "additionalProperties": false,
+          "properties": {
+            "betfair": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/BetfairConnection"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "event_bus": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/EventBusPressure"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "io": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RuntimeIo"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "last_signal_at": {
+              "anyOf": [
+                {
+                  "exclusiveMaximum": 100000000000.0,
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Last Signal At"
+            },
+            "modes": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Modes"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "queues": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/OperationalQueues"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "stream": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/StreamFeed"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "trading_engine": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TradingEngineHealth"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "unavailable": {
+              "items": {
+                "enum": [
+                  "trading_engine",
+                  "betfair",
+                  "stream",
+                  "io",
+                  "event_bus",
+                  "queues",
+                  "modes",
+                  "last_signal_at"
+                ],
+                "type": "string"
+              },
+              "maxItems": 8,
+              "title": "Unavailable",
+              "type": "array",
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "trading_engine",
+            "betfair",
+            "stream",
+            "io",
+            "event_bus",
+            "queues",
+            "modes",
+            "last_signal_at",
+            "unavailable"
+          ],
+          "title": "EngineDiagnostics",
+          "type": "object"
+        },
+        "EventBusPressure": {
+          "additionalProperties": false,
+          "properties": {
+            "accepting": {
+              "title": "Accepting",
+              "type": "boolean"
+            },
+            "dequeued_total": {
+              "maximum": 1000000000000000,
+              "minimum": 0,
+              "title": "Dequeued Total",
+              "type": "integer"
+            },
+            "enqueued_total": {
+              "maximum": 1000000000000000,
+              "minimum": 0,
+              "title": "Enqueued Total",
+              "type": "integer"
+            },
+            "queue_depth": {
+              "maximum": 1000000000000000,
+              "minimum": 0,
+              "title": "Queue Depth",
+              "type": "integer"
+            },
+            "queue_high_watermark": {
+              "maximum": 1000000000000000,
+              "minimum": 0,
+              "title": "Queue High Watermark",
+              "type": "integer"
+            },
+            "running": {
+              "title": "Running",
+              "type": "boolean"
+            },
+            "seconds_since_last_dequeue": {
+              "anyOf": [
+                {
+                  "maximum": 1000000000.0,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Seconds Since Last Dequeue"
+            }
+          },
+          "required": [
+            "queue_depth",
+            "queue_high_watermark",
+            "enqueued_total",
+            "dequeued_total",
+            "running",
+            "accepting",
+            "seconds_since_last_dequeue"
+          ],
+          "title": "EventBusPressure",
+          "type": "object"
+        },
+        "FlaggedProtection": {
+          "additionalProperties": false,
+          "description": "Ogni altro stato dice perch\u00e9. Ci\u00f2 che non \u00e8 verificabile \u00e8 UNKNOWN/UNAVAILABLE, mai SAFE.",
+          "properties": {
+            "as_of": {
+              "anyOf": [
+                {
+                  "exclusiveMaximum": 100000000000.0,
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "As Of"
+            },
+            "limit": {
+              "anyOf": [
+                {
+                  "maxLength": 48,
+                  "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Limit"
+            },
+            "reason": {
+              "maxLength": 64,
+              "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+              "title": "Reason",
+              "type": "string"
+            },
+            "source": {
+              "maxLength": 64,
+              "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+              "title": "Source",
+              "type": "string"
+            },
+            "state": {
+              "enum": [
+                "INACTIVE",
+                "TRIGGERED",
+                "UNKNOWN",
+                "UNAVAILABLE"
+              ],
+              "title": "State",
+              "type": "string"
+            }
+          },
+          "required": [
+            "source",
+            "limit",
+            "as_of",
+            "state",
+            "reason"
+          ],
+          "title": "FlaggedProtection",
+          "type": "object"
+        },
+        "Keepalive": {
+          "additionalProperties": false,
+          "properties": {
+            "error_present": {
+              "title": "Error Present",
+              "type": "boolean"
+            },
+            "failure_count": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Failure Count",
+              "type": "integer"
+            },
+            "last_ok_at": {
+              "anyOf": [
+                {
+                  "exclusiveMaximum": 100000000000.0,
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Last Ok At"
+            },
+            "running": {
+              "title": "Running",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "running",
+            "failure_count",
+            "last_ok_at",
+            "error_present"
+          ],
+          "title": "Keepalive",
+          "type": "object"
+        },
+        "Modes": {
+          "additionalProperties": false,
+          "description": "Configurazione, capacit\u00e0 e cliente effettivo, tenuti distinti (nessuna deduzione).",
+          "properties": {
+            "client_kind": {
+              "enum": [
+                "SIMULATION",
+                "LIVE",
+                "NONE"
+              ],
+              "title": "Client Kind",
+              "type": "string"
+            },
+            "configured_execution_mode": {
+              "enum": [
+                "SIM",
+                "LIVE"
+              ],
+              "title": "Configured Execution Mode",
+              "type": "string"
+            },
+            "live_enabled": {
+              "title": "Live Enabled",
+              "type": "boolean"
+            },
+            "live_readiness_ok": {
+              "title": "Live Readiness Ok",
+              "type": "boolean"
+            },
+            "read_only_mode": {
+              "const": "NOT_IN_CORE",
+              "title": "Read Only Mode",
+              "type": "string"
+            },
+            "simulation_flag": {
+              "title": "Simulation Flag",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "configured_execution_mode",
+            "simulation_flag",
+            "live_enabled",
+            "live_readiness_ok",
+            "client_kind",
+            "read_only_mode"
+          ],
+          "title": "Modes",
+          "type": "object"
+        },
+        "OperationalQueues": {
+          "additionalProperties": false,
+          "properties": {
+            "cashout_inflight": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Cashout Inflight",
+              "type": "integer"
+            },
+            "cashout_uncertain": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Cashout Uncertain",
+              "type": "integer"
+            },
+            "direct_unmatched": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Direct Unmatched",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "cashout_inflight",
+            "cashout_uncertain",
+            "direct_unmatched"
+          ],
+          "title": "OperationalQueues",
+          "type": "object"
+        },
+        "ProtectionItems": {
+          "additionalProperties": false,
+          "properties": {
+            "anti_duplication": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ActiveProtection"
+                },
+                {
+                  "$ref": "#/$defs/FlaggedProtection"
+                }
+              ],
+              "title": "Anti Duplication"
+            },
+            "book_guard": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ActiveProtection"
+                },
+                {
+                  "$ref": "#/$defs/FlaggedProtection"
+                }
+              ],
+              "title": "Book Guard"
+            },
+            "daily_loss": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ActiveProtection"
+                },
+                {
+                  "$ref": "#/$defs/FlaggedProtection"
+                }
+              ],
+              "title": "Daily Loss"
+            },
+            "desk_lockdown": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ActiveProtection"
+                },
+                {
+                  "$ref": "#/$defs/FlaggedProtection"
+                }
+              ],
+              "title": "Desk Lockdown"
+            },
+            "drawdown_abs_hard_stop": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ActiveProtection"
+                },
+                {
+                  "$ref": "#/$defs/FlaggedProtection"
+                }
+              ],
+              "title": "Drawdown Abs Hard Stop"
+            },
+            "drawdown_pct_hard_stop": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ActiveProtection"
+                },
+                {
+                  "$ref": "#/$defs/FlaggedProtection"
+                }
+              ],
+              "title": "Drawdown Pct Hard Stop"
+            },
+            "emergency_stop": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ActiveProtection"
+                },
+                {
+                  "$ref": "#/$defs/FlaggedProtection"
+                }
+              ],
+              "title": "Emergency Stop"
+            },
+            "exposure_stop": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ActiveProtection"
+                },
+                {
+                  "$ref": "#/$defs/FlaggedProtection"
+                }
+              ],
+              "title": "Exposure Stop"
+            },
+            "funds_freshness": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ActiveProtection"
+                },
+                {
+                  "$ref": "#/$defs/FlaggedProtection"
+                }
+              ],
+              "title": "Funds Freshness"
+            },
+            "kill_switch": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ActiveProtection"
+                },
+                {
+                  "$ref": "#/$defs/FlaggedProtection"
+                }
+              ],
+              "title": "Kill Switch"
+            },
+            "market_tradability": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ActiveProtection"
+                },
+                {
+                  "$ref": "#/$defs/FlaggedProtection"
+                }
+              ],
+              "title": "Market Tradability"
+            },
+            "max_event_exposure_abs": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ActiveProtection"
+                },
+                {
+                  "$ref": "#/$defs/FlaggedProtection"
+                }
+              ],
+              "title": "Max Event Exposure Abs"
+            },
+            "max_event_exposure_pct": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ActiveProtection"
+                },
+                {
+                  "$ref": "#/$defs/FlaggedProtection"
+                }
+              ],
+              "title": "Max Event Exposure Pct"
+            },
+            "max_market_exposure": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ActiveProtection"
+                },
+                {
+                  "$ref": "#/$defs/FlaggedProtection"
+                }
+              ],
+              "title": "Max Market Exposure"
+            },
+            "max_open_exposure": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ActiveProtection"
+                },
+                {
+                  "$ref": "#/$defs/FlaggedProtection"
+                }
+              ],
+              "title": "Max Open Exposure"
+            },
+            "max_order_exposure": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ActiveProtection"
+                },
+                {
+                  "$ref": "#/$defs/FlaggedProtection"
+                }
+              ],
+              "title": "Max Order Exposure"
+            },
+            "max_total_exposure_pct": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ActiveProtection"
+                },
+                {
+                  "$ref": "#/$defs/FlaggedProtection"
+                }
+              ],
+              "title": "Max Total Exposure Pct"
+            },
+            "order_circuit_breaker": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ActiveProtection"
+                },
+                {
+                  "$ref": "#/$defs/FlaggedProtection"
+                }
+              ],
+              "title": "Order Circuit Breaker"
+            },
+            "recovery_state": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ActiveProtection"
+                },
+                {
+                  "$ref": "#/$defs/FlaggedProtection"
+                }
+              ],
+              "title": "Recovery State"
+            },
+            "risk_stop": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ActiveProtection"
+                },
+                {
+                  "$ref": "#/$defs/FlaggedProtection"
+                }
+              ],
+              "title": "Risk Stop"
+            },
+            "runtime_lockdown": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ActiveProtection"
+                },
+                {
+                  "$ref": "#/$defs/FlaggedProtection"
+                }
+              ],
+              "title": "Runtime Lockdown"
+            },
+            "session_loss": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ActiveProtection"
+                },
+                {
+                  "$ref": "#/$defs/FlaggedProtection"
+                }
+              ],
+              "title": "Session Loss"
+            }
+          },
+          "required": [
+            "kill_switch",
+            "emergency_stop",
+            "runtime_lockdown",
+            "desk_lockdown",
+            "drawdown_pct_hard_stop",
+            "drawdown_abs_hard_stop",
+            "session_loss",
+            "daily_loss",
+            "risk_stop",
+            "exposure_stop",
+            "max_open_exposure",
+            "max_order_exposure",
+            "max_market_exposure",
+            "max_event_exposure_abs",
+            "max_total_exposure_pct",
+            "max_event_exposure_pct",
+            "funds_freshness",
+            "book_guard",
+            "market_tradability",
+            "anti_duplication",
+            "order_circuit_breaker",
+            "recovery_state"
+          ],
+          "title": "ProtectionItems",
+          "type": "object"
+        },
+        "Protections": {
+          "additionalProperties": false,
+          "properties": {
+            "disabled": {
+              "items": {
+                "enum": [
+                  "kill_switch",
+                  "emergency_stop",
+                  "runtime_lockdown",
+                  "desk_lockdown",
+                  "drawdown_pct_hard_stop",
+                  "drawdown_abs_hard_stop",
+                  "session_loss",
+                  "daily_loss",
+                  "risk_stop",
+                  "exposure_stop",
+                  "max_open_exposure",
+                  "max_order_exposure",
+                  "max_market_exposure",
+                  "max_event_exposure_abs",
+                  "max_total_exposure_pct",
+                  "max_event_exposure_pct",
+                  "funds_freshness",
+                  "book_guard",
+                  "market_tradability",
+                  "anti_duplication",
+                  "order_circuit_breaker",
+                  "recovery_state"
+                ],
+                "type": "string"
+              },
+              "maxItems": 22,
+              "title": "Disabled",
+              "type": "array",
+              "uniqueItems": true
+            },
+            "items": {
+              "$ref": "#/$defs/ProtectionItems"
+            },
+            "unverifiable": {
+              "items": {
+                "enum": [
+                  "kill_switch",
+                  "emergency_stop",
+                  "runtime_lockdown",
+                  "desk_lockdown",
+                  "drawdown_pct_hard_stop",
+                  "drawdown_abs_hard_stop",
+                  "session_loss",
+                  "daily_loss",
+                  "risk_stop",
+                  "exposure_stop",
+                  "max_open_exposure",
+                  "max_order_exposure",
+                  "max_market_exposure",
+                  "max_event_exposure_abs",
+                  "max_total_exposure_pct",
+                  "max_event_exposure_pct",
+                  "funds_freshness",
+                  "book_guard",
+                  "market_tradability",
+                  "anti_duplication",
+                  "order_circuit_breaker",
+                  "recovery_state"
+                ],
+                "type": "string"
+              },
+              "maxItems": 22,
+              "title": "Unverifiable",
+              "type": "array",
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "items",
+            "disabled",
+            "unverifiable"
+          ],
+          "title": "Protections",
+          "type": "object"
+        },
         "Readiness": {
           "additionalProperties": false,
           "properties": {
@@ -2894,6 +5417,62 @@
             "mcp_aware"
           ],
           "title": "Readiness",
+          "type": "object"
+        },
+        "RuntimeIo": {
+          "additionalProperties": false,
+          "properties": {
+            "degraded_count": {
+              "maximum": 1000000000000000,
+              "minimum": 0,
+              "title": "Degraded Count",
+              "type": "integer"
+            },
+            "error_present": {
+              "title": "Error Present",
+              "type": "boolean"
+            },
+            "last_latency_ms": {
+              "maximum": 10000000.0,
+              "minimum": 0,
+              "title": "Last Latency Ms",
+              "type": "number"
+            },
+            "last_status": {
+              "maxLength": 64,
+              "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+              "title": "Last Status",
+              "type": "string"
+            },
+            "slow_count": {
+              "maximum": 1000000000000000,
+              "minimum": 0,
+              "title": "Slow Count",
+              "type": "integer"
+            },
+            "total_count": {
+              "maximum": 1000000000000000,
+              "minimum": 0,
+              "title": "Total Count",
+              "type": "integer"
+            },
+            "unavailable_count": {
+              "maximum": 1000000000000000,
+              "minimum": 0,
+              "title": "Unavailable Count",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "last_status",
+            "total_count",
+            "slow_count",
+            "degraded_count",
+            "unavailable_count",
+            "last_latency_ms",
+            "error_present"
+          ],
+          "title": "RuntimeIo",
           "type": "object"
         },
         "StopState": {
@@ -2947,6 +5526,107 @@
           ],
           "title": "StopState",
           "type": "object"
+        },
+        "StreamFeed": {
+          "additionalProperties": false,
+          "properties": {
+            "auth_degraded": {
+              "title": "Auth Degraded",
+              "type": "boolean"
+            },
+            "auth_failure_count": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Auth Failure Count",
+              "type": "integer"
+            },
+            "connected": {
+              "title": "Connected",
+              "type": "boolean"
+            },
+            "degraded": {
+              "title": "Degraded",
+              "type": "boolean"
+            },
+            "error_present": {
+              "title": "Error Present",
+              "type": "boolean"
+            },
+            "keepalive_failure_count": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Keepalive Failure Count",
+              "type": "integer"
+            },
+            "last_message_at": {
+              "anyOf": [
+                {
+                  "exclusiveMaximum": 100000000000.0,
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Last Message At"
+            },
+            "running": {
+              "title": "Running",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "running",
+            "connected",
+            "degraded",
+            "auth_degraded",
+            "auth_failure_count",
+            "keepalive_failure_count",
+            "error_present",
+            "last_message_at"
+          ],
+          "title": "StreamFeed",
+          "type": "object"
+        },
+        "TradingEngineHealth": {
+          "additionalProperties": false,
+          "properties": {
+            "components": {
+              "items": {
+                "$ref": "#/$defs/EngineComponent"
+              },
+              "maxItems": 32,
+              "title": "Components",
+              "type": "array"
+            },
+            "evaluated_at": {
+              "const": "ENGINE_START",
+              "title": "Evaluated At",
+              "type": "string"
+            },
+            "risk_gate_wired": {
+              "title": "Risk Gate Wired",
+              "type": "boolean"
+            },
+            "state": {
+              "enum": [
+                "READY",
+                "DEGRADED",
+                "NOT_READY"
+              ],
+              "title": "State",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state",
+            "evaluated_at",
+            "risk_gate_wired",
+            "components"
+          ],
+          "title": "TradingEngineHealth",
+          "type": "object"
         }
       },
       "additionalProperties": false,
@@ -2955,6 +5635,16 @@
           "const": "PER_FIELD_NON_ATOMIC",
           "title": "Consistency",
           "type": "string"
+        },
+        "engine": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EngineDiagnostics"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "execution_mode": {
           "anyOf": [
@@ -2987,6 +5677,16 @@
           "exclusiveMinimum": 0,
           "title": "Observed At",
           "type": "number"
+        },
+        "protections": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Protections"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "readiness": {
           "anyOf": [
@@ -3040,11 +5740,13 @@
               "execution_mode",
               "live_enabled",
               "readiness",
-              "stop"
+              "stop",
+              "engine",
+              "protections"
             ],
             "type": "string"
           },
-          "maxItems": 5,
+          "maxItems": 7,
           "title": "Unavailable",
           "type": "array",
           "uniqueItems": true
@@ -3059,6 +5761,8 @@
         "live_enabled",
         "readiness",
         "stop",
+        "engine",
+        "protections",
         "unavailable"
       ],
       "title": "StatusResponse",
