@@ -1,0 +1,221 @@
+"""Processo «core» per le prove cross-repository (eseguito con il Python del core).
+
+Avvia un RuntimeController REALE di Pickfair (SQLite temporaneo, EventBus, SimulationBroker
+avviato in SIM) e la Control API tramite il ponte del core (`control_api.bridge`). Comandi da
+stdin, una riga ciascuno; ogni risposta è una riga JSON su stdout:
+
+  EMERGENCY | STOP_API | START_API | HANG <s> | INCOMPATIBLE | CLOCK_SKEW <s> | DIGEST | QUIT
+
+Nessuna rete esterna: il socket può connettersi solo a 127.0.0.1 (guardia in-process).
+Uso: core_runtime_server.py <core_path> <work_dir> <port> <token_path>
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import socket
+import sys
+import time
+from pathlib import Path
+from typing import Any
+
+CORE, WORK, PORT, TOKEN = Path(sys.argv[1]), Path(sys.argv[2]), int(sys.argv[3]), Path(sys.argv[4])
+sys.path.insert(0, str(CORE))
+
+_real_connect = socket.socket.connect
+
+
+def _loopback_only(self: socket.socket, address: Any) -> Any:
+    if not (isinstance(address, tuple) and address[0] == "127.0.0.1"):
+        raise OSError("network blocked in cross-repo core process")
+    return _real_connect(self, address)
+
+
+socket.socket.connect = _loopback_only  # type: ignore[method-assign]
+
+from control_api.bridge import start_control_api  # noqa: E402
+from core.event_bus import EventBus  # noqa: E402
+from core.runtime_controller import RuntimeController  # noqa: E402
+from database import Database  # noqa: E402
+from safe_mode_manager import get_safe_mode_manager  # noqa: E402
+from services.betfair_service import BetfairService  # noqa: E402
+from services.settings_service import SettingsService  # noqa: E402
+from services.telegram_service import TelegramService  # noqa: E402
+
+import pickfair_control_api.server as api_server  # noqa: E402
+
+
+class RecordingBus(EventBus):
+    def __init__(self) -> None:
+        super().__init__()
+        self.published = 0
+
+    def publish(self, event_name: str, payload: Any = None) -> Any:  # type: ignore[override]
+        self.published += 1
+        return super().publish(event_name, payload)
+
+
+state = {"skew": 0.0, "hang": 0.0, "recording": True}
+calls: list[str] = []
+db = Database(str(WORK / "pickfair.db"))
+bus = RecordingBus()
+settings = SettingsService(db)
+rc = RuntimeController(
+    bus=bus,
+    db=db,
+    settings_service=settings,
+    betfair_service=BetfairService(settings),
+    telegram_service=TelegramService(settings, db, bus),
+    safe_mode=get_safe_mode_manager(),
+)
+started = rc.start(simulation_mode=True)
+code_sha = (CORE / "BUILD_SHA").read_text(encoding="ascii").strip()
+
+
+def clock() -> float:
+    if state["hang"]:
+        time.sleep(state["hang"])
+    return time.time() + state["skew"]
+
+
+def spy(obj: Any, prefix: str, allowed: set[str]) -> None:
+    for name in dir(obj):
+        if name.startswith("_") or name in allowed:
+            continue
+        attr = getattr(obj, name, None)
+        if not callable(attr) or isinstance(attr, type):
+            continue
+
+        def make(n: str, fn: Any) -> Any:
+            def wrapped(*a: Any, **k: Any) -> Any:
+                if state["recording"]:
+                    calls.append(f"{prefix}.{n}")
+                return fn(*a, **k)
+
+            return wrapped
+
+        try:
+            setattr(obj, name, make(name, attr))
+        except (AttributeError, TypeError):
+            pass
+
+
+broker = rc.betfair_service.get_client()
+balance_fn = rc.betfair_service.simulation_snapshot
+balance_at_start = balance_fn()
+spy(rc.betfair_service, "betfair", {"status", "get_client"})
+spy(broker, "broker", set())
+for name in (
+    "get_status",
+    "_monitor_daily_loss_breach",
+    "_monitor_sl_tp_trailing",
+    "_apply_funds_reading",
+    "_record_runtime_io",
+    "reload_config",
+    "set_simulation_mode",
+    "reset_cycle",
+    "reconcile_held_settlements",
+    "risk_stop",
+    "pause",
+    "resume",
+):
+    original = getattr(rc, name)
+
+    def wrapped(*a: Any, _n: str = name, _f: Any = original, **k: Any) -> Any:
+        if state["recording"]:
+            calls.append(f"rc.{_n}")
+        return _f(*a, **k)
+
+    setattr(rc, name, wrapped)
+
+
+def db_digest() -> str:
+    h = hashlib.sha256()
+    for p in sorted(WORK.glob("pickfair.db*")):
+        h.update(p.name.encode())
+        h.update(p.read_bytes())
+    return h.hexdigest()
+
+
+def deep_state() -> str:
+    parts = []
+    for name, obj in (
+        ("rc", rc),
+        ("desk", rc.risk_desk),
+        ("tables", rc.table_manager),
+        ("dup", rc.duplication_guard),
+        ("mm", rc.mm),
+        ("recon", rc.reconciliation_engine),
+    ):
+        for k, v in sorted(vars(obj).items()):
+            if not callable(v) and not (name == "rc" and k in {"bus"}):
+                parts.append(f"{name}.{k}={v!r}")
+    return hashlib.sha256("\n".join(parts).encode()).hexdigest()
+
+
+server = start_control_api(rc, port=PORT, token_path=TOKEN, git_sha=code_sha, clock=clock)
+counts_total: dict[str, int] = {}
+
+
+def reply(**data: Any) -> None:
+    sys.stdout.write(json.dumps(data, sort_keys=True) + "\n")
+    sys.stdout.flush()
+
+
+def collect_counts() -> None:
+    if server is not None:
+        for k, v in server.request_counts().items():
+            counts_total[k] = counts_total.get(k, 0) + v
+
+
+reply(event="READY", started=bool(started.get("started")), port=server.port, sha=code_sha)
+real_schema_hash = api_server.schema_hash
+for line in sys.stdin:
+    cmd = line.split()
+    if not cmd:
+        continue
+    if cmd[0] == "EMERGENCY":
+        rc.emergency_stop("DAILY_LOSS_BREACH: soglia superata nel test")
+        reply(event="EMERGENCY", ok=bool(rc.is_emergency_stopped))
+    elif cmd[0] == "STOP_API":
+        collect_counts()
+        server.stop()
+        server = None
+        reply(event="STOP_API")
+    elif cmd[0] == "START_API":
+        server = start_control_api(rc, port=PORT, token_path=TOKEN, git_sha=code_sha, clock=clock)
+        reply(event="START_API")
+    elif cmd[0] == "INCOMPATIBLE":
+        collect_counts()
+        server.stop()
+        api_server.schema_hash = lambda: "0" * 64  # type: ignore[assignment]
+        server = start_control_api(rc, port=PORT, token_path=TOKEN, git_sha=code_sha, clock=clock)
+        api_server.schema_hash = real_schema_hash  # type: ignore[assignment]
+        reply(event="INCOMPATIBLE")
+    elif cmd[0] == "HANG":
+        state["hang"] = float(cmd[1])
+        reply(event="HANG")
+    elif cmd[0] == "CLOCK_SKEW":
+        state["skew"] = float(cmd[1])
+        reply(event="CLOCK_SKEW")
+    elif cmd[0] == "DIGEST":
+        state["recording"] = False  # la misura stessa non deve contare come chiamata
+        current = dict(server.request_counts()) if server is not None else {}
+        snapshot = dict(
+            db=db_digest(),
+            bus=bus.published,
+            state=deep_state(),
+            balance=balance_fn(),
+            balance_at_start=balance_at_start,
+            calls=list(calls),
+            counts=current,
+        )
+        state["recording"] = True
+        reply(event="DIGEST", **snapshot)
+    elif cmd[0] == "QUIT":
+        if server is not None:
+            server.stop()
+        rc.stop()
+        reply(event="QUIT")
+        break

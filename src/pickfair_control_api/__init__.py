@@ -14,7 +14,7 @@ Contenuto:
 
 from pickfair_control_api.contract import CAPABILITIES, CONTRACT_VERSION, schema_hash
 from pickfair_control_api.server import ControlApiConfigError, ControlApiServer
-from pickfair_control_api.tokens import TokenStore, issue_token_file
+from pickfair_control_api.tokens import TokenStore, issue_token_file, publish_fresh_token
 
 __all__ = [
     "CAPABILITIES",
@@ -23,5 +23,6 @@ __all__ = [
     "ControlApiServer",
     "TokenStore",
     "issue_token_file",
+    "publish_fresh_token",
     "schema_hash",
 ]

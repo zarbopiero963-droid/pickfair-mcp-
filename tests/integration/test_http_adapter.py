@@ -304,3 +304,16 @@ async def test_no_secret_in_payloads_or_logs(
 def test_port_validation(port: Any) -> None:
     with pytest.raises(ValueError):
         validate_port(port)
+
+
+async def test_adapter_never_reads_more_than_the_limit(tmp_path: Path) -> None:
+    from pickfair_control_api.tokens import issue_token_file
+    from pickfair_mcp.contract.parsing import MAX_UPSTREAM_BYTES
+
+    token_path = tmp_path / "pickfair-control-api" / "t"
+    token_path.parent.mkdir(mode=0o700)
+    issue_token_file(token_path)
+    with hostile_http(_huge) as (port, _seen):
+        adapter = adapter_for(port, token_path)
+        body = await adapter.get_meta_raw()
+    assert len(body) == MAX_UPSTREAM_BYTES + 1  # il resto del corpo (2 MiB) non viene letto

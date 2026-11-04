@@ -22,7 +22,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 COPY = ("src", "tests", "docs", "scripts", "pyproject.toml", "AGENTS.md", ".guardrails")
-TEST_ARGS = ("tests/unit", "tests/integration")
+TEST_ARGS = ("tests/unit", "tests/integration", "tests/control_api")
 
 
 @dataclass(frozen=True)
@@ -47,6 +47,13 @@ ME = "src/pickfair_mcp/tools/meta.py"
 J = "src/pickfair_mcp/journal/store.py"
 JR = "src/pickfair_mcp/journal/retry.py"
 ST = "src/pickfair_mcp/tools/status.py"
+HT = "src/pickfair_mcp/adapters/http.py"
+TF = "src/pickfair_mcp/auth/token_file.py"
+RT = "src/pickfair_mcp/journal/retry.py"
+HS = "src/pickfair_mcp/policy/handshake.py"
+CS = "src/pickfair_control_api/server.py"
+CT = "src/pickfair_control_api/tokens.py"
+CK = "src/pickfair_control_api/schema_check.py"
 
 MUTANTS: tuple[Mutant, ...] = (
     Mutant(
@@ -732,6 +739,226 @@ MUTANTS: tuple[Mutant, ...] = (
                 "unavailable: Annotated[tuple[str, ...], Field(max_length=len(STATUS_OPTIONAL_FIELDS))]",
             ),
         ),
+    ),
+    Mutant(
+        "H01",
+        "redirect 302 accettato come risposta",
+        ((HT, "        if status != 200:", "        if status not in (200, 302):"),),
+    ),
+    Mutant(
+        "H02",
+        "content-type non verificato",
+        ((HT, "        if content_type != EXPECTED_CONTENT_TYPE:", "        if False:"),),
+    ),
+    Mutant(
+        "H03",
+        "secondo 401 non classificato come credenziali rifiutate",
+        (
+            (
+                HT,
+                "            if status == 401:\n                raise UpstreamUnauthorized",
+                "            if False:\n                raise UpstreamUnauthorized",
+            ),
+        ),
+    ),
+    Mutant(
+        "H04",
+        "token non riletto dopo 401 (rotazione non recuperata)",
+        (
+            (
+                HT,
+                "            status, content_type, body = self._request(path, self._current_token(reload=True))",
+                "            status, content_type, body = self._request(path, self._current_token(reload=False))",
+            ),
+        ),
+    ),
+    Mutant(
+        "H05",
+        "guasto di trasporto senza nuovo handshake",
+        (
+            (
+                HT,
+                "        except (OSError, http.client.HTTPException):\n            self._bump()",
+                "        except (OSError, http.client.HTTPException):\n            pass",
+            ),
+        ),
+    ),
+    Mutant(
+        "H06",
+        "corpo letto senza limite",
+        ((HT, "            body = resp.read(self._max + 1)", "            body = resp.read()"),),
+    ),
+    Mutant(
+        "H07",
+        "destinazione diversa da 127.0.0.1",
+        ((HT, 'LOOPBACK_HOST: Final = "127.0.0.1"', 'LOOPBACK_HOST: Final = "0.0.0.0"'),),
+    ),
+    Mutant(
+        "H08",
+        "file del token leggibile da altri accettato",
+        ((TF, "            if info.st_mode & 0o077:", "            if False:"),),
+    ),
+    Mutant(
+        "H09",
+        "file del token di un altro utente accettato",
+        ((TF, "            if info.st_uid != self._uid:", "            if False:"),),
+    ),
+    Mutant(
+        "H10",
+        "symlink seguito",
+        (
+            (
+                TF,
+                "        flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC",
+                "        flags = os.O_RDONLY | os.O_CLOEXEC",
+            ),
+        ),
+    ),
+    Mutant(
+        "H11",
+        "cartella del token scrivibile da altri accettata",
+        ((TF, "        if info.st_mode & (stat.S_IWGRP | stat.S_IWOTH):", "        if False:"),),
+    ),
+    Mutant(
+        "H12",
+        "token corto o alterato accettato",
+        (
+            (
+                TF,
+                'TOKEN_RE: Final = re.compile(r"^[A-Za-z0-9_-]{43,128}$")',
+                'TOKEN_RE: Final = re.compile(r"^[A-Za-z0-9_-]{1,128}$")',
+            ),
+        ),
+    ),
+    Mutant(
+        "H13",
+        "adapter http mal configurato ripiega sul simulato",
+        (
+            (
+                CLI,
+                '        _usage_error("HTTP_ADAPTER_REQUIRES_PORT_AND_TOKEN_FILE")\n        return None',
+                "        return SimulatedControlApiAdapter()",
+            ),
+        ),
+    ),
+    Mutant(
+        "H14",
+        "credenziali rifiutate trattate come indisponibilità ritentabile",
+        (
+            (
+                RT,
+                '            raise ToolError(\n                ErrorCode.UPSTREAM_UNAUTHORIZED, reasons=("UPSTREAM_UNAUTHORIZED",)\n            ) from None',
+                "            last = ErrorCode.UPSTREAM_UNAVAILABLE",
+            ),
+        ),
+    ),
+    Mutant(
+        "H15",
+        "errore di protocollo all'handshake ignorato",
+        (
+            (
+                HS,
+                "        except UpstreamProtocolError as exc:\n            return self._invalid(epoch, exc.reason)",
+                '        except UpstreamProtocolError:\n            return self._failed(epoch, ErrorCode.UPSTREAM_UNAVAILABLE, ("UPSTREAM_UNAVAILABLE",))',
+            ),
+        ),
+    ),
+    Mutant(
+        "C01",
+        "risposta del core inviata senza auto-verifica del contratto",
+        (
+            (
+                CS,
+                "            validate(body, response_schema(ROUTE_SCHEMAS[route]))",
+                "            response_schema(ROUTE_SCHEMAS[route])",
+            ),
+        ),
+    ),
+    Mutant(
+        "C02",
+        "DNS inverso all'avvio del server",
+        (
+            (
+                CS,
+                "        socketserver.TCPServer.server_bind(self)",
+                "        ThreadingHTTPServer.server_bind(self)",
+            ),
+        ),
+    ),
+    Mutant(
+        "C03",
+        "riavvio bloccato da TIME_WAIT",
+        ((CS, '    allow_reuse_address = os.name == "posix"', "    allow_reuse_address = False"),),
+    ),
+    Mutant(
+        "C04",
+        "Host header arbitrario accettato",
+        ((CS, '        if self.headers.get("Host") != app.expected_host:', "        if False:"),),
+    ),
+    Mutant(
+        "C05",
+        "rotazione senza doppia accettazione",
+        (
+            (
+                CT,
+                '            self._valid = (old, new.encode("ascii"))',
+                "            self._valid = (old,)",
+            ),
+        ),
+    ),
+    Mutant(
+        "C06",
+        "vecchio token non revocato dopo la rotazione",
+        (
+            (
+                CT,
+                '            self._valid = (new.encode("ascii"),)\n            self.rotations += 1',
+                '            self._valid = (old, new.encode("ascii"))\n            self.rotations += 1',
+            ),
+        ),
+    ),
+    Mutant(
+        "C07",
+        "confronto del token non esatto",
+        (
+            (
+                CT,
+                "            ok |= hmac.compare_digest(presented, candidate)",
+                "            ok |= presented[:8] == candidate[:8]",
+            ),
+        ),
+    ),
+    Mutant(
+        "C08",
+        "a capo finale accettato dai pattern",
+        ((CK, '        pattern = pattern[:-1] + r"\\Z"', "        pattern = pattern"),),
+    ),
+    Mutant(
+        "C09",
+        "parola chiave di schema sconosciuta ignorata",
+        (
+            (
+                CK,
+                '    if unknown:\n        raise SchemaUnsupported(",".join(sorted(unknown)))',
+                '    if False:\n        raise SchemaUnsupported(",".join(sorted(unknown)))',
+            ),
+        ),
+    ),
+    Mutant(
+        "C10",
+        "booleano accettato come intero",
+        (
+            (
+                CK,
+                '    if expected == "integer":\n        return type(value) is int',
+                '    if expected == "integer":\n        return isinstance(value, int)',
+            ),
+        ),
+    ),
+    Mutant(
+        "C11",
+        "null non dichiarato in unavailable accettato dal server",
+        ((CK, "        if (value.get(name) is None) != (name in declared):", "        if False:"),),
     ),
 )
 

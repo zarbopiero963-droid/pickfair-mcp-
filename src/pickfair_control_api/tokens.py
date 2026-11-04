@@ -49,6 +49,26 @@ def issue_token_file(path: Path) -> str:
     return token
 
 
+def publish_fresh_token(path: Path) -> TokenStore:
+    """Avvio o riavvio: token NUOVO pubblicato atomicamente, anche se il file esiste già.
+
+    Il token di un'esecuzione precedente non resta mai valido. Il file temporaneo è 0600 con
+    O_EXCL nella stessa cartella; un symlink al percorso viene sostituito, mai seguito.
+    """
+    token = _new_token()
+    tmp = path.with_name(f".{path.name}.{secrets.token_hex(8)}.tmp")
+    try:
+        _write_exclusive(tmp, token)
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise
+    return TokenStore(token)
+
+
 class TokenStore:
     """Token validi del server. Di norma uno solo; due solo durante una rotazione."""
 

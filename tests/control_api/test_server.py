@@ -237,3 +237,10 @@ def test_restart_on_the_same_port_is_immediate_but_never_shared(tmp_path: Path) 
             )
     with control_api(tmp_path, port=port) as (_server2, _s2, token_path2, _p2):  # riavvio subito
         assert request(port, "GET", "/v1/meta", token=token_path2.read_text())[0] == 200
+
+
+def test_almost_equal_tokens_are_rejected(api: Any) -> None:
+    server, _s, token_path, _p = api
+    token = token_path.read_text()
+    for wrong in (token[:-1] + ("A" if token[-1] != "A" else "B"), token[:-1], token + "A"):
+        assert request(server.port, "GET", "/v1/status", token=wrong)[0] == 401

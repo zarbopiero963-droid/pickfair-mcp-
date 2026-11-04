@@ -41,6 +41,7 @@ LOOPBACK_HOST: Final = "127.0.0.1"
 MIN_TOKEN_CHARS: Final = 43
 REQUEST_TIMEOUT_S: Final = 5.0
 MAX_RESPONSE_BYTES: Final = 64 * 1024
+SHUTDOWN_POLL_S: Final = 0.1  # arresto rapido: stop() attende al più un ciclo
 Provider = Callable[[], dict[str, Any]]
 
 
@@ -212,7 +213,10 @@ class ControlApiServer:
             if self._thread is not None:
                 return
             self._thread = threading.Thread(
-                target=self._httpd.serve_forever, name="control-api", daemon=True
+                target=self._httpd.serve_forever,
+                kwargs={"poll_interval": SHUTDOWN_POLL_S},
+                name="control-api",
+                daemon=True,
             )
             self._thread.start()
 

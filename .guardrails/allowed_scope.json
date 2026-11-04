@@ -171,6 +171,7 @@
       "files": [
         ".guardrails/allowed_scope.json",
         "pyproject.toml",
+        "scripts/critical_mutations.py",
         "src/pickfair_control_api/__init__.py",
         "src/pickfair_control_api/contract.py",
         "src/pickfair_control_api/contract_v1.json",
@@ -197,6 +198,9 @@
         "tests/control_api/test_schema_check.py",
         "tests/control_api/test_server.py",
         "tests/control_api/test_tokens.py",
+        "tests/crossrepo/__init__.py",
+        "tests/crossrepo/core_runtime_server.py",
+        "tests/crossrepo/test_core_e2e.py",
         "tests/e2e/test_http_process.py",
         "tests/e2e/test_stdio_subprocess.py",
         "tests/guards/test_no_bypass.py",

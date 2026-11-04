@@ -126,3 +126,27 @@ def test_concurrent_rotations_and_readers_never_see_partial_tokens(tmp_path: Pat
 def test_store_repr_is_redacted(tmp_path: Path) -> None:
     token = issue_token_file(tmp_path / "t")
     assert token not in repr(TokenStore(token))
+
+
+def test_publish_fresh_token_replaces_previous_run_token(tmp_path: Path) -> None:
+    from pickfair_control_api.tokens import publish_fresh_token
+
+    path = tmp_path / "api.token"
+    old = issue_token_file(path)
+    store = publish_fresh_token(path)
+    new = path.read_text()
+    assert new != old and TOKEN_RE.fullmatch(new) and mode(path) == 0o600
+    assert store.accepts(new.encode()) and not store.accepts(old.encode())
+    assert [p.name for p in tmp_path.iterdir()] == ["api.token"]
+
+
+def test_publish_fresh_token_replaces_a_symlink_without_following_it(tmp_path: Path) -> None:
+    from pickfair_control_api.tokens import publish_fresh_token
+
+    target = tmp_path / "target"
+    target.write_text("untouched")
+    link = tmp_path / "api.token"
+    link.symlink_to(target)
+    publish_fresh_token(link)
+    assert target.read_text() == "untouched"
+    assert not link.is_symlink() and mode(link) == 0o600
