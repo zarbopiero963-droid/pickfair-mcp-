@@ -1,0 +1,128 @@
+"""Token Bearer locale lato Control API: emissione, rotazione atomica, concorrenza."""
+
+from __future__ import annotations
+
+import os
+import re
+import stat
+import threading
+from pathlib import Path
+
+import pytest
+
+import pickfair_control_api.tokens as tokens_mod
+from pickfair_control_api.tokens import TokenStore, issue_token_file
+
+TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{43}$")
+
+
+def mode(path: Path) -> int:
+    return stat.S_IMODE(os.stat(path).st_mode)
+
+
+def test_issue_creates_private_new_file(tmp_path: Path) -> None:
+    path = tmp_path / "api.token"
+    old_umask = os.umask(0)
+    try:
+        token = issue_token_file(path)
+    finally:
+        os.umask(old_umask)
+    assert TOKEN_RE.fullmatch(token) and path.read_text() == token
+    assert mode(path) == 0o600
+    with pytest.raises(FileExistsError):
+        issue_token_file(path)
+    assert path.read_text() == token
+
+
+def test_issue_refuses_symlink(tmp_path: Path) -> None:
+    target = tmp_path / "elsewhere"
+    link = tmp_path / "api.token"
+    link.symlink_to(target)
+    with pytest.raises(OSError):
+        issue_token_file(link)
+    assert not target.exists()
+
+
+def test_rotation_switches_atomically_and_revokes_old(tmp_path: Path) -> None:
+    path = tmp_path / "api.token"
+    old = issue_token_file(path)
+    store = TokenStore(old)
+    new = store.rotate(path)
+    assert new != old and TOKEN_RE.fullmatch(new)
+    assert path.read_text() == new and mode(path) == 0o600
+    assert store.accepts(new.encode()) and not store.accepts(old.encode())
+    assert [p.name for p in tmp_path.iterdir()] == ["api.token"]  # nessun temporaneo residuo
+    assert store.rotations == 1
+
+
+def test_failed_rotation_keeps_old_token_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "api.token"
+    old = issue_token_file(path)
+    store = TokenStore(old)
+
+    def broken_replace(*_a: object) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(tokens_mod.os, "replace", broken_replace)
+    with pytest.raises(OSError):
+        store.rotate(path)
+    assert path.read_text() == old
+    assert store.accepts(old.encode())
+    assert [p.name for p in tmp_path.iterdir()] == ["api.token"]
+
+
+def test_during_rotation_both_tokens_accepted_then_only_new(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "api.token"
+    old = issue_token_file(path)
+    store = TokenStore(old)
+    seen: list[tuple[bool, bool]] = []
+    real_replace = os.replace
+
+    def observing_replace(src: object, dst: object) -> None:
+        new = Path(str(src)).read_text()
+        seen.append((store.accepts(old.encode()), store.accepts(new.encode())))
+        real_replace(src, dst)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(tokens_mod.os, "replace", observing_replace)
+    store.rotate(path)
+    assert seen == [(True, True)]
+
+
+def test_concurrent_rotations_and_readers_never_see_partial_tokens(tmp_path: Path) -> None:
+    path = tmp_path / "api.token"
+    store = TokenStore(issue_token_file(path))
+    errors: list[str] = []
+    stop = threading.Event()
+
+    def reader() -> None:
+        while not stop.is_set():
+            text = path.read_text()
+            if not TOKEN_RE.fullmatch(text):
+                errors.append(repr(text))
+
+    def rotator() -> None:
+        for _ in range(25):
+            store.rotate(path)
+
+    readers = [threading.Thread(target=reader) for _ in range(3)]
+    rotators = [threading.Thread(target=rotator) for _ in range(3)]
+    for t in readers + rotators:
+        t.start()
+    for t in rotators:
+        t.join()
+    stop.set()
+    for t in readers:
+        t.join()
+    assert errors == []
+    assert store.rotations == 75
+    assert store.accepts(path.read_text().encode())
+    assert [p.name for p in tmp_path.iterdir()] == ["api.token"]
+
+
+def test_store_repr_is_redacted(tmp_path: Path) -> None:
+    token = issue_token_file(tmp_path / "t")
+    assert token not in repr(TokenStore(token))

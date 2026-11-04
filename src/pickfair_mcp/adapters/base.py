@@ -19,6 +19,18 @@ class UpstreamUnavailable(Exception):
     """La Control API non è raggiungibile o ha chiuso la connessione."""
 
 
+class UpstreamUnauthorized(Exception):
+    """La Control API ha rifiutato le credenziali dell'adapter, anche dopo la rilettura."""
+
+
+class UpstreamProtocolError(Exception):
+    """Risposta HTTP fuori protocollo (status, redirect, content-type); `reason` è fisso."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.reason = reason
+
+
 @runtime_checkable
 class ControlApiAdapter(Protocol):
     @property

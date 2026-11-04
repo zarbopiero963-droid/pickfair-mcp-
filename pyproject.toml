@@ -31,7 +31,7 @@ dev = [
 pickfair-mcp = "pickfair_mcp.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/pickfair_mcp"]
+packages = ["src/pickfair_mcp", "src/pickfair_control_api"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -39,12 +39,13 @@ addopts = "-ra --strict-markers"
 markers = [
     "e2e: avvia il server MCP come sottoprocesso stdio",
     "guard: controlli di governance, no-bypass e sicurezza",
+    "loopback: ammette SOLO connessioni TCP a 127.0.0.1 (adapter MCP-01d e Control API)",
 ]
 filterwarnings = ["error::pytest.PytestUnraisableExceptionWarning"]
 
 [tool.coverage.run]
 branch = true
-source = ["pickfair_mcp"]
+source = ["pickfair_mcp", "pickfair_control_api"]
 
 [tool.coverage.report]
 show_missing = true
@@ -70,7 +71,7 @@ ignore = ["S101"]
 python_version = "3.11"
 strict = true
 mypy_path = "src"
-packages = ["pickfair_mcp"]
+packages = ["pickfair_mcp", "pickfair_control_api"]
 plugins = ["pydantic.mypy"]
 
 [tool.mutmut]

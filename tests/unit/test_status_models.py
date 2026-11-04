@@ -18,6 +18,7 @@ def status_body(**overrides: Any) -> dict[str, Any]:
     body: dict[str, Any] = {
         "source": "core",
         "observed_at": 1_700_000_000.0,
+        "consistency": "PER_FIELD_NON_ATOMIC",
         "runtime_state": "STOPPED",
         "execution_mode": "SIM",
         "live_enabled": False,
@@ -39,6 +40,7 @@ def recon_body(**overrides: Any) -> dict[str, Any]:
     body: dict[str, Any] = {
         "source": "core",
         "observed_at": 1_700_000_000.0,
+        "consistency": "PER_FIELD_NON_ATOMIC",
         "startup": {"state": "OK", "reason": None, "recovery_failure": None},
         "ambiguities_pending": 0,
         "ghosts": {"ghost_orders": 0, "suspected_ghosts": 0, "unconfirmed_inflight": 0},
@@ -209,3 +211,11 @@ def test_reconciliation_unavailable_consistency() -> None:
 def test_duplicate_keys_rejected() -> None:
     body = b'{"source": "core", "source": "simulated"}'
     assert reason_of(parse_status, body) == "DUPLICATE_KEY"
+
+
+@pytest.mark.parametrize("consistency", ["ATOMIC", "", None, "per_field_non_atomic"])
+def test_consistency_must_be_declared_non_atomic(consistency: Any) -> None:
+    assert reason_of(parse_status, raw(status_body(consistency=consistency))) == "SCHEMA_VIOLATION"
+    assert reason_of(parse_reconciliation_status, raw(recon_body(consistency=consistency))) == (
+        "SCHEMA_VIOLATION"
+    )

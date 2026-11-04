@@ -16,7 +16,13 @@ from typing import Final
 
 import anyio
 
-from pickfair_mcp.adapters.base import ControlApiAdapter, UpstreamTimeout, UpstreamUnavailable
+from pickfair_mcp.adapters.base import (
+    ControlApiAdapter,
+    UpstreamProtocolError,
+    UpstreamTimeout,
+    UpstreamUnauthorized,
+    UpstreamUnavailable,
+)
 from pickfair_mcp.contract.models import MetaResponse
 from pickfair_mcp.contract.parsing import UpstreamInvalidResponse, parse_meta
 from pickfair_mcp.contract.version import APPROVED_CAPABILITIES, COMPAT_MATRIX
@@ -132,6 +138,10 @@ class HandshakeGuard:
             return self._failed(epoch, ErrorCode.UPSTREAM_TIMEOUT, ("UPSTREAM_TIMEOUT",))
         except UpstreamUnavailable:
             return self._failed(epoch, ErrorCode.UPSTREAM_UNAVAILABLE, ("UPSTREAM_UNAVAILABLE",))
+        except UpstreamUnauthorized:
+            return self._failed(epoch, ErrorCode.UPSTREAM_UNAUTHORIZED, ("UPSTREAM_UNAUTHORIZED",))
+        except UpstreamProtocolError as exc:
+            return self._invalid(epoch, exc.reason)
         except Exception:  # noqa: BLE001 - qualunque guasto dell'adapter è fail-closed
             return self._failed(epoch, ErrorCode.UPSTREAM_UNAVAILABLE, ("ADAPTER_FAILURE",))
         try:

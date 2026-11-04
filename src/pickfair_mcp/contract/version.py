@@ -14,13 +14,15 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Mapping
+from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Final
 
 from pickfair_mcp.contract.routes import APPROVED_ROUTES, route_key
 
 CONTRACT_NAME: Final = "pickfair-control-api"
-SUPPORTED_CONTRACT_VERSION: Final = "1.0.0"
+SUPPORTED_CONTRACT_VERSION: Final = "1.1.0"
+DESCRIPTOR_PATH: Final = Path(__file__).with_name("descriptor_v1.json")
 
 SEMVER_PATTERN: Final = r"^(0|[1-9][0-9]{0,3})\.(0|[1-9][0-9]{0,3})\.(0|[1-9][0-9]{0,3})$"
 GIT_SHA_PATTERN: Final = r"^[0-9a-f]{40}$"
@@ -53,33 +55,31 @@ META_RESPONSE_SCHEMA: Final[Mapping[str, Any]] = MappingProxyType(
 APPROVED_CAPABILITIES: Final[frozenset[str]] = frozenset(route_key(r) for r in APPROVED_ROUTES)
 
 
-def _thaw(value: Any) -> Any:
+def thaw(value: Any) -> Any:
     if isinstance(value, Mapping):
-        return {k: _thaw(v) for k, v in value.items()}
+        return {k: thaw(v) for k, v in value.items()}
     if isinstance(value, list | tuple):
-        return [_thaw(v) for v in value]
+        return [thaw(v) for v in value]
     return value
 
 
-def canonical_contract_descriptor() -> dict[str, Any]:
-    """Descrittore del contratto v1 su cui si calcola lo schema hash."""
-    return {
-        "contract_name": CONTRACT_NAME,
-        "contract_version": SUPPORTED_CONTRACT_VERSION,
-        "routes": [[r.kind.value, r.method, r.path] for r in APPROVED_ROUTES],
-        "schemas": {"meta_response": _thaw(META_RESPONSE_SCHEMA)},
-    }
+def load_contract_descriptor() -> dict[str, Any]:
+    """Descrittore canonico salvato (generato da `contract/descriptor.py`)."""
+    data = json.loads(DESCRIPTOR_PATH.read_text(encoding="ascii"))
+    if not isinstance(data, dict) or data.get("contract_version") != SUPPORTED_CONTRACT_VERSION:
+        raise ValueError("descriptor version mismatch")
+    return data
 
 
 def hash_descriptor(descriptor: Mapping[str, Any]) -> str:
     canonical = json.dumps(
-        _thaw(descriptor), sort_keys=True, separators=(",", ":"), ensure_ascii=True
+        thaw(descriptor), sort_keys=True, separators=(",", ":"), ensure_ascii=True
     )
     return hashlib.sha256(canonical.encode("ascii")).hexdigest()
 
 
 def contract_schema_hash() -> str:
-    return hash_descriptor(canonical_contract_descriptor())
+    return hash_descriptor(load_contract_descriptor())
 
 
 COMPAT_MATRIX: Final[Mapping[str, frozenset[str]]] = MappingProxyType(

@@ -94,10 +94,10 @@ def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def test_http_adapter_is_blocked_core() -> None:
+def test_http_adapter_without_configuration_exits_without_fallback() -> None:
     proc = run_cli("serve", "--adapter", "http")
     assert proc.returncode == 2
-    assert "BLOCKED_CORE" in proc.stderr
+    assert proc.stderr.strip() == "CONFIG_ERROR: HTTP_ADAPTER_REQUIRES_PORT_AND_TOKEN_FILE"
     assert proc.stdout == ""
 
 
@@ -120,7 +120,7 @@ def test_contract_info_prints_version_and_hash() -> None:
     proc = run_cli("contract-info")
     assert proc.returncode == 0
     info = json.loads(proc.stdout)
-    assert info["supported_contract_version"] == "1.0.0"
+    assert info["supported_contract_version"] == "1.1.0"
     assert len(info["schema_hash"]) == 64
     assert info["routes"] == 25
     assert info["tools"] == ["get_meta", "get_status", "get_reconciliation_status"]

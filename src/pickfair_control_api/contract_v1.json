@@ -1,0 +1,1692 @@
+{
+  "contract_name": "pickfair-control-api",
+  "contract_version": "1.1.0",
+  "error_codes": {
+    "control_api": [
+      "BAD_HOST",
+      "BODY_NOT_ALLOWED",
+      "CONTRACT_SELF_CHECK",
+      "INTERNAL",
+      "METHOD_NOT_ALLOWED",
+      "NOT_FOUND",
+      "UNAUTHORIZED"
+    ],
+    "mcp": [
+      "CONTRACT_INCOMPATIBLE",
+      "FORBIDDEN",
+      "INTERNAL_ERROR",
+      "INVALID_REQUEST",
+      "JOURNAL_UNAVAILABLE",
+      "UNKNOWN_TOOL",
+      "UPSTREAM_INVALID_RESPONSE",
+      "UPSTREAM_TIMEOUT",
+      "UPSTREAM_UNAUTHORIZED",
+      "UPSTREAM_UNAVAILABLE"
+    ]
+  },
+  "routes": [
+    [
+      "read",
+      "GET",
+      "/v1/meta"
+    ],
+    [
+      "read",
+      "GET",
+      "/v1/status"
+    ],
+    [
+      "read",
+      "GET",
+      "/v1/account"
+    ],
+    [
+      "read",
+      "GET",
+      "/v1/exposure"
+    ],
+    [
+      "read",
+      "GET",
+      "/v1/config"
+    ],
+    [
+      "read",
+      "GET",
+      "/v1/events"
+    ],
+    [
+      "read",
+      "GET",
+      "/v1/markets"
+    ],
+    [
+      "read",
+      "GET",
+      "/v1/markets/{id}/book"
+    ],
+    [
+      "read",
+      "GET",
+      "/v1/orders"
+    ],
+    [
+      "read",
+      "GET",
+      "/v1/positions"
+    ],
+    [
+      "read",
+      "GET",
+      "/v1/operations/{id}"
+    ],
+    [
+      "read",
+      "GET",
+      "/v1/operations?status=pending"
+    ],
+    [
+      "read",
+      "GET",
+      "/v1/reconciliation/status"
+    ],
+    [
+      "read",
+      "GET",
+      "/v1/audit/{correlation_id}"
+    ],
+    [
+      "command",
+      "POST",
+      "/v1/preview"
+    ],
+    [
+      "command",
+      "POST",
+      "/v1/orders"
+    ],
+    [
+      "command",
+      "POST",
+      "/v1/dutching"
+    ],
+    [
+      "command",
+      "POST",
+      "/v1/orders/{id}/cancel"
+    ],
+    [
+      "command",
+      "POST",
+      "/v1/orders/{id}/replace"
+    ],
+    [
+      "command",
+      "POST",
+      "/v1/cashout"
+    ],
+    [
+      "command",
+      "POST",
+      "/v1/stop"
+    ],
+    [
+      "command",
+      "POST",
+      "/v1/resume"
+    ],
+    [
+      "command",
+      "POST",
+      "/v1/reconcile"
+    ],
+    [
+      "command",
+      "PATCH",
+      "/v1/config"
+    ],
+    [
+      "command",
+      "POST",
+      "/v1/mode"
+    ]
+  ],
+  "semantics": {
+    "codes": "Codes and reasons match ^[A-Z][A-Z0-9_]{0,63}$; free text from the core becomes UNSTRUCTURED and never crosses the API.",
+    "consistency": "PER_FIELD_NON_ATOMIC: fields are read one at a time without a runtime-wide critical section; observed_at is the read instant.",
+    "freshness": {
+      "max_clock_skew_s": 5.0,
+      "max_snapshot_age_s": 30.0
+    },
+    "source": "Responses declare source=core; the simulated adapter declares source=simulated.",
+    "transport": "HTTP/1.1 GET only on 127.0.0.1, Authorization Bearer token required, Host must be 127.0.0.1:<port>, no redirects, Content-Type application/json; charset=utf-8, body at most 65536 bytes.",
+    "unavailable": "A field is null if and only if its name is listed in `unavailable`; a value the core does not hold is never replaced by a default."
+  },
+  "tools": {
+    "get_meta": {
+      "input_schema": {
+        "additionalProperties": false,
+        "description": "Nessun argomento ammesso.",
+        "properties": {},
+        "title": "GetMetaInput",
+        "type": "object"
+      },
+      "output_schema": {
+        "$defs": {
+          "ErrorBody": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "$ref": "#/$defs/ErrorCode"
+              },
+              "details": {
+                "$ref": "#/$defs/ErrorDetails"
+              },
+              "message": {
+                "maxLength": 200,
+                "title": "Message",
+                "type": "string"
+              },
+              "retryable": {
+                "title": "Retryable",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "retryable",
+              "details"
+            ],
+            "title": "ErrorBody",
+            "type": "object"
+          },
+          "ErrorCode": {
+            "enum": [
+              "INVALID_REQUEST",
+              "UNKNOWN_TOOL",
+              "CONTRACT_INCOMPATIBLE",
+              "UPSTREAM_TIMEOUT",
+              "UPSTREAM_UNAVAILABLE",
+              "UPSTREAM_INVALID_RESPONSE",
+              "UPSTREAM_UNAUTHORIZED",
+              "INTERNAL_ERROR",
+              "JOURNAL_UNAVAILABLE",
+              "FORBIDDEN"
+            ],
+            "title": "ErrorCode",
+            "type": "string"
+          },
+          "ErrorDetails": {
+            "additionalProperties": false,
+            "properties": {
+              "handshake_status": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Z_]{1,32}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Handshake Status"
+              },
+              "reasons": {
+                "items": {
+                  "maxLength": 160,
+                  "pattern": "^[A-Z_]+(:[A-Za-z0-9_{}/?=. -]{1,140})?$",
+                  "type": "string"
+                },
+                "maxItems": 32,
+                "title": "Reasons",
+                "type": "array"
+              }
+            },
+            "required": [
+              "reasons",
+              "handshake_status"
+            ],
+            "title": "ErrorDetails",
+            "type": "object"
+          },
+          "GetMetaData": {
+            "additionalProperties": false,
+            "properties": {
+              "capabilities": {
+                "items": {
+                  "maxLength": 128,
+                  "pattern": "^(GET|POST|PATCH) /v1/[A-Za-z0-9_{}/?=.-]{1,120}$",
+                  "type": "string"
+                },
+                "maxItems": 64,
+                "minItems": 1,
+                "title": "Capabilities",
+                "type": "array"
+              },
+              "contract_version": {
+                "pattern": "^(0|[1-9][0-9]{0,3})\\.(0|[1-9][0-9]{0,3})\\.(0|[1-9][0-9]{0,3})$",
+                "title": "Contract Version",
+                "type": "string"
+              },
+              "git_sha": {
+                "pattern": "^[0-9a-f]{40}$",
+                "title": "Git Sha",
+                "type": "string"
+              },
+              "handshake": {
+                "$ref": "#/$defs/HandshakeInfo"
+              },
+              "schema_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Schema Hash",
+                "type": "string"
+              },
+              "upstream": {
+                "$ref": "#/$defs/UpstreamInfo"
+              }
+            },
+            "required": [
+              "contract_version",
+              "capabilities",
+              "git_sha",
+              "schema_hash",
+              "handshake",
+              "upstream"
+            ],
+            "title": "GetMetaData",
+            "type": "object"
+          },
+          "HandshakeInfo": {
+            "additionalProperties": false,
+            "properties": {
+              "epoch": {
+                "minimum": 1,
+                "title": "Epoch",
+                "type": "integer"
+              },
+              "status": {
+                "const": "COMPATIBLE",
+                "title": "Status",
+                "type": "string"
+              },
+              "supported_contract_version": {
+                "pattern": "^(0|[1-9][0-9]{0,3})\\.(0|[1-9][0-9]{0,3})\\.(0|[1-9][0-9]{0,3})$",
+                "title": "Supported Contract Version",
+                "type": "string"
+              },
+              "supported_schema_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Supported Schema Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "status",
+              "epoch",
+              "supported_contract_version",
+              "supported_schema_hash"
+            ],
+            "title": "HandshakeInfo",
+            "type": "object"
+          },
+          "UpstreamInfo": {
+            "additionalProperties": false,
+            "properties": {
+              "certified": {
+                "title": "Certified",
+                "type": "boolean"
+              },
+              "kind": {
+                "enum": [
+                  "simulated",
+                  "http"
+                ],
+                "title": "Kind",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "certified"
+            ],
+            "title": "UpstreamInfo",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/GetMetaData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ErrorBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "request_id": {
+            "pattern": "^req_[0-9a-f]{32}$",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]{2,47}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool"
+          }
+        },
+        "required": [
+          "ok",
+          "request_id",
+          "tool",
+          "data",
+          "error"
+        ],
+        "title": "Envelope[GetMetaData]",
+        "type": "object"
+      },
+      "route": "GET /v1/meta",
+      "scope": "read"
+    },
+    "get_reconciliation_status": {
+      "input_schema": {
+        "additionalProperties": false,
+        "description": "Nessun argomento ammesso.",
+        "properties": {},
+        "title": "NoInput",
+        "type": "object"
+      },
+      "output_schema": {
+        "$defs": {
+          "ErrorBody": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "$ref": "#/$defs/ErrorCode"
+              },
+              "details": {
+                "$ref": "#/$defs/ErrorDetails"
+              },
+              "message": {
+                "maxLength": 200,
+                "title": "Message",
+                "type": "string"
+              },
+              "retryable": {
+                "title": "Retryable",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "retryable",
+              "details"
+            ],
+            "title": "ErrorBody",
+            "type": "object"
+          },
+          "ErrorCode": {
+            "enum": [
+              "INVALID_REQUEST",
+              "UNKNOWN_TOOL",
+              "CONTRACT_INCOMPATIBLE",
+              "UPSTREAM_TIMEOUT",
+              "UPSTREAM_UNAVAILABLE",
+              "UPSTREAM_INVALID_RESPONSE",
+              "UPSTREAM_UNAUTHORIZED",
+              "INTERNAL_ERROR",
+              "JOURNAL_UNAVAILABLE",
+              "FORBIDDEN"
+            ],
+            "title": "ErrorCode",
+            "type": "string"
+          },
+          "ErrorDetails": {
+            "additionalProperties": false,
+            "properties": {
+              "handshake_status": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Z_]{1,32}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Handshake Status"
+              },
+              "reasons": {
+                "items": {
+                  "maxLength": 160,
+                  "pattern": "^[A-Z_]+(:[A-Za-z0-9_{}/?=. -]{1,140})?$",
+                  "type": "string"
+                },
+                "maxItems": 32,
+                "title": "Reasons",
+                "type": "array"
+              }
+            },
+            "required": [
+              "reasons",
+              "handshake_status"
+            ],
+            "title": "ErrorDetails",
+            "type": "object"
+          },
+          "GetReconciliationStatusData": {
+            "additionalProperties": false,
+            "properties": {
+              "age_s": {
+                "maximum": 30.0,
+                "minimum": 0,
+                "title": "Age S",
+                "type": "number"
+              },
+              "reconciliation": {
+                "$ref": "#/$defs/ReconciliationStatusResponse"
+              },
+              "upstream": {
+                "$ref": "#/$defs/UpstreamInfo"
+              }
+            },
+            "required": [
+              "reconciliation",
+              "age_s",
+              "upstream"
+            ],
+            "title": "GetReconciliationStatusData",
+            "type": "object"
+          },
+          "GhostCounters": {
+            "additionalProperties": false,
+            "properties": {
+              "ghost_orders": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Ghost Orders",
+                "type": "integer"
+              },
+              "suspected_ghosts": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Suspected Ghosts",
+                "type": "integer"
+              },
+              "unconfirmed_inflight": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Unconfirmed Inflight",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "ghost_orders",
+              "suspected_ghosts",
+              "unconfirmed_inflight"
+            ],
+            "title": "GhostCounters",
+            "type": "object"
+          },
+          "ReconciliationStatusResponse": {
+            "additionalProperties": false,
+            "properties": {
+              "ambiguities_pending": {
+                "anyOf": [
+                  {
+                    "maximum": 1000000,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Ambiguities Pending"
+              },
+              "consistency": {
+                "const": "PER_FIELD_NON_ATOMIC",
+                "title": "Consistency",
+                "type": "string"
+              },
+              "ghosts": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/GhostCounters"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "hedge_registry_unreliable": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Hedge Registry Unreliable"
+              },
+              "observed_at": {
+                "exclusiveMaximum": 100000000000.0,
+                "exclusiveMinimum": 0,
+                "title": "Observed At",
+                "type": "number"
+              },
+              "recovery_state": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/RecoveryState"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "source": {
+                "enum": [
+                  "core",
+                  "simulated"
+                ],
+                "title": "Source",
+                "type": "string"
+              },
+              "startup": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/StartupReconciliation"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "unavailable": {
+                "items": {
+                  "enum": [
+                    "startup",
+                    "ambiguities_pending",
+                    "ghosts",
+                    "hedge_registry_unreliable",
+                    "recovery_state"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 5,
+                "title": "Unavailable",
+                "type": "array",
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "source",
+              "observed_at",
+              "consistency",
+              "startup",
+              "ambiguities_pending",
+              "ghosts",
+              "hedge_registry_unreliable",
+              "recovery_state",
+              "unavailable"
+            ],
+            "title": "ReconciliationStatusResponse",
+            "type": "object"
+          },
+          "RecoveryState": {
+            "additionalProperties": false,
+            "properties": {
+              "persist_failed": {
+                "title": "Persist Failed",
+                "type": "boolean"
+              },
+              "unreadable": {
+                "title": "Unreadable",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "unreadable",
+              "persist_failed"
+            ],
+            "title": "RecoveryState",
+            "type": "object"
+          },
+          "StartupReconciliation": {
+            "additionalProperties": false,
+            "properties": {
+              "reason": {
+                "anyOf": [
+                  {
+                    "maxLength": 64,
+                    "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Reason"
+              },
+              "recovery_failure": {
+                "anyOf": [
+                  {
+                    "maxLength": 64,
+                    "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Recovery Failure"
+              },
+              "state": {
+                "enum": [
+                  "NOT_RUN",
+                  "OK",
+                  "REQUIRED"
+                ],
+                "title": "State",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason",
+              "recovery_failure"
+            ],
+            "title": "StartupReconciliation",
+            "type": "object"
+          },
+          "UpstreamInfo": {
+            "additionalProperties": false,
+            "properties": {
+              "certified": {
+                "title": "Certified",
+                "type": "boolean"
+              },
+              "kind": {
+                "enum": [
+                  "simulated",
+                  "http"
+                ],
+                "title": "Kind",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "certified"
+            ],
+            "title": "UpstreamInfo",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/GetReconciliationStatusData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ErrorBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "request_id": {
+            "pattern": "^req_[0-9a-f]{32}$",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]{2,47}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool"
+          }
+        },
+        "required": [
+          "ok",
+          "request_id",
+          "tool",
+          "data",
+          "error"
+        ],
+        "title": "Envelope[GetReconciliationStatusData]",
+        "type": "object"
+      },
+      "route": "GET /v1/reconciliation/status",
+      "scope": "read"
+    },
+    "get_status": {
+      "input_schema": {
+        "additionalProperties": false,
+        "description": "Nessun argomento ammesso.",
+        "properties": {},
+        "title": "NoInput",
+        "type": "object"
+      },
+      "output_schema": {
+        "$defs": {
+          "ErrorBody": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "$ref": "#/$defs/ErrorCode"
+              },
+              "details": {
+                "$ref": "#/$defs/ErrorDetails"
+              },
+              "message": {
+                "maxLength": 200,
+                "title": "Message",
+                "type": "string"
+              },
+              "retryable": {
+                "title": "Retryable",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "retryable",
+              "details"
+            ],
+            "title": "ErrorBody",
+            "type": "object"
+          },
+          "ErrorCode": {
+            "enum": [
+              "INVALID_REQUEST",
+              "UNKNOWN_TOOL",
+              "CONTRACT_INCOMPATIBLE",
+              "UPSTREAM_TIMEOUT",
+              "UPSTREAM_UNAVAILABLE",
+              "UPSTREAM_INVALID_RESPONSE",
+              "UPSTREAM_UNAUTHORIZED",
+              "INTERNAL_ERROR",
+              "JOURNAL_UNAVAILABLE",
+              "FORBIDDEN"
+            ],
+            "title": "ErrorCode",
+            "type": "string"
+          },
+          "ErrorDetails": {
+            "additionalProperties": false,
+            "properties": {
+              "handshake_status": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Z_]{1,32}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Handshake Status"
+              },
+              "reasons": {
+                "items": {
+                  "maxLength": 160,
+                  "pattern": "^[A-Z_]+(:[A-Za-z0-9_{}/?=. -]{1,140})?$",
+                  "type": "string"
+                },
+                "maxItems": 32,
+                "title": "Reasons",
+                "type": "array"
+              }
+            },
+            "required": [
+              "reasons",
+              "handshake_status"
+            ],
+            "title": "ErrorDetails",
+            "type": "object"
+          },
+          "GetStatusData": {
+            "additionalProperties": false,
+            "properties": {
+              "age_s": {
+                "maximum": 30.0,
+                "minimum": 0,
+                "title": "Age S",
+                "type": "number"
+              },
+              "status": {
+                "$ref": "#/$defs/StatusResponse"
+              },
+              "upstream": {
+                "$ref": "#/$defs/UpstreamInfo"
+              }
+            },
+            "required": [
+              "status",
+              "age_s",
+              "upstream"
+            ],
+            "title": "GetStatusData",
+            "type": "object"
+          },
+          "Readiness": {
+            "additionalProperties": false,
+            "properties": {
+              "blockers": {
+                "items": {
+                  "maxLength": 64,
+                  "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                  "type": "string"
+                },
+                "maxItems": 32,
+                "title": "Blockers",
+                "type": "array",
+                "uniqueItems": true
+              },
+              "level": {
+                "enum": [
+                  "READY",
+                  "DEGRADED",
+                  "NOT_READY"
+                ],
+                "title": "Level",
+                "type": "string"
+              },
+              "mcp_aware": {
+                "title": "Mcp Aware",
+                "type": "boolean"
+              },
+              "ready": {
+                "title": "Ready",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "level",
+              "ready",
+              "blockers",
+              "mcp_aware"
+            ],
+            "title": "Readiness",
+            "type": "object"
+          },
+          "StatusResponse": {
+            "additionalProperties": false,
+            "properties": {
+              "consistency": {
+                "const": "PER_FIELD_NON_ATOMIC",
+                "title": "Consistency",
+                "type": "string"
+              },
+              "execution_mode": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "SIM",
+                      "LIVE"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Execution Mode"
+              },
+              "live_enabled": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Live Enabled"
+              },
+              "observed_at": {
+                "exclusiveMaximum": 100000000000.0,
+                "exclusiveMinimum": 0,
+                "title": "Observed At",
+                "type": "number"
+              },
+              "readiness": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Readiness"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "runtime_state": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "STOPPED",
+                      "ACTIVE",
+                      "PAUSED",
+                      "LOCKDOWN"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Runtime State"
+              },
+              "source": {
+                "enum": [
+                  "core",
+                  "simulated"
+                ],
+                "title": "Source",
+                "type": "string"
+              },
+              "stop": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/StopState"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "unavailable": {
+                "items": {
+                  "enum": [
+                    "runtime_state",
+                    "execution_mode",
+                    "live_enabled",
+                    "readiness",
+                    "stop"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 5,
+                "title": "Unavailable",
+                "type": "array",
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "source",
+              "observed_at",
+              "consistency",
+              "runtime_state",
+              "execution_mode",
+              "live_enabled",
+              "readiness",
+              "stop",
+              "unavailable"
+            ],
+            "title": "StatusResponse",
+            "type": "object"
+          },
+          "StopState": {
+            "additionalProperties": false,
+            "properties": {
+              "daily_loss_pending_stop": {
+                "title": "Daily Loss Pending Stop",
+                "type": "boolean"
+              },
+              "emergency_reason": {
+                "anyOf": [
+                  {
+                    "maxLength": 64,
+                    "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Emergency Reason"
+              },
+              "emergency_stopped": {
+                "title": "Emergency Stopped",
+                "type": "boolean"
+              },
+              "kill_switch_active": {
+                "title": "Kill Switch Active",
+                "type": "boolean"
+              },
+              "risk_stop_reason": {
+                "anyOf": [
+                  {
+                    "maxLength": 64,
+                    "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Risk Stop Reason"
+              }
+            },
+            "required": [
+              "emergency_stopped",
+              "emergency_reason",
+              "risk_stop_reason",
+              "daily_loss_pending_stop",
+              "kill_switch_active"
+            ],
+            "title": "StopState",
+            "type": "object"
+          },
+          "UpstreamInfo": {
+            "additionalProperties": false,
+            "properties": {
+              "certified": {
+                "title": "Certified",
+                "type": "boolean"
+              },
+              "kind": {
+                "enum": [
+                  "simulated",
+                  "http"
+                ],
+                "title": "Kind",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "certified"
+            ],
+            "title": "UpstreamInfo",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/GetStatusData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ErrorBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "request_id": {
+            "pattern": "^req_[0-9a-f]{32}$",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]{2,47}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool"
+          }
+        },
+        "required": [
+          "ok",
+          "request_id",
+          "tool",
+          "data",
+          "error"
+        ],
+        "title": "Envelope[GetStatusData]",
+        "type": "object"
+      },
+      "route": "GET /v1/status",
+      "scope": "read"
+    }
+  },
+  "upstream_schemas": {
+    "error": {
+      "additionalProperties": false,
+      "properties": {
+        "error": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "enum": [
+                "BAD_HOST",
+                "BODY_NOT_ALLOWED",
+                "CONTRACT_SELF_CHECK",
+                "INTERNAL",
+                "METHOD_NOT_ALLOWED",
+                "NOT_FOUND",
+                "UNAUTHORIZED"
+              ]
+            }
+          },
+          "required": [
+            "code"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "error"
+      ],
+      "type": "object"
+    },
+    "meta": {
+      "additionalProperties": false,
+      "properties": {
+        "capabilities": {
+          "items": {
+            "pattern": "^(GET|POST|PATCH) /v1/[A-Za-z0-9_{}/?=.-]{1,120}$",
+            "type": "string"
+          },
+          "maxItems": 64,
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "contract_version": {
+          "pattern": "^(0|[1-9][0-9]{0,3})\\.(0|[1-9][0-9]{0,3})\\.(0|[1-9][0-9]{0,3})$",
+          "type": "string"
+        },
+        "git_sha": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        "schema_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "contract_version",
+        "capabilities",
+        "git_sha",
+        "schema_hash"
+      ],
+      "type": "object"
+    },
+    "reconciliation_status": {
+      "$defs": {
+        "GhostCounters": {
+          "additionalProperties": false,
+          "properties": {
+            "ghost_orders": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Ghost Orders",
+              "type": "integer"
+            },
+            "suspected_ghosts": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Suspected Ghosts",
+              "type": "integer"
+            },
+            "unconfirmed_inflight": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Unconfirmed Inflight",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "ghost_orders",
+            "suspected_ghosts",
+            "unconfirmed_inflight"
+          ],
+          "title": "GhostCounters",
+          "type": "object"
+        },
+        "RecoveryState": {
+          "additionalProperties": false,
+          "properties": {
+            "persist_failed": {
+              "title": "Persist Failed",
+              "type": "boolean"
+            },
+            "unreadable": {
+              "title": "Unreadable",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "unreadable",
+            "persist_failed"
+          ],
+          "title": "RecoveryState",
+          "type": "object"
+        },
+        "StartupReconciliation": {
+          "additionalProperties": false,
+          "properties": {
+            "reason": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Reason"
+            },
+            "recovery_failure": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Recovery Failure"
+            },
+            "state": {
+              "enum": [
+                "NOT_RUN",
+                "OK",
+                "REQUIRED"
+              ],
+              "title": "State",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state",
+            "reason",
+            "recovery_failure"
+          ],
+          "title": "StartupReconciliation",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "ambiguities_pending": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ambiguities Pending"
+        },
+        "consistency": {
+          "const": "PER_FIELD_NON_ATOMIC",
+          "title": "Consistency",
+          "type": "string"
+        },
+        "ghosts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GhostCounters"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "hedge_registry_unreliable": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Hedge Registry Unreliable"
+        },
+        "observed_at": {
+          "exclusiveMaximum": 100000000000.0,
+          "exclusiveMinimum": 0,
+          "title": "Observed At",
+          "type": "number"
+        },
+        "recovery_state": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecoveryState"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source": {
+          "enum": [
+            "core",
+            "simulated"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "startup": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StartupReconciliation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unavailable": {
+          "items": {
+            "enum": [
+              "startup",
+              "ambiguities_pending",
+              "ghosts",
+              "hedge_registry_unreliable",
+              "recovery_state"
+            ],
+            "type": "string"
+          },
+          "maxItems": 5,
+          "title": "Unavailable",
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "source",
+        "observed_at",
+        "consistency",
+        "startup",
+        "ambiguities_pending",
+        "ghosts",
+        "hedge_registry_unreliable",
+        "recovery_state",
+        "unavailable"
+      ],
+      "title": "ReconciliationStatusResponse",
+      "type": "object"
+    },
+    "status": {
+      "$defs": {
+        "Readiness": {
+          "additionalProperties": false,
+          "properties": {
+            "blockers": {
+              "items": {
+                "maxLength": 64,
+                "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                "type": "string"
+              },
+              "maxItems": 32,
+              "title": "Blockers",
+              "type": "array",
+              "uniqueItems": true
+            },
+            "level": {
+              "enum": [
+                "READY",
+                "DEGRADED",
+                "NOT_READY"
+              ],
+              "title": "Level",
+              "type": "string"
+            },
+            "mcp_aware": {
+              "title": "Mcp Aware",
+              "type": "boolean"
+            },
+            "ready": {
+              "title": "Ready",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "level",
+            "ready",
+            "blockers",
+            "mcp_aware"
+          ],
+          "title": "Readiness",
+          "type": "object"
+        },
+        "StopState": {
+          "additionalProperties": false,
+          "properties": {
+            "daily_loss_pending_stop": {
+              "title": "Daily Loss Pending Stop",
+              "type": "boolean"
+            },
+            "emergency_reason": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Emergency Reason"
+            },
+            "emergency_stopped": {
+              "title": "Emergency Stopped",
+              "type": "boolean"
+            },
+            "kill_switch_active": {
+              "title": "Kill Switch Active",
+              "type": "boolean"
+            },
+            "risk_stop_reason": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Risk Stop Reason"
+            }
+          },
+          "required": [
+            "emergency_stopped",
+            "emergency_reason",
+            "risk_stop_reason",
+            "daily_loss_pending_stop",
+            "kill_switch_active"
+          ],
+          "title": "StopState",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "consistency": {
+          "const": "PER_FIELD_NON_ATOMIC",
+          "title": "Consistency",
+          "type": "string"
+        },
+        "execution_mode": {
+          "anyOf": [
+            {
+              "enum": [
+                "SIM",
+                "LIVE"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Execution Mode"
+        },
+        "live_enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Live Enabled"
+        },
+        "observed_at": {
+          "exclusiveMaximum": 100000000000.0,
+          "exclusiveMinimum": 0,
+          "title": "Observed At",
+          "type": "number"
+        },
+        "readiness": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Readiness"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "runtime_state": {
+          "anyOf": [
+            {
+              "enum": [
+                "STOPPED",
+                "ACTIVE",
+                "PAUSED",
+                "LOCKDOWN"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Runtime State"
+        },
+        "source": {
+          "enum": [
+            "core",
+            "simulated"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "stop": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StopState"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unavailable": {
+          "items": {
+            "enum": [
+              "runtime_state",
+              "execution_mode",
+              "live_enabled",
+              "readiness",
+              "stop"
+            ],
+            "type": "string"
+          },
+          "maxItems": 5,
+          "title": "Unavailable",
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "source",
+        "observed_at",
+        "consistency",
+        "runtime_state",
+        "execution_mode",
+        "live_enabled",
+        "readiness",
+        "stop",
+        "unavailable"
+      ],
+      "title": "StatusResponse",
+      "type": "object"
+    }
+  }
+}

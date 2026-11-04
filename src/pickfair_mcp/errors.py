@@ -13,6 +13,7 @@ class ErrorCode(Enum):
     UPSTREAM_TIMEOUT = "UPSTREAM_TIMEOUT"
     UPSTREAM_UNAVAILABLE = "UPSTREAM_UNAVAILABLE"
     UPSTREAM_INVALID_RESPONSE = "UPSTREAM_INVALID_RESPONSE"
+    UPSTREAM_UNAUTHORIZED = "UPSTREAM_UNAUTHORIZED"
     INTERNAL_ERROR = "INTERNAL_ERROR"
     JOURNAL_UNAVAILABLE = "JOURNAL_UNAVAILABLE"
     FORBIDDEN = "FORBIDDEN"
@@ -28,6 +29,9 @@ MESSAGES: Final[dict[ErrorCode, str]] = {
     ErrorCode.UPSTREAM_TIMEOUT: "Control API did not answer within the configured timeout.",
     ErrorCode.UPSTREAM_UNAVAILABLE: "Control API is not reachable.",
     ErrorCode.UPSTREAM_INVALID_RESPONSE: "Control API answer violates the contract.",
+    ErrorCode.UPSTREAM_UNAUTHORIZED: (
+        "Control API rejected the adapter credentials; nothing was performed."
+    ),
     ErrorCode.INTERNAL_ERROR: "Internal adapter error; no operation was performed.",
     ErrorCode.JOURNAL_UNAVAILABLE: (
         "Request journal unavailable; mutations are blocked, reads are still allowed."

@@ -71,6 +71,9 @@ MAX_CODES = 32
 
 Code = Annotated[str, StringConstraints(pattern=CODE_PATTERN, max_length=64)]
 Source = Literal["core", "simulated"]
+# I campi di uno snapshot sono letti uno alla volta, senza un'unica sezione critica del runtime:
+# ciascuno è coerente in sé, due campi possono riflettere istanti vicini (dichiarato, mai nascosto).
+Consistency = Literal["PER_FIELD_NON_ATOMIC"]
 ObservedAt = Annotated[float, Field(gt=0, lt=1e11)]
 Count = Annotated[int, Field(ge=0, le=1_000_000)]
 
@@ -81,7 +84,13 @@ def _unique_codes(values: tuple[str, ...]) -> tuple[str, ...]:
     return values
 
 
-Codes = Annotated[tuple[Code, ...], Field(max_length=MAX_CODES), AfterValidator(_unique_codes)]
+# uniqueItems rende la regola visibile anche nello schema condiviso con la Control API
+# (divergenza trovata dalla prova differenziale di tests/unit/test_contract_descriptor.py).
+Codes = Annotated[
+    tuple[Code, ...],
+    Field(max_length=MAX_CODES, json_schema_extra={"uniqueItems": True}),
+    AfterValidator(_unique_codes),
+]
 
 
 def _check_unavailable(values: dict[str, object], declared: tuple[str, ...]) -> None:
@@ -132,12 +141,16 @@ STATUS_OPTIONAL_FIELDS: tuple[str, ...] = (
 class StatusResponse(StrictModel):
     source: Source
     observed_at: ObservedAt
+    consistency: Consistency
     runtime_state: Literal["STOPPED", "ACTIVE", "PAUSED", "LOCKDOWN"] | None
     execution_mode: Literal["SIM", "LIVE"] | None
     live_enabled: bool | None
     readiness: Readiness | None
     stop: StopState | None
-    unavailable: Annotated[tuple[StatusField, ...], Field(max_length=len(STATUS_OPTIONAL_FIELDS))]
+    unavailable: Annotated[
+        tuple[StatusField, ...],
+        Field(max_length=len(STATUS_OPTIONAL_FIELDS), json_schema_extra={"uniqueItems": True}),
+    ]
 
     @model_validator(mode="after")
     def _declared(self) -> StatusResponse:
@@ -194,13 +207,17 @@ RECONCILIATION_OPTIONAL_FIELDS: tuple[str, ...] = (
 class ReconciliationStatusResponse(StrictModel):
     source: Source
     observed_at: ObservedAt
+    consistency: Consistency
     startup: StartupReconciliation | None
     ambiguities_pending: Count | None
     ghosts: GhostCounters | None
     hedge_registry_unreliable: bool | None
     recovery_state: RecoveryState | None
     unavailable: Annotated[
-        tuple[ReconciliationField, ...], Field(max_length=len(RECONCILIATION_OPTIONAL_FIELDS))
+        tuple[ReconciliationField, ...],
+        Field(
+            max_length=len(RECONCILIATION_OPTIONAL_FIELDS), json_schema_extra={"uniqueItems": True}
+        ),
     ]
 
     @model_validator(mode="after")

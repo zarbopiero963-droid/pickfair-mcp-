@@ -1,7 +1,8 @@
 """Versionamento del contratto e schema hash.
 
 Il valore atteso dello schema hash è fissato qui: qualunque modifica al descrittore
-canonico del contratto (route o schema di /v1/meta) cambia l'hash e deve essere
+canonico del contratto (route, schemi upstream, schemi dei tool, codici d'errore,
+semantica) cambia l'hash e deve essere
 una scelta esplicita, accompagnata dall'aggiornamento della compat matrix.
 """
 
@@ -11,11 +12,11 @@ import copy
 
 from pickfair_mcp.contract import version as v
 
-GOLDEN_SCHEMA_HASH = "09bd5e8e6641c2c25664fe7deb05e7a8510b18d92b016ccb6f3acf9086dcf855"
+GOLDEN_SCHEMA_HASH = "e9471531792d74337f03a3014e84364994fe76b25e28c6fab4b5ea117df9d4b6"
 
 
-def test_supported_version_is_semver_1_0_0() -> None:
-    assert v.SUPPORTED_CONTRACT_VERSION == "1.0.0"
+def test_supported_version_is_semver_1_1_0() -> None:
+    assert v.SUPPORTED_CONTRACT_VERSION == "1.1.0"
 
 
 def test_schema_hash_is_stable_golden_value() -> None:
@@ -29,20 +30,20 @@ def test_schema_hash_is_sha256_hex() -> None:
 
 
 def test_schema_hash_changes_when_descriptor_changes() -> None:
-    descriptor = copy.deepcopy(v.canonical_contract_descriptor())
+    descriptor = copy.deepcopy(v.load_contract_descriptor())
     base = v.hash_descriptor(descriptor)
     descriptor["routes"] = descriptor["routes"][:-1]
     assert v.hash_descriptor(descriptor) != base
 
 
 def test_hash_is_independent_of_key_order() -> None:
-    descriptor = v.canonical_contract_descriptor()
+    descriptor = v.load_contract_descriptor()
     reordered = dict(reversed(list(descriptor.items())))
     assert v.hash_descriptor(reordered) == v.hash_descriptor(descriptor)
 
 
 def test_compat_matrix_only_lists_the_supported_pair() -> None:
-    assert dict(v.COMPAT_MATRIX) == {"1.0.0": frozenset({v.contract_schema_hash()})}
+    assert dict(v.COMPAT_MATRIX) == {"1.1.0": frozenset({v.contract_schema_hash()})}
 
 
 def test_capabilities_are_route_keys() -> None:

@@ -36,7 +36,19 @@ _NETWORK_AUDIT_EVENTS = {
     "socket.getnameinfo",
 }
 _network_guard_active = False
+_loopback_allowed = False
 _hook_attempts: list[object] = []
+LOOPBACK_ADDRESS = "127.0.0.1"
+
+
+def _is_loopback_target(address: object) -> bool:
+    """Solo (\"127.0.0.1\", porta) e solo nei test marcati `loopback` (adapter MCP-01d)."""
+    return (
+        _loopback_allowed
+        and isinstance(address, tuple)
+        and len(address) == 2
+        and address[0] == LOOPBACK_ADDRESS
+    )
 
 
 def _audit_hook(event: str, args: tuple[object, ...]) -> None:
@@ -46,6 +58,8 @@ def _audit_hook(event: str, args: tuple[object, ...]) -> None:
         sock = args[0]
         if getattr(sock, "family", None) not in _INET_FAMILIES:
             return
+        if event == "socket.connect" and _is_loopback_target(args[1]):
+            return
     _hook_attempts.append(event)
     raise NetworkAttemptError(f"operazione di rete vietata: {event}")
 
@@ -54,15 +68,21 @@ sys.addaudithook(_audit_hook)  # gli audit hook non si rimuovono: si attiva per 
 
 
 @pytest.fixture(autouse=True)
-def network_audit_guard() -> Iterator[None]:
-    """Copre anche i percorsi che il monkeypatch non vede (_socket, sendmsg, DNS)."""
-    global _network_guard_active
+def network_audit_guard(request: pytest.FixtureRequest) -> Iterator[None]:
+    """Copre anche i percorsi che il monkeypatch non vede (_socket, sendmsg, DNS).
+
+    Eccezione circoscritta: nei test marcati `loopback` è ammessa SOLO la connessione TCP a
+    127.0.0.1; DNS, create_connection, UDP e ogni altra destinazione restano vietati.
+    """
+    global _network_guard_active, _loopback_allowed
     _hook_attempts.clear()
     _network_guard_active = True
+    _loopback_allowed = request.node.get_closest_marker("loopback") is not None
     try:
         yield
     finally:
         _network_guard_active = False
+        _loopback_allowed = False
     assert _hook_attempts == [], f"operazioni di rete rilevate: {_hook_attempts!r}"
 
 
@@ -73,7 +93,7 @@ def forbid_network(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[object]]:
     original_connect_ex = socket.socket.connect_ex
 
     def guarded_connect(self: socket.socket, address: object) -> None:
-        if self.family in _INET_FAMILIES:
+        if self.family in _INET_FAMILIES and not _is_loopback_target(address):
             attempts.append(address)
             raise NetworkAttemptError(f"connessione di rete vietata: {address!r}")
         original_connect(self, address)  # type: ignore[arg-type]

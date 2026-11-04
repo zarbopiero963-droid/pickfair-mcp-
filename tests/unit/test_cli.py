@@ -1,10 +1,11 @@
-"""CLI in-process: argomenti, BLOCKED_CORE e contract-info."""
+"""CLI in-process: argomenti, adapter http senza fallback e contract-info."""
 
 from __future__ import annotations
 
 import json
 import signal
 from collections.abc import Iterator
+from typing import Any
 
 import pytest
 
@@ -32,11 +33,113 @@ def test_contract_info(capsys: pytest.CaptureFixture[str]) -> None:
     assert info["live_commands"] == "DISABLED"
 
 
-def test_http_adapter_is_blocked_core(capsys: pytest.CaptureFixture[str]) -> None:
-    assert main(["serve", "--adapter", "http"]) == 2
+@pytest.mark.parametrize(
+    ("args", "code"),
+    [
+        (["serve", "--adapter", "http"], "HTTP_ADAPTER_REQUIRES_PORT_AND_TOKEN_FILE"),
+        (
+            ["serve", "--adapter", "http", "--control-api-port", "8765"],
+            "HTTP_ADAPTER_REQUIRES_PORT_AND_TOKEN_FILE",
+        ),
+        (
+            [
+                "serve",
+                "--adapter",
+                "http",
+                "--control-api-port",
+                "0",
+                "--control-api-token-file",
+                "/x",
+            ],
+            "CONFIG_PORT",
+        ),
+        (
+            [
+                "serve",
+                "--adapter",
+                "http",
+                "--control-api-port",
+                "70000",
+                "--control-api-token-file",
+                "/x",
+            ],
+            "CONFIG_PORT",
+        ),
+        (
+            [
+                "serve",
+                "--adapter",
+                "http",
+                "--control-api-port",
+                "8765",
+                "--control-api-token-file",
+                "relative/t",
+            ],
+            "TOKEN_PATH_INVALID",
+        ),
+        (
+            [
+                "serve",
+                "--adapter",
+                "http",
+                "--control-api-port",
+                "8765",
+                "--control-api-token-file",
+                "/nonexistent-dir/t",
+            ],
+            "TOKEN_DIR_UNSAFE",
+        ),
+        (
+            [
+                "serve",
+                "--adapter",
+                "http",
+                "--sim-status-scenario",
+                "live_blocked",
+                "--control-api-port",
+                "8765",
+                "--control-api-token-file",
+                "/x",
+            ],
+            "SIM_OPTIONS_WITH_HTTP_ADAPTER",
+        ),
+        (
+            ["serve", "--adapter", "simulated", "--control-api-port", "8765"],
+            "HTTP_OPTIONS_WITH_SIMULATED_ADAPTER",
+        ),
+    ],
+)
+def test_http_adapter_misconfiguration_never_falls_back(
+    args: list[str], code: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(args) == 2
     captured = capsys.readouterr()
-    assert "BLOCKED_CORE" in captured.err
+    assert captured.err.strip() == f"CONFIG_ERROR: {code}"
     assert captured.out == ""
+
+
+def test_http_adapter_token_file_unsafe_is_refused_without_leaking(
+    tmp_path: Any, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from pickfair_control_api.tokens import issue_token_file
+
+    d = tmp_path / "s"
+    d.mkdir(mode=0o700)
+    token = issue_token_file(d / "t")
+    (d / "t").chmod(0o644)
+    args = [
+        "serve",
+        "--adapter",
+        "http",
+        "--control-api-port",
+        "8765",
+        "--control-api-token-file",
+        str(d / "t"),
+    ]
+    assert main(args) == 2
+    captured = capsys.readouterr()
+    assert captured.err.strip() == "CONFIG_ERROR: TOKEN_FILE_PERMISSIONS"
+    assert token not in captured.err and str(d) not in captured.err
 
 
 @pytest.mark.parametrize("value", ["nan", "inf", "0", "31", "-1"])
