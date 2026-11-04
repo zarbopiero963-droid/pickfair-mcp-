@@ -177,3 +177,18 @@ def test_duplicate_local_ids_are_rejected() -> None:
     body = bodies.orders(snapshot=snap(orders=[bodies.order(), bodies.order()]))
     with pytest.raises(UpstreamInvalidResponse):
         parse_orders(raw(body))
+
+
+@pytest.mark.parametrize("status", ["MATCHED", "FAILED", "PENDING", "AMBIGUOUS", "REJECTED"])
+def test_unknown_core_status_can_only_be_reported_as_unknown(status: str) -> None:
+    """Uno stato del core fuori dalla mappa (per esempio introdotto da una correzione futura) non
+    viene mai indovinato: l'unico stato di contratto ammesso è UNKNOWN."""
+    body = bodies.orders(
+        snapshot=snap(orders=[bodies.order(core_status="SOMETHING_NEW", status=status)])
+    )
+    with pytest.raises(UpstreamInvalidResponse):
+        parse_orders(raw(body))
+    ok = bodies.orders(
+        snapshot=snap(orders=[bodies.order(core_status="SOMETHING_NEW", status="UNKNOWN")])
+    )
+    assert parse_orders(raw(ok)).snapshot.orders[0].status == "UNKNOWN"  # type: ignore[union-attr]

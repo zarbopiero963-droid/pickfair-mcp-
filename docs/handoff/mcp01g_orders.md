@@ -68,7 +68,7 @@ terminali. Branch di Claude D che toccano i dati letti (tutti non mergiati): `d-
 | `tests/control_api/` | 145 passed (125 precedenti + 20 MCP-01g) |
 | Mutazioni `control_api` (`--fail-under 100`) | 51/51 KILLED, GATE PASS (le due barriere di scrittura sopravvivevano finché il test le provava solo insieme: ora ognuna ha il suo test) |
 | E2E fra processi (`tests/crossrepo`) | 11/11, su 3 esecuzioni (patch finale) |
-| Mutanti critici MCP (catalogo completo) | vedere il messaggio di handoff; campagna su `e9cc8993`, equivalenza col commit finale dimostrata (stesso codice e test; stesse modifiche dei 152 mutanti; H01–H11 della campagna = O01–O11 del catalogo finale) |
+| Mutanti critici MCP (catalogo completo) | 152/152 sul commit finale: la campagna completa ha dato 151/152 (sopravvissuto O02, «stato del core sconosciuto accettato con qualunque stato», lacuna reale dei test); aggiunto il test mancante, O02 rieseguito e ucciso; campagna su `e9cc8993`, equivalenza col commit finale dimostrata (stesso codice e test; stesse modifiche dei 152 mutanti; H01–H11 della campagna = O01–O11 del catalogo finale) |
 | Regressione completa del core (`1bcfd7e1`, `pytest -n 4 tests`) | 11926 passed, 0 failed, 16 skipped, 56 xfailed |
 
 ## 4. Verifica e rollback
