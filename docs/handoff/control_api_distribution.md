@@ -46,7 +46,13 @@ differisce o se l'impronta dell'albero non coincide con quella pubblicata da pic
 | Rischi | due copie dello stesso codice: una correzione nel MCP non arriva al core finché non si ricopia; modifiche locali alla copia vietate (il test le blocca, ma va mantenuto); codice di un altro repository dentro il core |
 | Aggiornamento | ricopia completa + nuovo manifest + nuovi `EXPECTED_*`, in un unico cambio; mai patch parziali alla copia |
 
-## Raccomandazione tecnica
+## Decisione owner (04/11/2026)
+
+**Opzione A**: wheel deterministica, installazione offline con hash, pin esatto di versione e
+contratto verificato dal ponte **prima** di aprire il listener HTTP (nessun servizio parzialmente
+attivo). L'opzione B resta solo un'alternativa documentata.
+
+## Raccomandazione tecnica (storica)
 
 **Opzione A** per il primo rilascio: un solo sorgente, integrità verificata due volte (hash della wheel
 all'installazione, versione e schema hash all'avvio), nessuna copia da mantenere. L'opzione B resta la
@@ -59,5 +65,5 @@ all'owner (dipendenze e supply chain sono a merge owner nella governance del cor
 |---|---|
 | Versione package / contratto | 1.1.0 |
 | Schema hash | `e9471531792d74337f03a3014e84364994fe76b25e28c6fab4b5ea117df9d4b6` |
-| Wheel SHA-256 | ricalcolato dal dossier di certificazione allo SHA del repository |
-| Impronta dell'albero (manifest) | ricalcolata dal dossier di certificazione allo SHA del repository |
+| Wheel SHA-256 | `c0903301be66995881a7f08e6ac15a42baf36a0510c0f18d5bc0e2b4acaafd9f` (due build identiche) |
+| Impronta dell'albero (manifest) | `cd4e80a50ef7735947aa81beeb91b8a5d7fb963d3d261e0384a1dfdd3333531d` |

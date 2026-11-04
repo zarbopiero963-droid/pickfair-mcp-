@@ -9,10 +9,10 @@ come patch proposta. **Claude B decide se, quando e come integrarla**, secondo l
 
 | File | Contenuto |
 |---|---|
-| `core_bridge.patch` | patch `git apply` contro Pickfair-nogui `main` **`ada40765e7949b8deb7661b3b5e9ddc8484adba3`** (14 file, +1485/−1). **Non è pubblicata in questo repository**: il codice di Pickfair-nogui resta fuori da pickfair-mcp-; la patch è consegnata come file e se ne verifica l'integrità con `core_bridge.patch.sha256` (in questa cartella) |
+| `core_bridge.patch` | patch `git apply` contro Pickfair-nogui `main` **`ada40765e7949b8deb7661b3b5e9ddc8484adba3`** (14 file, +1615/−1), SHA-256 `505f579c48493881d79a138bff77d02366e33c35dd31dfd93139920c9d3c7d0c`. **Non è pubblicata in questo repository**: il codice di Pickfair-nogui resta fuori da pickfair-mcp-; la patch è consegnata come file e se ne verifica l'integrità con `core_bridge.patch.sha256` (in questa cartella) |
 | questo documento | contratto, prove, governance, decisioni aperte |
 
-Verifiche sulla patch, tutte su una copia esportata del `main` con la patch applicata:
+Verifiche sulla patch, su un clone git integro del `main` con la patch applicata:
 - `git apply --check` pulito sul `main` indicato;
 - `scripts/guardrail_check.py`: scope = diff (14 file), registro toccato solo nella voce del task;
 - regressione completa del core con Python 3.11 (vedi §5).
@@ -42,11 +42,11 @@ pickfair_mcp  ── adapter HTTP ──► pickfair_control_api ◄── contr
 | File | Modifica |
 |---|---|
 | `control_api/views.py` | letture pure con controllo di tipo; campo assente ⇒ `null` + `unavailable`; motivi ⇒ token MAIUSCOLI; **mai** `get_status()` |
-| `control_api/bridge.py` | provider + avvio del server con token nuovo (`publish_fresh_token`) |
+| `control_api/bridge.py` | provider + avvio in quest'ordine: **pin** (versione `1.1.0` e schema hash) → token nuovo solo in memoria (`generate_token_store`) → bind del listener → pubblicazione atomica del token 0600 (`TokenStore.publish`) → avvio del thread. Pin errato ⇒ nessun socket e nessun file; errore di pubblicazione ⇒ listener chiuso |
 | `control_api/launcher.py` | avvio opzionale, **disattivato per impostazione predefinita**; fail-closed sulla sola API |
 | `headless_main.py` | +16 righe: avvio dopo `runtime.start()` riuscito, arresto per primo in `stop()` |
 | `tests/control_api/*` | 4 file: viste su runtime reale, assenza di effetti su runtime SIM avviato, launcher e processo `headless_main` reale |
-| `guardrails/mutation_catalog.json` | area opzionale nuova `control_api`, 12 mutazioni |
+| `guardrails/mutation_catalog.json` | area opzionale nuova `control_api`, 14 mutazioni |
 | `scripts/ci_changed_modules.py` | `control_api/` sulla lane `mutation-guardrails` |
 | `docs/control_api.md`, `CHANGELOG.md`, `.guardrails/allowed_scope.json` | documentazione e scope (`pf_api1_control_api_bridge`) |
 
@@ -57,13 +57,14 @@ Contratto Control API **1.1.0**, schema hash `e9471531792d74337f03a3014e84364994
 `src/pickfair_mcp/contract/descriptor_v1.json`). Copre route, schemi delle risposte, input/output dei
 tool, codici d'errore e semantica (`unavailable`, codici, `consistency`, freschezza).
 
-## 5. Prove eseguite (copia esportata del core + patch, Python 3.11)
+## 5. Prove eseguite (clone git integro del core + patch, Python 3.11)
 
 | Prova | Esito |
 |---|---|
-| Regressione completa del core con la patch | vedere il rapporto di consegna (SHA e conteggi) |
+| Regressione completa del core con la patch (base `ada40765` + patch = commit locale `ae17bb8e`) | **11849 passed, 0 failed** |
+| I 7 fallimenti visti in una copia esportata senza `.git` | non riprodotti nel clone integro: i test usano `git ls-files`/`git worktree` e la tracciabilità SHA, che in un export falliscono per costruzione (classificati AMBIENTE, non regressione) |
 | `tests/control_api/` (viste, effetti, launcher, processo reale) | PASS |
-| Mutazioni area `control_api` (`run_mutation_guardrails.py`) | 12/12 KILLED, GATE PASS |
+| Mutazioni area `control_api` (`run_mutation_guardrails.py`) | 14/14 KILLED, GATE PASS |
 | E2E fra processi (MCP reale ⇄ Control API ⇄ RuntimeController in SIM) | 7/7 PASS, stabile su 3 esecuzioni |
 | Sabotaggi (vista che chiama `get_status()` o il broker) | rilevati |
 
@@ -88,9 +89,10 @@ runtime sotto letture continue resta sotto 50 ms.
 
 ## 7. Decisioni aperte (owner / Claude B)
 
-- **Dipendenza dal package `pickfair_control_api`.** Opzioni: (a) installarlo da pickfair-mcp- a SHA
-  fissato (nuova voce nei requirements del core: manifest di dipendenze ⇒ merge owner);
-  (b) copiarlo nel core con un test che ne verifica l'hash rispetto al repository MCP.
+- **Dipendenza dal package `pickfair_control_api` — DECISA dall'owner (04/11/2026): opzione A**,
+  wheel deterministica installata offline con `--no-deps --no-index --require-hashes` e pin esatto
+  (vedi `control_api_distribution.md`). La voce nel manifest di dipendenze del core resta a merge
+  owner. La vendorizzazione (opzione B) è solo un'alternativa documentata.
   Senza il package, il ponte non parte (`PACKAGE_MISSING`) e Pickfair funziona identico.
 - **Packaging**: `control_api/` non è in `pyproject.toml`/`pickfair.spec`; serve anche `BUILD_SHA`
   scritto dal packaging, altrimenti la Control API rifiuta di partire (`GIT_SHA_UNRESOLVABLE`).
@@ -104,9 +106,13 @@ runtime sotto letture continue resta sotto 50 ms.
 ```bash
 git checkout -b <branch> origin/main          # main = ada40765 o successivo
 git apply --check core_bridge.patch && git apply core_bridge.patch
-pip install -e <checkout di pickfair-mcp->    # oppure l'opzione scelta al §7
+pip install --no-deps --no-index --require-hashes --find-links <dir wheel> -r requirements-control-api.txt
 python -m pytest -q tests/control_api
 python scripts/run_mutation_guardrails.py --module control_api.views --module control_api.launcher --fail-under 100
 # E2E dal repository MCP:
 PICKFAIR_CORE_PATH=<checkout core> PICKFAIR_CORE_PYTHON=<python del core> python -m pytest -q tests/crossrepo
 ```
+
+Rollback: `git apply -R core_bridge.patch` (oppure revert del commit d'integrazione) e
+`pip uninstall pickfair-control-api`. Con il flag `--control-api-port` assente il comportamento del
+core è identico anche con la patch applicata.

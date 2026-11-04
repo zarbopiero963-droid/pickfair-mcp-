@@ -163,12 +163,13 @@ def test_concurrent_processes_never_read_a_partial_token(tmp_path: Path) -> None
     reader = (
         "import sys, re\n"
         "from pickfair_mcp.auth.token_file import LocalTokenFile, TokenFileError\n"
-        "f = LocalTokenFile(sys.argv[1]); bad = 0\n"
+        "f = LocalTokenFile(sys.argv[1]); bad = 0; ok = 0; seen = set()\n"
         "for _ in range(2000):\n"
         "    try:\n"
-        "        f.read()\n"
+        "        seen.add(f.read()); ok += 1\n"
         "    except TokenFileError as e:\n"
         "        bad += 1; print(e.code)\n"
+        "print('READS', ok, 'DISTINCT', len(seen))\n"
         "print('BAD', bad)\n"
     )
     procs = [
@@ -183,4 +184,24 @@ def test_concurrent_processes_never_read_a_partial_token(tmp_path: Path) -> None
     outputs = [p.communicate(timeout=120)[0] for p in procs]
     assert all(out.strip().endswith("BAD 0") for out in outputs), outputs
     assert store.rotations >= 20, store.rotations  # sovrapposizione reale, non sequenziale
+    for out in outputs:  # ogni lettore ha fatto TUTTE le letture e ha visto token diversi
+        reads, distinct = (
+            int(x) for x in out.split("READS ")[1].split("\n")[0].split(" DISTINCT ")
+        )
+        assert reads == 2000
+        assert distinct >= 2, out  # la rotazione è stata osservata davvero durante le letture
     assert [p.name for p in secure.iterdir()] == ["api.token"]
+
+
+def test_generated_store_writes_nothing_until_published(tmp_path: Path) -> None:
+    from pickfair_control_api.tokens import generate_token_store
+
+    store = generate_token_store()
+    assert list(tmp_path.iterdir()) == []
+    path = tmp_path / "api.token"
+    store.publish(path)
+    token = path.read_text()
+    assert TOKEN_RE.fullmatch(token) and store.accepts(token.encode()) and mode(path) == 0o600
+    assert [p.name for p in tmp_path.iterdir()] == ["api.token"]
+    store.publish(path)  # ripubblicazione dello stesso token: idempotente
+    assert path.read_text() == token

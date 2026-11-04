@@ -244,3 +244,24 @@ def test_almost_equal_tokens_are_rejected(api: Any) -> None:
     token = token_path.read_text()
     for wrong in (token[:-1] + ("A" if token[-1] != "A" else "B"), token[:-1], token + "A"):
         assert request(server.port, "GET", "/v1/status", token=wrong)[0] == 401
+
+
+def test_rotation_401s_are_legitimate_and_old_tokens_are_never_accepted(api: Any) -> None:
+    """Distinzione: un 401 con un token appena ruotato è LEGITTIMO (si risolve rileggendo il file);
+    un token revocato accettato dopo la fine della rotazione sarebbe un DIFETTO di sicurezza."""
+    server, store, token_path, _p = api
+    issued: list[str] = [token_path.read_text()]
+    legit_401 = recovered = 0
+    for _ in range(15):
+        stale = token_path.read_text()
+        store.rotate(token_path)
+        issued.append(token_path.read_text())
+        status = request(server.port, "GET", "/v1/status", token=stale)[0]
+        if status == 401:
+            legit_401 += 1
+            if request(server.port, "GET", "/v1/status", token=token_path.read_text())[0] == 200:
+                recovered += 1
+    assert legit_401 == 15 and recovered == 15  # ogni 401 si risolve con la rilettura
+    for old in issued[:-1]:  # sicurezza: nessun token revocato è più accettato
+        assert request(server.port, "GET", "/v1/status", token=old)[0] == 401
+    assert request(server.port, "GET", "/v1/status", token=issued[-1])[0] == 200

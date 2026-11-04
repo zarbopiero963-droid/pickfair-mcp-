@@ -49,6 +49,11 @@ def issue_token_file(path: Path) -> str:
     return token
 
 
+def generate_token_store() -> TokenStore:
+    """Token nuovo SOLO in memoria: nessun file finché il server non è pronto (vedi `publish`)."""
+    return TokenStore(_new_token())
+
+
 def publish_fresh_token(path: Path) -> TokenStore:
     """Avvio o riavvio: token NUOVO pubblicato atomicamente, anche se il file esiste già.
 
@@ -79,6 +84,21 @@ class TokenStore:
 
     def __repr__(self) -> str:
         return "TokenStore(<redacted>)"
+
+    def publish(self, path: Path) -> None:
+        """Scrive il token CORRENTE in `path` (0600, sostituzione atomica, symlink sostituito)."""
+        with self._lock:
+            token = self._valid[-1].decode("ascii")
+        tmp = path.with_name(f".{path.name}.{secrets.token_hex(8)}.tmp")
+        try:
+            _write_exclusive(tmp, token)
+            os.replace(tmp, path)
+        except BaseException:
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
+            raise
 
     def accepts(self, presented: bytes) -> bool:
         with self._lock:

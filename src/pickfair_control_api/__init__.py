@@ -17,7 +17,12 @@ from pickfair_control_api.contract import CAPABILITIES, CONTRACT_VERSION, schema
 # Versione della distribuzione = versione del contratto servito (pin esatto lato core).
 __version__ = "1.1.0"
 from pickfair_control_api.server import ControlApiConfigError, ControlApiServer
-from pickfair_control_api.tokens import TokenStore, issue_token_file, publish_fresh_token
+from pickfair_control_api.tokens import (
+    TokenStore,
+    generate_token_store,
+    issue_token_file,
+    publish_fresh_token,
+)
 
 __all__ = [
     "CAPABILITIES",
@@ -25,6 +30,7 @@ __all__ = [
     "ControlApiConfigError",
     "ControlApiServer",
     "TokenStore",
+    "generate_token_store",
     "issue_token_file",
     "publish_fresh_token",
     "schema_hash",
