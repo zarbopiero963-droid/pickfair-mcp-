@@ -152,3 +152,18 @@ def test_cashout_barriers_are_counted_in_status() -> None:
     eng["queues"]["cashout_barriers"] = -1
     with pytest.raises(UpstreamInvalidResponse):
         parse_status(raw(bodies.status(engine=eng)))
+
+
+def test_duplicate_checkpoint_stages_are_rejected() -> None:
+    cp = {
+        "by_stage": [
+            {"stage": "CYCLE_BLOCKED", "count": 1},
+            {"stage": "CYCLE_BLOCKED", "count": 2},
+        ],
+        "cycle_ambiguous": 0,
+        "submit_ambiguous": 0,
+    }
+    with pytest.raises(UpstreamInvalidResponse):
+        parse_reconciliation_status(
+            raw(bodies.reconciliation(settlement={**SETTLEMENT, "checkpoints": cp}))
+        )

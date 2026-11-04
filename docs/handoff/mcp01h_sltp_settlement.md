@@ -42,6 +42,7 @@ lo stato reale (NOT_ARMED) e la forma di F-02 è coperta da un test.
 | `tests/control_api/` | 156 passed |
 | Mutazioni `control_api` (`--fail-under 100`) | 62/62 KILLED, GATE PASS |
 | E2E fra processi (`tests/crossrepo`) | 12/12, su 3 esecuzioni |
+| Mutanti critici MCP (catalogo completo) | 159/159 sul commit finale: la campagna completa ha dato 158/159 (sopravvissuto T06, «fasi del checkpoint duplicate accettate», lacuna reale dei test); aggiunto il test mancante, T06 rieseguito e ucciso |
 | Regressione completa del core (`0a894c4d`, `pytest -n 4 tests`) | 11937 passed, 0 failed, 16 skipped, 56 xfailed |
 
 ## 5. Verifica e rollback
