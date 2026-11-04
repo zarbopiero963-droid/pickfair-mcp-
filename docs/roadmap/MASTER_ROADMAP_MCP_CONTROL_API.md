@@ -43,8 +43,8 @@ Punto di partenza misurato (03/11/2026):
 | Tool MCP integrati con il core reale | **0/25** |
 | Tool MCP esposti (solo adapter simulato) | 1/25 (`get_meta`) |
 | Route Control API esistenti nel core | **0/25** |
-| Capacità censite nel catalogo v0.1 | 222, di cui 220 applicabili (il catalogo cresce con PF-MCP-001) |
-| Capacità COMPLETE (3 livelli PASS) | **0/220** |
+| Capacità censite nel catalogo v0.2 | 228, di cui 225 applicabili (3 duplicati marcati; il catalogo cresce con PF-MCP-001) |
+| Capacità COMPLETE (3 livelli PASS) | **0/225** |
 
 ## 2. Principi vincolanti (riepilogo; fonte: contratto consolidato e #426)
 

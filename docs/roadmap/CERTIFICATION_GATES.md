@@ -50,11 +50,12 @@ mancante. Un dossier con sole prove mock vale al più C-SIM-MCP.
 
 ## 5. Le cinque dimensioni del 100 %
 
-Denominatore: CAP applicabili del catalogo (v0.1: 220), non i 25 tool.
+Denominatore: CAP applicabili del catalogo (v0.2: 225), non i 25 tool. Il denominatore è
+preliminare: diventa definitivo solo dopo l'inventario completo (PF-MCP-001) e una verifica indipendente.
 
 | Dimensione | Formula | Oggi |
 |---|---|---|
-| D1 Capacità applicabili esposte via Control API/MCP reali | CAP con L2 = SI / CAP applicabili | 0/220 |
+| D1 Capacità applicabili esposte via Control API/MCP reali | CAP con L2 = SI / CAP applicabili | 0/225 (12 con catena su branch `HRN`, non contano) |
 | D2 Contratti implementati e testati | contratti con Q1–Q3 PASS a L4 / contratti richiesti | 0 (1 solo a L2) |
 | D3 Operazioni sensibili con test di sicurezza | operazioni sensibili con campagna D PASS / operazioni sensibili | 0 |
 | D4 Scenari critici crash/recovery | scenari campagna C PASS / scenari obbligatori | 0 |

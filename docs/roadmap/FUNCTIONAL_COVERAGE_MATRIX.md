@@ -1,6 +1,6 @@
 # FUNCTIONAL COVERAGE MATRIX — catalogo delle capacità Pickfair
 
-Catalogo **v0.1-DRAFT** · 03/11/2026 · baseline Pickfair-nogui `7a70062`, pickfair-mcp- `36bbef1`.
+Catalogo **v0.2-DRAFT** · 04/11/2026 (revisione v0.2 in §6) · baseline Pickfair-nogui `7a70062`, pickfair-mcp- `36bbef1`.
 
 Catena tracciata: **CORE → CONTROL API → MCP → TEST → EVIDENZA → CERTIFICAZIONE**.
 Gli ID `CAP-<AREA>-NN` sono **permanenti**: una capacità non si cancella e non si rinumera; si chiude solo
@@ -23,7 +23,9 @@ con uno stato motivato (`RETIRED`, `OUT_OF_SCOPE`) approvato dall'owner.
 
 - **L1 Core:** `P` presente, non certificato · `F` fix mergiato su main, certificazione #586 da registrare ·
   `Pz` parziale · `A` assente · `V` da localizzare (primo passo della scheda) · `—` non applicabile.
-- **L2 API/MCP:** `NO` · `SIM` solo adapter simulato (non vale come integrazione) · `SI` reale.
+- **L2 API/MCP:** `NO` · `SIM` solo adapter simulato (non vale come integrazione) · `HRN` catena reale
+  MCP → Control API → core verificata su branch con trasporto HTTP di test (harness; MCP-01d assente):
+  non è prodotto, non è mergiata · `SI` reale e di prodotto.
 - **L3 Certificazione:** `NR` NOT_RUN · `PASS` · `FAIL` · `BLK` BLOCKED.
 
 Una capacità è **COMPLETA** solo con L1, L2 e L3 tutti PASS / SI dove applicabili. Oggi: **0 complete**.
@@ -61,10 +63,10 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 
 | ID | Capacità | Core: componente | Endpoint | Tool MCP | Schede | Stato | L1/L2/L3 |
 |---|---|---|---|---|---|---|---|
-| CAP-RT-01 | Stato runtime STOPPED/ACTIVE/PAUSED/LOCKDOWN | `RuntimeController.get_status`, `RuntimeMode` | `GET /v1/status` | `get_status` | 008 · MCP-02a | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-RT-01 | Stato runtime STOPPED/ACTIVE/PAUSED/LOCKDOWN | `RuntimeController.get_status`, `RuntimeMode` | `GET /v1/status` | `get_status` | 008 · MCP-02a | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-RT-02 | Desk mode NORMAL/EXPANSION/DEFENSE/LOCKDOWN | `DeskMode`, `core/risk_desk.py` | `GET /v1/status` | `get_status` | 008, 011 | NOT_IMPLEMENTED | P/NO/NR |
-| CAP-RT-03 | Readiness SIM | `RuntimeController` | `GET /v1/status` | `get_status` | 008 · MCP-02a | NOT_IMPLEMENTED | Pz/NO/NR |
-| CAP-RT-04 | Readiness LIVE e blocker | `evaluate_live_readiness`, `is_live_allowed` | `GET /v1/status` | `get_status` | 008 · MCP-02a | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-RT-03 | Readiness SIM | `RuntimeController` | `GET /v1/status` | `get_status` | 008 · MCP-02a | NOT_IMPLEMENTED | Pz/HRN/NR |
+| CAP-RT-04 | Readiness LIVE e blocker | `evaluate_live_readiness`, `is_live_allowed` | `GET /v1/status` | `get_status` | 008 · MCP-02a | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-RT-05 | Readiness MCP-aware (Telegram non blocker se l'ingresso è MCP) | — | `GET /v1/status` | `get_status` | 008 · PF-API-0 | CORE_BLOCKED | A/NO/NR |
 | CAP-RT-06 | Stato del deploy gate | `get_deploy_gate_status` | `GET /v1/status` | `get_status` | 008 | NOT_IMPLEMENTED | P/NO/NR |
 | CAP-RT-07 | Salute I/O e diagnostica runtime | `runtime_io_snapshot`, `observability/` | `GET /v1/status` | `get_status` | 008, 033 | NOT_IMPLEMENTED | P/NO/NR |
@@ -77,7 +79,7 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 
 | ID | Capacità | Core: componente | Endpoint | Tool MCP | Schede | Stato | L1/L2/L3 |
 |---|---|---|---|---|---|---|---|
-| CAP-MOD-01 | Lettura modalità di esecuzione effettiva | `get_effective_execution_mode` | `GET /v1/status` | `get_status` | 008, 032 | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-MOD-01 | Lettura modalità di esecuzione effettiva | `get_effective_execution_mode` | `GET /v1/status` | `get_status` | 008, 032 | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-MOD-02 | Lettura modalità richiesta / transizione in corso | — | `GET /v1/status` | `get_status` | 032 | CORE_BLOCKED | A/NO/NR |
 | CAP-MOD-03 | Lettura asse dati (Delayed / Live feed) separato dall'esecuzione | `BetfairConfig.app_key_delayed/app_key_live` | `GET /v1/status` | `get_status` | 032 | CORE_BLOCKED | Pz/NO/NR |
 | CAP-MOD-04 | Cambio SIM↔LIVE su comando owner | `set_simulation_mode` | `POST /v1/mode` | `set_mode` | 019, 032 · MCP-03b | NOT_IMPLEMENTED | P/NO/NR |
@@ -126,7 +128,7 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | CAP-ORD-15 | Ordini chiusi | `listClearedOrders` (sottoinsieme LIVE) | `GET /v1/orders` | `list_orders` | 013 · MCP-02d | NOT_IMPLEMENTED | Pz/NO/NR |
 | CAP-ORD-16 | Rivalidazione della quota prima dell'invio (PF-OD12-04) | miglior prezzo dinamico **non implementato** | `POST /v1/orders` | `place_order` | 016 | CORE_BLOCKED | A/NO/NR |
 | CAP-ORD-17 | Fondi insufficienti = blocco, mai ridimensionamento (PF-EXEC-04) | gate fondi Q10 | `POST /v1/orders` | `place_order` | 016 | NOT_IMPLEMENTED | Pz/NO/NR |
-| CAP-ORD-18 | Rifiuto sotto `min_stake` e sopra `max_single_bet` | `stake_sotto_min_stake`, decisione 17/10 | `POST /v1/preview` | `preview_order` | 016, 012 | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-ORD-18 | Rifiuto sotto `min_stake` e sopra `max_single_bet` | `stake_sotto_min_stake`, decisione 17/10 | `POST /v1/preview` | `preview_order` | 016, 012 | RETIRED (duplicato di CAP-BKR-07 + CAP-BKR-08, revisione v0.2) | P/NO/NR |
 | CAP-ORD-19 | Rollback di un quick bet | `QUICK_BET_ROLLBACK_*` | (interno) | — | 016, 020 | NOT_IMPLEMENTED | P/NO/NR |
 | CAP-ORD-20 | MANUAL a doppia conferma | assente | `POST /v1/preview` + `POST /v1/orders` | `preview_order`, `place_order` | 036 · MCP-04c | CORE_BLOCKED | A/NO/NR |
 | CAP-ORD-21 | Ingresso automatico (principal automation) | — | `POST /v1/orders` | `place_order` | 034 · MCP-04f | NOT_IMPLEMENTED | —/NO/NR |
@@ -206,6 +208,8 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | CAP-ROS-11 | Allocazione del capitale per tavolo | MM Roserpina | `GET /v1/exposure` | `get_exposure` | 011, 012 | NOT_IMPLEMENTED | V/NO/NR |
 | CAP-ROS-12 | Debito di recovery persistente dopo crash | F-10 (#599) | `GET /v1/exposure` | `get_exposure` | 011, 020 | NOT_IMPLEMENTED | F/NO/NR |
 | CAP-ROS-13 | Equity e bankroll Roserpina | `docs/roserpina_bankroll_equity.md` | `GET /v1/account` | `get_account` | 012 | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-ROS-14 | Tetto all'inseguimento del recovery | `max_recovery_chase_abs` | `GET/PATCH /v1/config` | config | 011, 014 | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-ROS-15 | Auto-trade MM ed esecutore di ciclo (ingressi automatici del ciclo Roserpina) | `AUTO_TRADE_MM_RESULT`, `_last_cycle_executor_result` | `GET /v1/status` (stato) | `get_status` | 011, 025 | NOT_IMPLEMENTED | P/NO/NR |
 
 ### 2.10 BKR — Bankroll, Money Management, limiti (17)
 
@@ -228,6 +232,9 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | CAP-BKR-15 | Max win | `max_win`, `max_win_warning_only` | idem | idem | 012 | NOT_IMPLEMENTED | P/NO/NR |
 | CAP-BKR-16 | Cap opzionali OFF di default, valore invalido = fail-closed | `RoserpinaConfig` Optional | `GET /v1/config` | `get_config` | 012, 014 | NOT_IMPLEMENTED | Pz/NO/NR |
 | CAP-BKR-17 | Sincronizzazione del bankroll | `BANKROLL_SYNC_RESULT` | `GET /v1/account` | `get_account` | 012 | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-BKR-18 | Guardia overround del book (warning / blocco) | `book_warning`, `book_block` | `POST /v1/preview` | `preview_order` | 012, 036 | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-BKR-19 | Quota minima ammessa | `min_price` | `POST /v1/preview` | `preview_order` | 012, 016 | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-BKR-20 | Epsilon di profitto (soglia di green) | `profit_epsilon`, `profit_epsilon_enabled` | `GET/PATCH /v1/config` | config | 012, 018 | NOT_IMPLEMENTED | P/NO/NR |
 
 ### 2.11 CFG — Configurazioni (10)
 
@@ -253,13 +260,13 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | CAP-STR-03 | Versionamento, priorità, conflitti | assente | RC-09 | — | 015 | CORE_BLOCKED | A/NO/NR |
 | CAP-STR-04 | Parametri e filtri | assente | RC-09 | — | 015 | CORE_BLOCKED | A/NO/NR |
 | CAP-STR-05 | Cap di esposizione per strategia (P06, rinviato) | assente | — | — | 015 | CORE_BLOCKED | A/NO/NR |
-| CAP-SIG-01 | Ricezione segnali Telegram | `telegram_*` | — | — | 010 | OUT_OF_SCOPE (Telegram sospeso, #426) | P/NO/NR |
+| CAP-SIG-01 | Ricezione segnali Telegram | `telegram_*` | — | — | 010 | OWNER_BLOCKED (Telegram SOSPESO, non eliminato: #426, contratto consolidato) | P/NO/NR |
 | CAP-SIG-02 | Esito segnale (approvato / rifiutato) in lettura | `SIGNAL_APPROVED/REJECTED` | RC-10 | — | 010, 033 | OWNER_BLOCKED (K3) | P/NO/NR |
 | CAP-SIG-03 | Dedupe dei segnali | `core/signal_dedupe.py` | — | — | 010 | NOT_IMPLEMENTED | P/NO/NR |
 | CAP-SIG-04 | Coda dei segnali | `core/signal_queue.py` | RC-10 | — | 010 | OWNER_BLOCKED (K3) | P/NO/NR |
 | CAP-SIG-05 | Origine del segnale / provenienza | PF-API-0 | `GET /v1/audit/{id}` | `get_audit_trail` | 010, 007 | CORE_BLOCKED | Pz/NO/NR |
-| CAP-SIG-06 | Gestione parser personalizzato | `custom_parser*` | — | — | — | OUT_OF_SCOPE (Telegram sospeso) | P/NO/NR |
-| CAP-SIG-07 | Ingresso automatico da servizi esterni | OWNER-MCP-AUTO-ORDER-01 | `POST /v1/orders` | `place_order` | 034 · MCP-04f | NOT_IMPLEMENTED | —/NO/NR |
+| CAP-SIG-06 | Gestione parser personalizzato | `custom_parser*` | — | — | — | OWNER_BLOCKED (sospeso con Telegram, non eliminato) | P/NO/NR |
+| CAP-SIG-07 | Ingresso automatico da servizi esterni | OWNER-MCP-AUTO-ORDER-01 | `POST /v1/orders` | `place_order` | 034 · MCP-04f | RETIRED (duplicato di CAP-ORD-21, revisione v0.2) | —/NO/NR |
 
 ### 2.13 STP — STOP e barriere (10)
 
@@ -267,8 +274,8 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 |---|---|---|---|---|---|---|---|
 | CAP-STP-01 | PAUSE (nessun nuovo ordine, niente cancel, niente cashout) | `pause` | `POST /v1/stop` | `stop` | 019 · MCP-05a | NOT_IMPLEMENTED | P/NO/NR |
 | CAP-STP-02 | STOP (blocco + cancel unmatched pertinenti + cashout pertinenti) | `stop`, PR37 | `POST /v1/stop` | `stop` | 019 · MCP-05a | NOT_IMPLEMENTED | Pz/NO/NR |
-| CAP-STP-03 | RISK_STOP persistente | `risk_stop`, `persist_risk_stop` | `POST /v1/stop` | `stop` | 019 | NOT_IMPLEMENTED | P/NO/NR |
-| CAP-STP-04 | EMERGENCY | `emergency_stop` | `POST /v1/stop` | `stop` (owner) | 019 · MCP-05a | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-STP-03 | RISK_STOP persistente | `risk_stop`, `persist_risk_stop` | `POST /v1/stop` | `stop` | 019 | NOT_IMPLEMENTED | P/HRN/NR |
+| CAP-STP-04 | EMERGENCY | `emergency_stop` | `POST /v1/stop` | `stop` (owner) | 019 · MCP-05a | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-STP-05 | RESUME solo dopo nuova readiness completa | `resume` | `POST /v1/resume` | `resume` (owner) | 019 · MCP-05a | NOT_IMPLEMENTED | P/NO/NR |
 | CAP-STP-06 | Reset di RISK_STOP / EMERGENCY | `reset_risk_stop`, `reset_emergency` | `POST /v1/resume` (estensione) | `resume` | 019 | OWNER_BLOCKED (K3) | P/NO/NR |
 | CAP-STP-07 | Lockdown forzato | `force_lockdown` | `POST /v1/stop` | `stop` | 019 | NOT_IMPLEMENTED | P/NO/NR |
@@ -280,16 +287,17 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 
 | ID | Capacità | Core: componente | Endpoint | Tool MCP | Schede | Stato | L1/L2/L3 |
 |---|---|---|---|---|---|---|---|
-| CAP-REC-01 | Stato della riconciliazione | `ReconciliationEngine` | `GET /v1/reconciliation/status` | `get_reconciliation_status` | 008 · MCP-02a | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-REC-01 | Stato della riconciliazione | `ReconciliationEngine` | `GET /v1/reconciliation/status` | `get_reconciliation_status` | 008 · MCP-02a | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-REC-02 | Riconciliazione su comando, via runtime | idem | `POST /v1/reconcile` | `reconcile` | 017 · MCP-05c | NOT_IMPLEMENTED | P/NO/NR |
-| CAP-REC-03 | Esito del recovery blocca ACTIVE | F-09 (#597) | `GET /v1/status` | `get_status` | 020 | NOT_IMPLEMENTED | F/NO/NR |
-| CAP-REC-04 | Ordini ghost all'avvio persistiti | F-08 (#594) | `GET /v1/reconciliation/status` | idem | 020 | NOT_IMPLEMENTED | F/NO/NR |
-| CAP-REC-05 | Coda di ambiguità (`RECONCILE_AMBIGUITY_ENQUEUED`) | reconciliation | `GET /v1/operations?status=pending` | `list_pending_operations` | 017, 022 | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-REC-03 | Esito del recovery blocca ACTIVE | F-09 (#597) | `GET /v1/status` | `get_status` | 020 | NOT_IMPLEMENTED | F/HRN/NR |
+| CAP-REC-04 | Ordini ghost all'avvio persistiti | F-08 (#594) | `GET /v1/reconciliation/status` | idem | 020 | NOT_IMPLEMENTED | F/HRN/NR |
+| CAP-REC-05 | Coda di ambiguità (`RECONCILE_AMBIGUITY_ENQUEUED`) | reconciliation | `GET /v1/operations?status=pending` | `list_pending_operations` | 017, 022 | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-REC-06 | Settlement trattenuti | `reconcile_held_settlements` | `POST /v1/reconcile` | `reconcile` | 017 | NOT_IMPLEMENTED | P/NO/NR |
-| CAP-REC-07 | Stato di recovery dopo crash | `core/state_recovery.py` | `GET /v1/reconciliation/status` | idem | 020 | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-REC-07 | Stato di recovery dopo crash | `core/state_recovery.py` | `GET /v1/reconciliation/status` | idem | 020 | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-REC-08 | Durabilità SIM (broker e DB convergono dopo kill) | PR34 | — | — | 020, 026 | CORE_BLOCKED | Pz/NO/NR |
 | CAP-REC-09 | Journal MCP → `get_operation` dopo riavvio | MCP | `GET /v1/operations/{id}` | `get_operation` | 020 · MCP-05c | NOT_IMPLEMENTED | —/SIM/NR |
 | CAP-REC-10 | Saga/outbox atomiche (PR33, BLOCKED_ENV) | PR33 | — | — | 020 | CORE_BLOCKED | V/NO/NR |
+| CAP-REC-11 | Registro hedge inaffidabile segnalato (nessun rilascio per mercato finché resta) | `HEDGE_REGISTRY_UNRELIABLE`, `_hedged_markets_unreliable` | `GET /v1/reconciliation/status` | `get_reconciliation_status` | 008 · MCP-02a | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-SET-01 | Settlement exchange autorevole | SET-01 (#586) | `GET /v1/orders` (cleared) | `list_orders` | 013 | CORE_BLOCKED | Pz/NO/NR |
 | CAP-SET-02 | Storico P/L verificabile | SET-02 (#586) | RC-11 o `GET /v1/orders` | `list_orders` | 013 | CORE_BLOCKED | Pz/NO/NR |
 | CAP-SET-03 | Settlement incerto segnalato | `SETTLEMENT_RECONCILIATION_UNCERTAIN` | `GET /v1/reconciliation/status` | idem | 013 | NOT_IMPLEMENTED | P/NO/NR |
@@ -308,7 +316,7 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | CAP-AUD-08 | Log del broker simulato | `simulation_broker` | RC-12 | idem | 033 | OWNER_BLOCKED | V/NO/NR |
 | CAP-AUD-09 | Eventi di autenticazione/autorizzazione della Control API | (nuovo) | RC-12 | idem | 033, 005 | CORE_BLOCKED | A/NO/NR |
 | CAP-AUD-10 | Log MCP (stderr, campi in allowlist) | MCP `audit.py` | — | — | 007 | NOT_IMPLEMENTED | —/SIM/NR |
-| CAP-AUD-11 | Traccia end-to-end request → bet_id | PR47 | `GET /v1/audit/{id}` | `get_audit_trail` | 007 | CORE_BLOCKED | Pz/NO/NR |
+| CAP-AUD-11 | Traccia end-to-end request → bet_id | PR47 | `GET /v1/audit/{id}` | `get_audit_trail` | 007 | RETIRED (duplicato di CAP-MET-07, revisione v0.2) | Pz/NO/NR |
 | CAP-AUD-12 | Esportazione autorizzata e redatta | (nuovo) | RC-12 | — | 033 | OWNER_BLOCKED | A/NO/NR |
 | CAP-AUD-13 | Stato di test e certificazioni | ledger #606 | — | — | 037 | CORE_BLOCKED (#606 aperta) | A/NO/NR |
 | CAP-AUD-14 | Regole di anomalia e probe | `observability/` | `GET /v1/status` | `get_status` | 033 · PR20 | NOT_IMPLEMENTED | P/NO/NR |
@@ -343,30 +351,31 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | CAP-LIV-02 | Prove LIVE su limiti di campagna | — | — | — | MCP-06b | OWNER_BLOCKED | —/NO/NR |
 | CAP-LIV-03 | REAL-EXECUTION certification (Delayed key, ordini reali) | 27/10 | — | — | — | OWNER_BLOCKED (GO per caso) | —/NO/NR |
 
-## 3. Conteggi del catalogo v0.1
+## 3. Conteggi del catalogo v0.2
 
-| Area | Capacità | NOT_IMPLEMENTED | CORE_BLOCKED | OWNER_BLOCKED | OUT_OF_SCOPE |
-|---|---:|---:|---:|---:|---:|
-| MET | 16 | 9 | 6 | 1 | 0 |
-| RT | 11 | 7 | 1 | 3 | 0 |
-| MOD | 11 | 4 | 5 | 2 | 0 |
-| MKT | 11 | 6 | 4 | 1 | 0 |
-| ORD | 22 | 18 | 4 | 0 | 0 |
-| DUT | 15 | 9 | 6 | 0 | 0 |
-| CSH | 20 | 13 | 7 | 0 | 0 |
-| SLT | 7 | 5 | 2 | 0 | 0 |
-| ROS | 13 | 8 | 1 | 4 | 0 |
-| BKR | 17 | 13 | 4 | 0 | 0 |
-| CFG | 10 | 6 | 4 | 0 | 0 |
-| STR/SIG | 12 | 2 | 6 | 2 | 2 |
-| STP | 10 | 8 | 1 | 1 | 0 |
-| REC/SET | 13 | 9 | 4 | 0 | 0 |
-| AUD | 15 | 2 | 5 | 8 | 0 |
-| SEC | 11 | 6 | 3 | 2 | 0 |
-| REL/LIV | 8 | 2 | 3 | 3 | 0 |
-| **Totale** | **222** | **127** | **66** | **27** | **2** |
+| Area | Capacità | NOT_IMPLEMENTED | CORE_BLOCKED | OWNER_BLOCKED | RETIRED (duplicati) | OUT_OF_SCOPE |
+|---|---:|---:|---:|---:|---:|---:|
+| MET | 16 | 9 | 6 | 1 | 0 | 0 |
+| RT | 11 | 7 | 1 | 3 | 0 | 0 |
+| MOD | 11 | 4 | 5 | 2 | 0 | 0 |
+| MKT | 11 | 6 | 4 | 1 | 0 | 0 |
+| ORD | 22 | 17 | 4 | 0 | 1 | 0 |
+| DUT | 15 | 9 | 6 | 0 | 0 | 0 |
+| CSH | 20 | 13 | 7 | 0 | 0 | 0 |
+| SLT | 7 | 5 | 2 | 0 | 0 | 0 |
+| ROS | 15 | 10 | 1 | 4 | 0 | 0 |
+| BKR | 20 | 16 | 4 | 0 | 0 | 0 |
+| CFG | 10 | 6 | 4 | 0 | 0 | 0 |
+| STR/SIG | 12 | 1 | 6 | 4 | 1 | 0 |
+| STP | 10 | 8 | 1 | 1 | 0 | 0 |
+| REC/SET | 14 | 10 | 4 | 0 | 0 | 0 |
+| AUD | 15 | 2 | 4 | 8 | 1 | 0 |
+| SEC | 11 | 6 | 3 | 2 | 0 | 0 |
+| REL/LIV | 8 | 2 | 3 | 3 | 0 | 0 |
+| **Totale** | **228** | **131** | **65** | **29** | **3** | **0** |
 
-Denominatore applicabile v0.1 = 222 − 2 OUT_OF_SCOPE = **220**. COMPLETE = **0/220**.
+Denominatore applicabile v0.2 = 228 − 3 RETIRED (duplicati, ID conservati) − 0 OUT_OF_SCOPE = **225**. COMPLETE = **0/225**.
+Capacità con catena reale su branch (L2 = `HRN`): **12** — non contano come COMPLETE.
 
 Il catalogo è **incompleto per costruzione** (PF-MCP-001): mancano la GUI riga per riga (42 chiavi),
 le singole strategie del perimetro storico, lo streaming (gap #586), la sicurezza applicativa del core,
@@ -399,3 +408,27 @@ rappresentano correttamente la risorsa.
   genera; finché non esiste, questo file è la fonte.
 - Ogni modifica di stato porta: SHA dei due repository, fonte (issue/commento), autore, motivazione.
 - Una capacità obbligatoria non può passare a `OUT_OF_SCOPE` o `RETIRED` senza decisione owner citata.
+
+## 6. Revisione v0.2 (04/11/2026, direttiva tecnica post-roadmap §4)
+
+Metodo: estrazione automatica dei segnali di capacità dal core (`scripts/capability_drift.py` su
+Pickfair-nogui `7a70062`: 38 metodi pubblici del runtime, 60 eventi del bus, 42 campi di
+`RoserpinaConfig` = 140 segnali) e confronto voce per voce con il catalogo.
+
+| Esito | Voci | Decisione |
+|---|---|---|
+| Esclusioni riesaminate | CAP-SIG-01, CAP-SIG-06 | **OUT_OF_SCOPE annullato**: Telegram è SOSPESO, non eliminato («Telegram può essere rinviato… NON eliminato», contratto consolidato). Tornano nel denominatore come OWNER_BLOCKED |
+| Capacità mancanti aggiunte | CAP-BKR-18, CAP-BKR-19, CAP-BKR-20, CAP-ROS-14, CAP-ROS-15, CAP-REC-11 | presenti nel core (config e eventi) ma assenti dal catalogo v0.1 |
+| Duplicati | CAP-ORD-18 (= CAP-BKR-07 + CAP-BKR-08), CAP-AUD-11 (= CAP-MET-07), CAP-SIG-07 (= CAP-ORD-21) | RETIRED con ID conservato e rimando: la capacità resta contata una volta, nella voce indicata |
+| Segnali interni non capacità | 5 metodi `admission_*`, `*_controller_entries` | giustificati per iscritto nella mappa (`untracked`), coperti indirettamente |
+| Compatibilità con i contratti ratificati | CAP-MOD-10 («Live data con denaro fittizio») | resta OWNER_BLOCKED: vietato dal 07/10, la direttiva K1 non autorizza combinazioni vietate. Non escluso dal denominatore: lo esclude solo una decisione owner citata |
+
+Effetto sul denominatore: da 220 (v0.1) a **225** (v0.2). Il denominatore è salito, non sceso.
+
+**Controllo automatico di deriva.** `scripts/capability_drift.py --core <checkout Pickfair-nogui>`
+fallisce (exit 1) se il core espone un segnale nuovo non tracciato, se la mappa
+(`docs/roadmap/core_signal_map.json`) cita un CAP-ID inesistente, o se una voce della mappa non
+esiste più nel core. Analisi statica in sola lettura: non importa né esegue il core. Esito su
+`7a70062`: 140/140 segnali tracciati (135 mappati, 5 giustificati), exit 0.
+Limiti: copre metodi pubblici del runtime, eventi letterali del bus e campi Roserpina; non copre
+ancora GUI riga per riga, altri servizi, chiavi di `settings_service`, dossier B1 (#506).
