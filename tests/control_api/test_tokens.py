@@ -150,3 +150,37 @@ def test_publish_fresh_token_replaces_a_symlink_without_following_it(tmp_path: P
     publish_fresh_token(link)
     assert target.read_text() == "untouched"
     assert not link.is_symlink() and mode(link) == 0o600
+
+
+def test_concurrent_processes_never_read_a_partial_token(tmp_path: Path) -> None:
+    import subprocess
+    import sys
+
+    secure = tmp_path / "secure"
+    secure.mkdir(mode=0o700)
+    path = secure / "api.token"
+    store = TokenStore(issue_token_file(path))
+    reader = (
+        "import sys, re\n"
+        "from pickfair_mcp.auth.token_file import LocalTokenFile, TokenFileError\n"
+        "f = LocalTokenFile(sys.argv[1]); bad = 0\n"
+        "for _ in range(2000):\n"
+        "    try:\n"
+        "        f.read()\n"
+        "    except TokenFileError as e:\n"
+        "        bad += 1; print(e.code)\n"
+        "print('BAD', bad)\n"
+    )
+    procs = [
+        subprocess.Popen(
+            [sys.executable, "-c", reader, str(path)], stdout=subprocess.PIPE, text=True
+        )
+        for _ in range(3)
+    ]
+    # Le rotazioni continuano finché i lettori sono vivi: lettura e rotazione si sovrappongono.
+    while any(p.poll() is None for p in procs):
+        store.rotate(path)
+    outputs = [p.communicate(timeout=120)[0] for p in procs]
+    assert all(out.strip().endswith("BAD 0") for out in outputs), outputs
+    assert store.rotations >= 20, store.rotations  # sovrapposizione reale, non sequenziale
+    assert [p.name for p in secure.iterdir()] == ["api.token"]

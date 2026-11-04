@@ -173,8 +173,10 @@
         "README.md",
         "docs/contract_v1.md",
         "docs/handoff/control_api_core_bridge.md",
+        "docs/handoff/control_api_distribution.md",
         "docs/handoff/core_bridge.patch.sha256",
         "pyproject.toml",
+        "scripts/build_control_api_wheel.py",
         "scripts/critical_mutations.py",
         "src/pickfair_control_api/__init__.py",
         "src/pickfair_control_api/contract.py",
@@ -212,6 +214,7 @@
         "tests/unit/test_cli.py",
         "tests/unit/test_contract_descriptor.py",
         "tests/unit/test_contract_version.py",
+        "tests/unit/test_control_api_distribution.py",
         "tests/unit/test_status_models.py",
         "tests/unit/test_token_file.py"
       ]

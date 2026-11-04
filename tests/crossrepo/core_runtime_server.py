@@ -70,7 +70,12 @@ rc = RuntimeController(
     safe_mode=get_safe_mode_manager(),
 )
 started = rc.start(simulation_mode=True)
-code_sha = (CORE / "BUILD_SHA").read_text(encoding="ascii").strip()
+if (CORE / "BUILD_SHA").is_file():
+    code_sha = (CORE / "BUILD_SHA").read_text(encoding="ascii").strip()
+else:
+    from pickfair_control_api.contract import resolve_git_sha
+
+    code_sha = resolve_git_sha(CORE)
 
 
 def clock() -> float:
