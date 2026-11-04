@@ -964,6 +964,71 @@ MUTANTS: tuple[Mutant, ...] = (
         ((CK, "        if (value.get(name) is None) != (name in declared):", "        if False:"),),
     ),
     Mutant(
+        "T01",
+        "tavolo NOT_ARMED con importi SL/TP accettato",
+        ((MO, '        if self.state == "NOT_ARMED" and has_amount:', "        if False:"),),
+    ),
+    Mutant(
+        "T02",
+        "tavolo ARMED senza importi SL/TP accettato",
+        (
+            (
+                MO,
+                '        if self.state in ("ARMED", "TRIGGERED") and not has_amount:',
+                "        if False:",
+            ),
+        ),
+    ),
+    Mutant(
+        "T03",
+        "importo SL/TP negativo accettato",
+        (
+            (
+                MO,
+                'NON_NEGATIVE_DECIMAL_PATTERN = r"^(?:[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?)$"',
+                "NON_NEGATIVE_DECIMAL_PATTERN = DECIMAL_PATTERN",
+            ),
+        ),
+    ),
+    Mutant(
+        "T04",
+        "held in contrasto col dettaglio per esito accettato",
+        ((MO, "        if held != self.held:", "        if False:"),),
+    ),
+    Mutant(
+        "T05",
+        "esiti di settlement duplicati accettati",
+        (
+            (
+                MO,
+                '        if len(set(outcomes)) != len(outcomes):\n            raise ValueError("duplicate outcome")',
+                '        if False:\n            raise ValueError("duplicate outcome")',
+            ),
+        ),
+    ),
+    Mutant(
+        "T06",
+        "fasi del checkpoint duplicate accettate",
+        (
+            (
+                MO,
+                '        if len(set(stages)) != len(stages):\n            raise ValueError("duplicate stage")',
+                '        if False:\n            raise ValueError("duplicate stage")',
+            ),
+        ),
+    ),
+    Mutant(
+        "T07",
+        "parte del settlement nulla non dichiarata accettata",
+        (
+            (
+                MO,
+                '        if tuple(values) != SETTLEMENT_OPTIONAL_FIELDS:\n            raise ValueError("optional field list out of sync")\n        _check_unavailable(values, self.unavailable)',
+                '        if tuple(values) != SETTLEMENT_OPTIONAL_FIELDS:\n            raise ValueError("optional field list out of sync")',
+            ),
+        ),
+    ),
+    Mutant(
         "O01",
         "ordine AMBIGUOUS accettato come FAILED",
         (

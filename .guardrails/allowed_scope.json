@@ -390,6 +390,41 @@
         "tests/unit/test_registry_guard.py"
       ],
       "max_files": 41
+    },
+    "mcp01h-sltp-settlement": {
+      "issue": "mandato owner 04/11/2026 (GO chiusura MCP-01g e avanzamento) · decisione PF-FINISH-THE-PRODUCT-01",
+      "scheda": "MCP-01h — SL/TP per tavolo, settlement, barriere di cashout (contratto 1.5.0)",
+      "description": "Estensioni di get_exposure (SL/TP per tavolo), get_reconciliation_status (conteggi dei settlement) e get_status (barriere di cashout); sola lettura, nessuna route nuova; handoff della patch incrementale del core.",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "README.md",
+        "docs/contract_v1.md",
+        "docs/handoff/core_bridge_mcp01h.patch.sha256",
+        "docs/handoff/mcp01h_sltp_settlement.md",
+        "docs/roadmap/FUNCTIONAL_COVERAGE_MATRIX.md",
+        "docs/roadmap/INTEGRATION_INVENTORY.md",
+        "scripts/critical_mutations.py",
+        "src/pickfair_control_api/__init__.py",
+        "src/pickfair_control_api/contract.py",
+        "src/pickfair_control_api/contract_v1.json",
+        "src/pickfair_mcp/adapters/simulated.py",
+        "src/pickfair_mcp/contract/descriptor.py",
+        "src/pickfair_mcp/contract/descriptor_v1.json",
+        "src/pickfair_mcp/contract/models.py",
+        "src/pickfair_mcp/contract/version.py",
+        "tests/control_api/bodies.py",
+        "tests/crossrepo/core_runtime_server.py",
+        "tests/crossrepo/test_core_e2e.py",
+        "tests/e2e/test_stdio_subprocess.py",
+        "tests/integration/test_settlement_sltp_tools.py",
+        "tests/unit/test_contract_descriptor.py",
+        "tests/unit/test_contract_version.py",
+        "tests/unit/test_control_api_distribution.py",
+        "tests/unit/test_handshake.py",
+        "tests/unit/test_settlement_sltp_models.py",
+        "tests/unit/test_status_models.py"
+      ],
+      "max_files": 27
     }
   }
 }

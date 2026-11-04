@@ -298,6 +298,33 @@ for line in sys.stdin:
             ids=ids,
             open_bet_ids=sorted(c["bet_id"] for c in list(cands) + list(unattr)),
         )
+    elif cmd[0] == "SLTP_SETTLEMENT":
+        # Comando al CORE: tavolo con il meta SL/TP nella forma di F-02 (Claude D) e un settlement
+        # trattenuto nel registro dei settlement (DB reale).
+        rc.table_manager.activate(
+            table_id=3,
+            event_key="Juventus v Inter",
+            exposure=10.0,
+            market_id="1.234567",
+            selection_id="47972",
+            meta={
+                "event_name": "Juventus v Inter",
+                "customer_ref": "cref-secret-3",
+                "stake": 10.0,
+                "stop_loss_pct": 25.0,
+                "stop_loss": 2.5,
+                "take_profit_pct": 50.0,
+                "take_profit": 5.0,
+            },
+        )
+        rc.db._execute(
+            "INSERT INTO settlement_effects(settlement_key, outcome, table_id, event_key, "
+            "customer_ref, reservation_id, bet_id, market_id, pnl, instance_id, realized_applied, "
+            "recorded_at, "
+            "payload_json) VALUES ('e2e-s1', 'held', 3, 'Juventus v Inter', 'cref-secret-3', 'r', "
+            "'b', '1.234567', 1.5, 'i', 0, 1, '{}')"
+        )
+        reply(event="SLTP_SETTLEMENT")
     elif cmd[0] == "DIGEST":
         state["recording"] = False  # la misura stessa non deve contare come chiamata
         current = dict(server.request_counts()) if server is not None else {}

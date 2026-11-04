@@ -51,7 +51,9 @@ def recon_body(**overrides: Any) -> dict[str, Any]:
         "ghosts": {"ghost_orders": 0, "suspected_ghosts": 0, "unconfirmed_inflight": 0},
         "hedge_registry_unreliable": False,
         "recovery_state": {"unreadable": False, "persist_failed": False},
-        "unavailable": [],
+        # MCP-01h (1.5.0): settlement indisponibile nei corpi di questo modulo.
+        "settlement": None,
+        "unavailable": ["settlement"],
     }
     body.update(overrides)
     return body
@@ -209,7 +211,7 @@ def test_not_run_startup_has_no_reason() -> None:
 def test_reconciliation_unavailable_consistency() -> None:
     body = recon_body(recovery_state=None)
     assert reason_of(parse_reconciliation_status, raw(body)) == "SCHEMA_VIOLATION"
-    body["unavailable"] = ["recovery_state"]
+    body["unavailable"] = ["recovery_state", "settlement"]
     assert parse_reconciliation_status(raw(body)).recovery_state is None
 
 

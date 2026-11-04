@@ -45,8 +45,8 @@ def test_both_committed_copies_equal_the_generated_descriptor() -> None:
 
 def test_hash_and_version_are_shared() -> None:
     assert api_contract.schema_hash() == contract_schema_hash()
-    assert api_contract.CONTRACT_VERSION == SUPPORTED_CONTRACT_VERSION == "1.4.0"
-    assert COMPAT_MATRIX == {"1.4.0": frozenset({contract_schema_hash()})}
+    assert api_contract.CONTRACT_VERSION == SUPPORTED_CONTRACT_VERSION == "1.5.0"
+    assert COMPAT_MATRIX == {"1.5.0": frozenset({contract_schema_hash()})}
 
 
 def test_descriptor_covers_tools_errors_and_semantics() -> None:
@@ -481,3 +481,73 @@ def test_14_order_map_is_part_of_the_hash() -> None:
     d = build_contract_descriptor()
     assert d["semantics"]["orders"]["status_map"]["AMBIGUOUS"] == ["AMBIGUOUS"]
     assert d["semantics"]["orders"]["not_in_core"] == ["APPROVED", "CANCELLED", "SETTLED"]
+
+
+# ------------------------------------------------------------------ MCP-01h (contratto 1.5.0)
+
+HOSTILE_15 = [
+    (
+        "exposure",
+        parse_exposure,
+        bodies.exposure(tables=[bodies.table(1, sl_tp={**bodies.not_armed(), "state": "SAFE"})]),
+    ),
+    (
+        "exposure",
+        parse_exposure,
+        bodies.exposure(tables=[bodies.table(1, sl_tp={**bodies.not_armed(), "stop_loss": "-1"})]),
+    ),
+    (
+        "exposure",
+        parse_exposure,
+        bodies.exposure(
+            tables=[bodies.table(1, sl_tp={**bodies.not_armed(), "trailing": "ACTIVE"})]
+        ),
+    ),
+    (
+        "reconciliation_status",
+        parse_reconciliation_status,
+        bodies.reconciliation(settlement={**bodies.settlement(), "unrecorded_settlements": -1}),
+    ),
+    (
+        "reconciliation_status",
+        parse_reconciliation_status,
+        bodies.reconciliation(settlement={**bodies.settlement(), "customer_refs": ["x"]}),
+    ),
+    (
+        "reconciliation_status",
+        parse_reconciliation_status,
+        bodies.reconciliation(settlement={**bodies.settlement(), "sim_settlements": None}),
+    ),
+]
+
+
+@pytest.mark.parametrize(("name", "parse", "body"), HOSTILE_15, ids=range(len(HOSTILE_15)))
+def test_hostile_15_rejected_by_both_sides(name: str, parse: Any, body: Any) -> None:
+    assert not _mcp_accepts(parse, body)
+    assert not _api_accepts(name, body)
+
+
+# Regole fra campi solo-MCP di 1.5.0.
+MCP_ONLY_RULES_15 = [
+    (
+        "exposure",
+        parse_exposure,
+        bodies.exposure(tables=[bodies.table(1, sl_tp={**bodies.not_armed(), "stop_loss": "2"})]),
+    ),
+    (
+        "reconciliation_status",
+        parse_reconciliation_status,
+        bodies.reconciliation(
+            settlement={
+                **bodies.settlement(),
+                "effects": {"held": 3, "not_realized": 0, "by_outcome": []},
+            }
+        ),
+    ),
+]
+
+
+@pytest.mark.parametrize(("name", "parse", "body"), MCP_ONLY_RULES_15)
+def test_15_cross_field_rules_are_enforced_by_the_mcp(name: str, parse: Any, body: Any) -> None:
+    assert not _mcp_accepts(parse, body)
+    assert _api_accepts(name, body)

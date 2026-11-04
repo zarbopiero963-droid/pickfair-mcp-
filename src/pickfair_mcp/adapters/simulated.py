@@ -189,7 +189,7 @@ class SimulatedControlApiAdapter:
 _SCENARIO_BODIES: dict[Scenario, bytes] = {
     Scenario.COMPATIBLE: _encode(_meta()),
     Scenario.INCOMPATIBLE_MAJOR: _encode(_meta(contract_version="2.0.0")),
-    Scenario.UNSUPPORTED_MINOR: _encode(_meta(contract_version="1.5.0")),
+    Scenario.UNSUPPORTED_MINOR: _encode(_meta(contract_version="1.6.0")),
     Scenario.SCHEMA_HASH_MISMATCH: _encode(_meta(schema_hash="0" * 64)),
     Scenario.MISSING_META_CAPABILITY: _encode(_meta(capabilities=["GET /v1/status"])),
     Scenario.META_ONLY: _encode(_meta(capabilities=["GET /v1/meta"])),
@@ -292,6 +292,22 @@ def _reconciliation_body(scenario: StatusScenario, now: float) -> dict[str, Any]
         "ghosts": {"ghost_orders": 0, "suspected_ghosts": 0, "unconfirmed_inflight": 0},
         "hedge_registry_unreliable": False,
         "recovery_state": {"unreadable": False, "persist_failed": False},
+        "settlement": {
+            "unrecorded_settlements": 0,
+            "held_batches": 0,
+            "effects": {
+                "held": 0,
+                "not_realized": 0,
+                "by_outcome": [{"outcome": "APPLIED", "count": 2}],
+            },
+            "checkpoints": {
+                "by_stage": [{"stage": "NEXT_TRADE_SUBMIT_CONFIRMED", "count": 2}],
+                "cycle_ambiguous": 0,
+                "submit_ambiguous": 0,
+            },
+            "sim_settlements": 2,
+            "unavailable": [],
+        },
         "unavailable": [],
     }
     if scenario is StatusScenario.RECONCILIATION_REQUIRED:
@@ -391,6 +407,14 @@ def _table(table_id: int, **overrides: Any) -> dict[str, Any]:
         "selection_id": None,
         "current_exposure": 0.0,
         "loss_amount": 0.0,
+        "sl_tp": {
+            "state": "NOT_ARMED",
+            "stop_loss": None,
+            "take_profit": None,
+            "stop_loss_pct": None,
+            "take_profit_pct": None,
+            "trailing_stop_pct": None,
+        },
     }
     data.update(overrides)
     return data
@@ -407,6 +431,14 @@ def _exposure_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
                 market_id="1.200000001",
                 selection_id="47972",
                 current_exposure=40.0,
+                sl_tp={
+                    "state": "ARMED",
+                    "stop_loss": "10",
+                    "take_profit": "20",
+                    "stop_loss_pct": "25",
+                    "take_profit_pct": "50",
+                    "trailing_stop_pct": None,
+                },
             ),
             _table(2),
             _table(3),
@@ -530,7 +562,12 @@ def _engine() -> dict[str, Any]:
             "accepting": True,
             "seconds_since_last_dequeue": 2.0,
         },
-        "queues": {"cashout_inflight": 0, "cashout_uncertain": 0, "direct_unmatched": 0},
+        "queues": {
+            "cashout_inflight": 0,
+            "cashout_uncertain": 0,
+            "cashout_barriers": 0,
+            "direct_unmatched": 0,
+        },
         "modes": {
             "configured_execution_mode": "SIM",
             "simulation_flag": True,

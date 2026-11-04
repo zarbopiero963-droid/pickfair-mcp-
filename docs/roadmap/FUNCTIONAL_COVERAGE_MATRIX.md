@@ -173,7 +173,7 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | CAP-CSH-09 | P/L lordo e netto con commissione | `core/sl_tp_pnl.py`, F-01 | `POST /v1/preview` | `preview_order` | 035 | NOT_IMPLEMENTED | F/NO/NR |
 | CAP-CSH-10 | Liquidità, spread, slippage | `core/liquidity.py` | `POST /v1/preview` | `preview_order` | 035 | CORE_BLOCKED | Pz/NO/NR |
 | CAP-CSH-11 | L'hedge chiude davvero la posizione | F-06 (#600) | — | — | 035 | NOT_IMPLEMENTED | F/NO/NR |
-| CAP-CSH-12 | Hedge scritto nel ledger ordini | F-05 (#593) | — | — | 035 | NOT_IMPLEMENTED | F/NO/NR |
+| CAP-CSH-12 | Hedge scritto nel ledger ordini | F-05 (#593) | — | — | 035 · MCP-01h | NOT_IMPLEMENTED | F/HRN/NR |
 | CAP-CSH-13 | AMBIGUOUS cashout con riconciliazione, nessun secondo hedge cieco | PR45 | `GET /v1/operations/{id}` | `get_operation` | 035 · PR45 | CORE_BLOCKED | Pz/NO/NR |
 | CAP-CSH-14 | Protezione contro cashout duplicati | `CASHOUT_*`, identità | `POST /v1/cashout` | `cashout` | 035, 021 | NOT_IMPLEMENTED | V/NO/NR |
 | CAP-CSH-15 | Monitoraggio esposizione residua | `cashout_residual_handler.py` | `GET /v1/exposure` | `get_exposure` | 035, 012 | NOT_IMPLEMENTED | P/NO/NR |
@@ -192,7 +192,7 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | CAP-SLT-03 | Trailing persistente | idem, PR25 | idem | idem | 018 · PR25 | CORE_BLOCKED | Pz/NO/NR |
 | CAP-SLT-04 | Monitor attivo (oggi solo da callback stream) | `runtime_controller.py:459,6904` | (interno) | — | 018, 022 | CORE_BLOCKED | Pz/NO/NR |
 | CAP-SLT-05 | P/L liquidabile per la soglia | F-01 (#596) | — | — | 018 | NOT_IMPLEMENTED | F/NO/NR |
-| CAP-SLT-06 | Stato SL/TP/trailing per posizione | ledger | `GET /v1/positions` | `list_positions` | 013 | NOT_IMPLEMENTED | V/NO/NR |
+| CAP-SLT-06 | Stato SL/TP/trailing per posizione | ledger | `GET /v1/positions` | `list_positions` | 013 · MCP-01h | NOT_IMPLEMENTED | V/HRN/NR |
 | CAP-SLT-07 | Propagazione config → runtime verificabile | `reload_config` | `PATCH /v1/config` | `patch_config` | 018, 014 | NOT_IMPLEMENTED | Pz/NO/NR |
 
 ### 2.9 ROS — Roserpina multitavolo (13)
@@ -305,7 +305,7 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | CAP-REC-11 | Registro hedge inaffidabile segnalato (nessun rilascio per mercato finché resta) | `HEDGE_REGISTRY_UNRELIABLE`, `_hedged_markets_unreliable` | `GET /v1/reconciliation/status` | `get_reconciliation_status` | 008 · MCP-02a | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-SET-01 | Settlement exchange autorevole | SET-01 (#586) | `GET /v1/orders` (cleared) | `list_orders` | 013 | CORE_BLOCKED | Pz/NO/NR |
 | CAP-SET-02 | Storico P/L verificabile | SET-02 (#586) | RC-11 o `GET /v1/orders` | `list_orders` | 013 | CORE_BLOCKED | Pz/NO/NR |
-| CAP-SET-03 | Settlement incerto segnalato | `SETTLEMENT_RECONCILIATION_UNCERTAIN` | `GET /v1/reconciliation/status` | idem | 013 | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-SET-03 | Settlement incerto segnalato | `SETTLEMENT_RECONCILIATION_UNCERTAIN` | `GET /v1/reconciliation/status` | idem | 013 · MCP-01h | NOT_IMPLEMENTED | P/HRN/NR |
 
 ### 2.15 AUD — Audit, log, diagnostica (15)
 
@@ -380,7 +380,7 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | **Totale** | **232** | **137** | **65** | **27** | **3** | **0** |
 
 Denominatore applicabile v0.2 = 232 − 3 RETIRED (duplicati, ID conservati) − 0 OUT_OF_SCOPE = **229**. COMPLETE = **0/229**.
-Capacità con catena reale su branch (L2 = `HRN`): **38** — non contano come COMPLETE.
+Capacità con catena reale su branch (L2 = `HRN`): **41** — non contano come COMPLETE.
 
 Il catalogo è **incompleto per costruzione** (PF-MCP-001): mancano la GUI riga per riga (42 chiavi),
 le singole strategie del perimetro storico, lo streaming (gap #586), la sicurezza applicativa del core,
@@ -468,3 +468,12 @@ ancora **0/228**.
 CAP-ORD-24; L2 = `HRN` anche per ORD-09 e ORD-14 (ordini correnti: dal ledger del bot, non da
 `listCurrentOrders` dell'exchange). CAP-ORD-12 resta su `get_operation` (stato asincrono per
 operation_id, non esiste nel core). Capacità con L2 = `HRN`: 38. COMPLETE: ancora **0/229**.
+
+## 11. Aggiornamento 04/11/2026 (MCP-01h)
+
+SL/TP per tavolo (`get_exposure`), sezione `settlement` (`get_reconciliation_status`) e barriere di
+cashout (`get_status`), contratto 1.5.0. L2 = `HRN` per SLT-06 (stato SL/TP letto dal tavolo: sul `main`
+sempre NOT_ARMED, nessun percorso arma SL/TP prima di F-02 di Claude D), SET-03 (settlement trattenuti e
+checkpoint ambigui contati), CSH-12 (hedge del cashout nel ledger, letto da `list_orders` e contato dalle
+barriere). Trailing: nessuna logica nel core, mai riportato attivo. Capacità con L2 = `HRN`: 41.
+COMPLETE: ancora **0/229**.

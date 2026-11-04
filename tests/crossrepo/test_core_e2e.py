@@ -454,3 +454,37 @@ async def test_e2e_orders_from_the_core_ledger(core: Core, tmp_path: Path) -> No
     assert len(baseline["calls"]) >= len(before["calls"])
     assert after["calls"] == baseline["calls"]  # la lettura non chiama broker né Betfair
     assert after["db"] == baseline["db"] and after["balance"] == baseline["balance"]
+
+
+async def test_e2e_sl_tp_settlement_and_cashout_barriers(core: Core, tmp_path: Path) -> None:
+    """MCP-01h: SL/TP per tavolo, settlement e barriere di cashout dal core reale avviato in SIM."""
+    errlog = (tmp_path / "mcp.err").open("w+")
+    async with mcp(core, errlog) as s:
+        tools = {t.name: t for t in (await s.list_tools()).tools}
+        core.send("SLTP_SETTLEMENT")  # comando al CORE
+        exposure = await call(s, "get_exposure")
+        recon = await call(s, "get_reconciliation_status")
+        status = await call(s, "get_status")
+    for name, (is_error, payload) in (
+        ("get_exposure", exposure),
+        ("get_reconciliation_status", recon),
+        ("get_status", status),
+    ):
+        assert is_error is False, payload
+        jsonschema.validate(payload, tools[name].outputSchema)
+    tables = {t["table_id"]: t for t in exposure[1]["data"]["exposure"]["tables"]}
+    assert tables[3]["sl_tp"] == {
+        "state": "ARMED",
+        "stop_loss": "2.5",
+        "take_profit": "5",
+        "stop_loss_pct": "25",
+        "take_profit_pct": "50",
+        "trailing_stop_pct": None,
+    }
+    assert tables[1]["sl_tp"]["state"] == "NOT_ARMED"
+    settlement = recon[1]["data"]["reconciliation"]["settlement"]
+    assert settlement["effects"]["held"] == 1 and settlement["unavailable"] == []
+    assert isinstance(settlement["sim_settlements"], int)
+    assert status[1]["data"]["status"]["engine"]["queues"]["cashout_barriers"] == 0
+    text = json.dumps([exposure, recon])
+    assert "cref-secret" not in text and "Juventus" not in text

@@ -325,3 +325,22 @@ SETTLED non esistono nel ledger e non compaiono.
 (letto, ma la riconciliazione d'avvio del core non è conclusa); UNKNOWN (database occupato);
 UNAVAILABLE (non leggibile). Solo con OK l'elenco è completo; con UNKNOWN/UNAVAILABLE non c'è elenco
 (mai un elenco vuoto «rassicurante»). Valori mancanti null, mai zero; betId mai inventato.
+
+## MCP-01h — SL/TP, settlement, barriere di cashout (contratto 1.5.0)
+
+Estensioni di route già approvate (OWN-MCP-02F), nessuna route nuova.
+
+- **`get_exposure` → `tables[].sl_tp`**: `state` (NOT_ARMED / ARMED / TRIGGERED / UNKNOWN),
+  `stop_loss`, `take_profit` (importi), `stop_loss_pct`, `take_profit_pct`, `trailing_stop_pct`
+  (Decimal non negativi). Letto dal `meta` del tavolo nelle chiavi che il core usa; il resto del `meta`
+  (nomi di eventi, riferimenti) non esce. NOT_ARMED ⇔ nessun importo; ARMED/TRIGGERED ⇒ almeno un
+  importo; valore presente ma illeggibile ⇒ UNKNOWN (mai «non armato»). **Sul `main` attuale del core
+  nessun percorso arma SL/TP**: ogni tavolo è NOT_ARMED, ed è lo stato reale. La forma scritta da F-02
+  (Claude D, non ancora integrato) è provata compatibile. Il trailing compare solo come percentuale: il
+  core non ha logica di trailing.
+- **`get_reconciliation_status` → `settlement`** (solo conteggi): `unrecorded_settlements`,
+  `held_batches`, `effects` (`settlement_effects`: `held`, `not_realized`, `by_outcome`),
+  `checkpoints` (`cycle_recovery_checkpoints` per fase, fase sconosciuta UNKNOWN, `cycle_ambiguous`,
+  `submit_ambiguous`), `sim_settlements` (null in LIVE). Nessun payload, riferimento o nome di evento.
+- **`get_status` → `engine.queues.cashout_barriers`**: barriere di cashout attive. Gli hedge dei cashout
+  sono in `list_orders` (`role = HEDGE`).

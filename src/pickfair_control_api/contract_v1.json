@@ -1,6 +1,6 @@
 {
   "contract_name": "pickfair-control-api",
-  "contract_version": "1.4.0",
+  "contract_version": "1.5.0",
   "error_codes": {
     "control_api": [
       "BAD_HOST",
@@ -223,6 +223,8 @@
       "status_map_rule": "A core status outside the map is UNKNOWN. UNMATCHED / PARTIALLY_MATCHED / MATCHED for an accepted order only with explicit size_matched and size_remaining. AMBIGUOUS stays AMBIGUOUS, never FAILED or absent."
     },
     "protections": "Each protection is ACTIVE, INACTIVE, TRIGGERED, UNKNOWN or UNAVAILABLE; only ACTIVE has no reason. A protection that cannot be verified is UNKNOWN (core has it, value not readable) or UNAVAILABLE (core does not expose it yet), never ACTIVE or INACTIVE; the derived lists `disabled` and `unverifiable` must match the items.",
+    "settlement": "Counts only (no payload, reference or event name): unrecorded settlements, held Dutching batches, settlement_effects by outcome, cycle checkpoints by stage, SIM broker settlements (null in LIVE).",
+    "sl_tp": "Per Roserpina table, read from the table meta as the core writes it: NOT_ARMED (no SL/TP amount), ARMED, TRIGGERED (core marked the trigger) or UNKNOWN (unreadable). Trailing appears only as a configured percentage: the core has no trailing logic and the contract never reports it as active.",
     "source": "Responses declare source=core; the simulated adapter declares source=simulated.",
     "transport": "HTTP/1.1 GET only on 127.0.0.1, Authorization Bearer token required, Host must be 127.0.0.1:<port>, no redirects, Content-Type application/json; charset=utf-8, body at most 65536 bytes.",
     "unavailable": "A field is null if and only if its name is listed in `unavailable`; a value the core does not hold is never replaced by a default."
@@ -992,6 +994,9 @@
                 ],
                 "title": "Selection Id"
               },
+              "sl_tp": {
+                "$ref": "#/$defs/SlTp"
+              },
               "status": {
                 "enum": [
                   "FREE",
@@ -1017,9 +1022,101 @@
               "market_id",
               "selection_id",
               "current_exposure",
-              "loss_amount"
+              "loss_amount",
+              "sl_tp"
             ],
             "title": "RoserpinaTable",
+            "type": "object"
+          },
+          "SlTp": {
+            "additionalProperties": false,
+            "description": "SL/TP del tavolo (MCP-01h, contratto 1.5.0), letto dal `meta` del tavolo del core.\n\nNOT_ARMED: nessun importo SL/TP sul tavolo (oggi sempre, sul `main` del core: nessun percorso\nli arma prima di F-02 di Claude D). ARMED: almeno un importo. TRIGGERED: il core ha segnato lo\nscatto (`sl_tp_triggered`). UNKNOWN: valori presenti ma illeggibili. Il trailing compare solo\ncome percentuale configurata: il core non ha logica di trailing, mai dichiarata attiva.",
+            "properties": {
+              "state": {
+                "enum": [
+                  "NOT_ARMED",
+                  "ARMED",
+                  "TRIGGERED",
+                  "UNKNOWN"
+                ],
+                "title": "State",
+                "type": "string"
+              },
+              "stop_loss": {
+                "anyOf": [
+                  {
+                    "maxLength": 48,
+                    "pattern": "^(?:[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?)$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Stop Loss"
+              },
+              "stop_loss_pct": {
+                "anyOf": [
+                  {
+                    "maxLength": 48,
+                    "pattern": "^(?:[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?)$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Stop Loss Pct"
+              },
+              "take_profit": {
+                "anyOf": [
+                  {
+                    "maxLength": 48,
+                    "pattern": "^(?:[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?)$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Take Profit"
+              },
+              "take_profit_pct": {
+                "anyOf": [
+                  {
+                    "maxLength": 48,
+                    "pattern": "^(?:[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?)$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Take Profit Pct"
+              },
+              "trailing_stop_pct": {
+                "anyOf": [
+                  {
+                    "maxLength": 48,
+                    "pattern": "^(?:[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?)$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Trailing Stop Pct"
+              }
+            },
+            "required": [
+              "state",
+              "stop_loss",
+              "take_profit",
+              "stop_loss_pct",
+              "take_profit_pct",
+              "trailing_stop_pct"
+            ],
+            "title": "SlTp",
             "type": "object"
           },
           "UpstreamInfo": {
@@ -1362,6 +1459,39 @@
       },
       "output_schema": {
         "$defs": {
+          "CycleCheckpoints": {
+            "additionalProperties": false,
+            "description": "Tabella `cycle_recovery_checkpoints`: checkpoint del ciclo dopo ogni settlement, per fase.",
+            "properties": {
+              "by_stage": {
+                "items": {
+                  "$ref": "#/$defs/StageCount"
+                },
+                "maxItems": 8,
+                "title": "By Stage",
+                "type": "array"
+              },
+              "cycle_ambiguous": {
+                "maximum": 1000000000000,
+                "minimum": 0,
+                "title": "Cycle Ambiguous",
+                "type": "integer"
+              },
+              "submit_ambiguous": {
+                "maximum": 1000000000000,
+                "minimum": 0,
+                "title": "Submit Ambiguous",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "by_stage",
+              "cycle_ambiguous",
+              "submit_ambiguous"
+            ],
+            "title": "CycleCheckpoints",
+            "type": "object"
+          },
           "ErrorBody": {
             "additionalProperties": false,
             "properties": {
@@ -1494,6 +1624,29 @@
             "title": "GhostCounters",
             "type": "object"
           },
+          "OutcomeCount": {
+            "additionalProperties": false,
+            "properties": {
+              "count": {
+                "maximum": 1000000000000,
+                "minimum": 1,
+                "title": "Count",
+                "type": "integer"
+              },
+              "outcome": {
+                "maxLength": 64,
+                "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                "title": "Outcome",
+                "type": "string"
+              }
+            },
+            "required": [
+              "outcome",
+              "count"
+            ],
+            "title": "OutcomeCount",
+            "type": "object"
+          },
           "ReconciliationStatusResponse": {
             "additionalProperties": false,
             "properties": {
@@ -1552,6 +1705,16 @@
                   }
                 ]
               },
+              "settlement": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/SettlementState"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "source": {
                 "enum": [
                   "core",
@@ -1577,11 +1740,12 @@
                     "ambiguities_pending",
                     "ghosts",
                     "hedge_registry_unreliable",
-                    "recovery_state"
+                    "recovery_state",
+                    "settlement"
                   ],
                   "type": "string"
                 },
-                "maxItems": 5,
+                "maxItems": 6,
                 "title": "Unavailable",
                 "type": "array",
                 "uniqueItems": true
@@ -1596,6 +1760,7 @@
               "ghosts",
               "hedge_registry_unreliable",
               "recovery_state",
+              "settlement",
               "unavailable"
             ],
             "title": "ReconciliationStatusResponse",
@@ -1618,6 +1783,145 @@
               "persist_failed"
             ],
             "title": "RecoveryState",
+            "type": "object"
+          },
+          "SettlementEffects": {
+            "additionalProperties": false,
+            "description": "Tabella `settlement_effects` (letta in sola lettura): conteggi per esito, mai i payload.",
+            "properties": {
+              "by_outcome": {
+                "items": {
+                  "$ref": "#/$defs/OutcomeCount"
+                },
+                "maxItems": 32,
+                "title": "By Outcome",
+                "type": "array"
+              },
+              "held": {
+                "maximum": 1000000000000,
+                "minimum": 0,
+                "title": "Held",
+                "type": "integer"
+              },
+              "not_realized": {
+                "maximum": 1000000000000,
+                "minimum": 0,
+                "title": "Not Realized",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "held",
+              "not_realized",
+              "by_outcome"
+            ],
+            "title": "SettlementEffects",
+            "type": "object"
+          },
+          "SettlementState": {
+            "additionalProperties": false,
+            "description": "MCP-01h: stato dei settlement. Solo conteggi: nessun payload, riferimento o nome evento.",
+            "properties": {
+              "checkpoints": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/CycleCheckpoints"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "effects": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/SettlementEffects"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "held_batches": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Held Batches",
+                "type": "integer"
+              },
+              "sim_settlements": {
+                "anyOf": [
+                  {
+                    "maximum": 1000000,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Sim Settlements"
+              },
+              "unavailable": {
+                "items": {
+                  "enum": [
+                    "effects",
+                    "checkpoints",
+                    "sim_settlements"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 3,
+                "title": "Unavailable",
+                "type": "array",
+                "uniqueItems": true
+              },
+              "unrecorded_settlements": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Unrecorded Settlements",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "unrecorded_settlements",
+              "held_batches",
+              "effects",
+              "checkpoints",
+              "sim_settlements",
+              "unavailable"
+            ],
+            "title": "SettlementState",
+            "type": "object"
+          },
+          "StageCount": {
+            "additionalProperties": false,
+            "properties": {
+              "count": {
+                "maximum": 1000000000000,
+                "minimum": 1,
+                "title": "Count",
+                "type": "integer"
+              },
+              "stage": {
+                "enum": [
+                  "SETTLEMENT_DETECTED",
+                  "BANKROLL_SYNC_DONE",
+                  "MM_DECISION_DONE",
+                  "NEXT_TRADE_SUBMIT_ATTEMPTED",
+                  "NEXT_TRADE_SUBMIT_CONFIRMED",
+                  "CYCLE_BLOCKED",
+                  "CYCLE_AMBIGUOUS",
+                  "UNKNOWN"
+                ],
+                "title": "Stage",
+                "type": "string"
+              }
+            },
+            "required": [
+              "stage",
+              "count"
+            ],
+            "title": "StageCount",
             "type": "object"
           },
           "StartupReconciliation": {
@@ -2330,6 +2634,12 @@
           "OperationalQueues": {
             "additionalProperties": false,
             "properties": {
+              "cashout_barriers": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Cashout Barriers",
+                "type": "integer"
+              },
               "cashout_inflight": {
                 "maximum": 1000000,
                 "minimum": 0,
@@ -2352,6 +2662,7 @@
             "required": [
               "cashout_inflight",
               "cashout_uncertain",
+              "cashout_barriers",
               "direct_unmatched"
             ],
             "title": "OperationalQueues",
@@ -4602,6 +4913,9 @@
               ],
               "title": "Selection Id"
             },
+            "sl_tp": {
+              "$ref": "#/$defs/SlTp"
+            },
             "status": {
               "enum": [
                 "FREE",
@@ -4627,9 +4941,101 @@
             "market_id",
             "selection_id",
             "current_exposure",
-            "loss_amount"
+            "loss_amount",
+            "sl_tp"
           ],
           "title": "RoserpinaTable",
+          "type": "object"
+        },
+        "SlTp": {
+          "additionalProperties": false,
+          "description": "SL/TP del tavolo (MCP-01h, contratto 1.5.0), letto dal `meta` del tavolo del core.\n\nNOT_ARMED: nessun importo SL/TP sul tavolo (oggi sempre, sul `main` del core: nessun percorso\nli arma prima di F-02 di Claude D). ARMED: almeno un importo. TRIGGERED: il core ha segnato lo\nscatto (`sl_tp_triggered`). UNKNOWN: valori presenti ma illeggibili. Il trailing compare solo\ncome percentuale configurata: il core non ha logica di trailing, mai dichiarata attiva.",
+          "properties": {
+            "state": {
+              "enum": [
+                "NOT_ARMED",
+                "ARMED",
+                "TRIGGERED",
+                "UNKNOWN"
+              ],
+              "title": "State",
+              "type": "string"
+            },
+            "stop_loss": {
+              "anyOf": [
+                {
+                  "maxLength": 48,
+                  "pattern": "^(?:[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Stop Loss"
+            },
+            "stop_loss_pct": {
+              "anyOf": [
+                {
+                  "maxLength": 48,
+                  "pattern": "^(?:[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Stop Loss Pct"
+            },
+            "take_profit": {
+              "anyOf": [
+                {
+                  "maxLength": 48,
+                  "pattern": "^(?:[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Take Profit"
+            },
+            "take_profit_pct": {
+              "anyOf": [
+                {
+                  "maxLength": 48,
+                  "pattern": "^(?:[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Take Profit Pct"
+            },
+            "trailing_stop_pct": {
+              "anyOf": [
+                {
+                  "maxLength": 48,
+                  "pattern": "^(?:[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Trailing Stop Pct"
+            }
+          },
+          "required": [
+            "state",
+            "stop_loss",
+            "take_profit",
+            "stop_loss_pct",
+            "take_profit_pct",
+            "trailing_stop_pct"
+          ],
+          "title": "SlTp",
           "type": "object"
         }
       },
@@ -5385,6 +5791,39 @@
     },
     "reconciliation_status": {
       "$defs": {
+        "CycleCheckpoints": {
+          "additionalProperties": false,
+          "description": "Tabella `cycle_recovery_checkpoints`: checkpoint del ciclo dopo ogni settlement, per fase.",
+          "properties": {
+            "by_stage": {
+              "items": {
+                "$ref": "#/$defs/StageCount"
+              },
+              "maxItems": 8,
+              "title": "By Stage",
+              "type": "array"
+            },
+            "cycle_ambiguous": {
+              "maximum": 1000000000000,
+              "minimum": 0,
+              "title": "Cycle Ambiguous",
+              "type": "integer"
+            },
+            "submit_ambiguous": {
+              "maximum": 1000000000000,
+              "minimum": 0,
+              "title": "Submit Ambiguous",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "by_stage",
+            "cycle_ambiguous",
+            "submit_ambiguous"
+          ],
+          "title": "CycleCheckpoints",
+          "type": "object"
+        },
         "GhostCounters": {
           "additionalProperties": false,
           "properties": {
@@ -5415,6 +5854,29 @@
           "title": "GhostCounters",
           "type": "object"
         },
+        "OutcomeCount": {
+          "additionalProperties": false,
+          "properties": {
+            "count": {
+              "maximum": 1000000000000,
+              "minimum": 1,
+              "title": "Count",
+              "type": "integer"
+            },
+            "outcome": {
+              "maxLength": 64,
+              "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+              "title": "Outcome",
+              "type": "string"
+            }
+          },
+          "required": [
+            "outcome",
+            "count"
+          ],
+          "title": "OutcomeCount",
+          "type": "object"
+        },
         "RecoveryState": {
           "additionalProperties": false,
           "properties": {
@@ -5432,6 +5894,145 @@
             "persist_failed"
           ],
           "title": "RecoveryState",
+          "type": "object"
+        },
+        "SettlementEffects": {
+          "additionalProperties": false,
+          "description": "Tabella `settlement_effects` (letta in sola lettura): conteggi per esito, mai i payload.",
+          "properties": {
+            "by_outcome": {
+              "items": {
+                "$ref": "#/$defs/OutcomeCount"
+              },
+              "maxItems": 32,
+              "title": "By Outcome",
+              "type": "array"
+            },
+            "held": {
+              "maximum": 1000000000000,
+              "minimum": 0,
+              "title": "Held",
+              "type": "integer"
+            },
+            "not_realized": {
+              "maximum": 1000000000000,
+              "minimum": 0,
+              "title": "Not Realized",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "held",
+            "not_realized",
+            "by_outcome"
+          ],
+          "title": "SettlementEffects",
+          "type": "object"
+        },
+        "SettlementState": {
+          "additionalProperties": false,
+          "description": "MCP-01h: stato dei settlement. Solo conteggi: nessun payload, riferimento o nome evento.",
+          "properties": {
+            "checkpoints": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/CycleCheckpoints"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "effects": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SettlementEffects"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "held_batches": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Held Batches",
+              "type": "integer"
+            },
+            "sim_settlements": {
+              "anyOf": [
+                {
+                  "maximum": 1000000,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sim Settlements"
+            },
+            "unavailable": {
+              "items": {
+                "enum": [
+                  "effects",
+                  "checkpoints",
+                  "sim_settlements"
+                ],
+                "type": "string"
+              },
+              "maxItems": 3,
+              "title": "Unavailable",
+              "type": "array",
+              "uniqueItems": true
+            },
+            "unrecorded_settlements": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Unrecorded Settlements",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "unrecorded_settlements",
+            "held_batches",
+            "effects",
+            "checkpoints",
+            "sim_settlements",
+            "unavailable"
+          ],
+          "title": "SettlementState",
+          "type": "object"
+        },
+        "StageCount": {
+          "additionalProperties": false,
+          "properties": {
+            "count": {
+              "maximum": 1000000000000,
+              "minimum": 1,
+              "title": "Count",
+              "type": "integer"
+            },
+            "stage": {
+              "enum": [
+                "SETTLEMENT_DETECTED",
+                "BANKROLL_SYNC_DONE",
+                "MM_DECISION_DONE",
+                "NEXT_TRADE_SUBMIT_ATTEMPTED",
+                "NEXT_TRADE_SUBMIT_CONFIRMED",
+                "CYCLE_BLOCKED",
+                "CYCLE_AMBIGUOUS",
+                "UNKNOWN"
+              ],
+              "title": "Stage",
+              "type": "string"
+            }
+          },
+          "required": [
+            "stage",
+            "count"
+          ],
+          "title": "StageCount",
           "type": "object"
         },
         "StartupReconciliation": {
@@ -5539,6 +6140,16 @@
             }
           ]
         },
+        "settlement": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SettlementState"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "source": {
           "enum": [
             "core",
@@ -5564,11 +6175,12 @@
               "ambiguities_pending",
               "ghosts",
               "hedge_registry_unreliable",
-              "recovery_state"
+              "recovery_state",
+              "settlement"
             ],
             "type": "string"
           },
-          "maxItems": 5,
+          "maxItems": 6,
           "title": "Unavailable",
           "type": "array",
           "uniqueItems": true
@@ -5583,6 +6195,7 @@
         "ghosts",
         "hedge_registry_unreliable",
         "recovery_state",
+        "settlement",
         "unavailable"
       ],
       "title": "ReconciliationStatusResponse",
@@ -6060,6 +6673,12 @@
         "OperationalQueues": {
           "additionalProperties": false,
           "properties": {
+            "cashout_barriers": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Cashout Barriers",
+              "type": "integer"
+            },
             "cashout_inflight": {
               "maximum": 1000000,
               "minimum": 0,
@@ -6082,6 +6701,7 @@
           "required": [
             "cashout_inflight",
             "cashout_uncertain",
+            "cashout_barriers",
             "direct_unmatched"
           ],
           "title": "OperationalQueues",

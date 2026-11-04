@@ -1,6 +1,6 @@
 # INTEGRATION INVENTORY — copertura MCP + Control API per area funzionale
 
-Aggiornato 04/11/2026 · MCP-01g · base core `ada40765` (Pickfair-nogui `main`) · Claude C.
+Aggiornato 04/11/2026 · MCP-01h · base core `ada40765` (Pickfair-nogui `main`) · Claude C.
 
 Livelli (cumulativi, ognuno richiede un'evidenza; senza evidenza il livello NON è raggiunto):
 
@@ -13,7 +13,7 @@ Livelli (cumulativi, ognuno richiede un'evidenza; senza evidenza il livello NON 
 | `INTEGRATED` | ponte mergiato in Pickfair-nogui `main` | SHA di merge (Claude B, merge owner) |
 | `CERTIFIED` | review indipendente + verifica d'integrazione di Claude B + certificazione #586 | dossier |
 
-Oggi **nessuna area è INTEGRATED né CERTIFIED**: i ponti MCP-01d, MCP-01e, MCP-01f e MCP-01g sono patch consegnate a
+Oggi **nessuna area è INTEGRATED né CERTIFIED**: i ponti MCP-01d … MCP-01h sono patch consegnate a
 Claude B, da integrare dopo #608 e #606 con una PR indipendente e safety-critical.
 
 ## Stato per area (priorità owner)
@@ -43,3 +43,11 @@ Claude B, da integrare dopo #608 e #606 con una PR indipendente e safety-critica
 - Le aree che dipendono da correzioni in corso di Claude D (AMBIGUOUS P0, F-16 freschezza fondi,
   F-11 equity peak, F-12 drawdown, F-23 stato mercati) restano a `CORE_AVAILABLE` finché il codice non
   arriva su `main`: il MCP non duplica la logica finanziaria e non simula ciò che il core non ha.
+
+## Aggiunte MCP-01h (SL/TP, cashout, settlement)
+
+| Area | Livello | Route / tool | Evidenza | Nota |
+|---|---|---|---|---|
+| SL/TP per tavolo | `TESTED` (lettura) | `GET /v1/exposure` · `get_exposure` | test core 11 + mutazioni 62/62; E2E 12/12 ×3 | sul `main` SL/TP non è mai armato (nessun percorso lo scrive); F-02 di Claude D lo introduce, contratto già compatibile; trailing assente nel core |
+| Cashout in corso | `TESTED` | `GET /v1/status` (barriere, in volo, incerti) + `list_orders` (hedge) | idem | storico dei cashout: nessuna tabella dedicata nel core (solo righe hedge e `audit_events`) |
+| Settlement | `TESTED` (conteggi) | `GET /v1/reconciliation/status` | idem | storico P/L di settlement con importi: da progettare (route K3 o estensione di `get_orders`) |

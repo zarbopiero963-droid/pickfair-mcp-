@@ -145,6 +145,10 @@ DECIMAL_PATTERN = (
     r"|-0\.[0-9]{0,27}[1-9])$"
 )
 DecimalStr = Annotated[str, StringConstraints(pattern=DECIMAL_PATTERN, max_length=48)]
+NON_NEGATIVE_DECIMAL_PATTERN = r"^(?:[1-9][0-9]{0,14}(?:\.[0-9]{1,28})?|0(?:\.[0-9]{1,28})?)$"
+NonNegativeDecimal = Annotated[
+    str, StringConstraints(pattern=NON_NEGATIVE_DECIMAL_PATTERN, max_length=48)
+]
 ExecutionMode = Literal["SIM", "LIVE"]
 EpochSeconds = Annotated[float, Field(gt=0, lt=1e11)]
 BigCount = Annotated[int, Field(ge=0, le=10**15)]
@@ -335,6 +339,8 @@ class EventBusPressure(StrictModel):
 class OperationalQueues(StrictModel):
     cashout_inflight: Count
     cashout_uncertain: Count
+    # MCP-01h: barriere di cashout attive (una per richiesta di cashout in corso).
+    cashout_barriers: Count
     direct_unmatched: Count
 
 
@@ -469,8 +475,101 @@ class RecoveryState(StrictModel):
     persist_failed: bool
 
 
+CheckpointStage = Literal[
+    "SETTLEMENT_DETECTED",
+    "BANKROLL_SYNC_DONE",
+    "MM_DECISION_DONE",
+    "NEXT_TRADE_SUBMIT_ATTEMPTED",
+    "NEXT_TRADE_SUBMIT_CONFIRMED",
+    "CYCLE_BLOCKED",
+    "CYCLE_AMBIGUOUS",
+    "UNKNOWN",
+]
+
+
+class OutcomeCount(StrictModel):
+    outcome: Code
+    count: Annotated[int, Field(ge=1, le=10**12)]
+
+
+class StageCount(StrictModel):
+    stage: CheckpointStage
+    count: Annotated[int, Field(ge=1, le=10**12)]
+
+
+class SettlementEffects(StrictModel):
+    """Tabella `settlement_effects` (letta in sola lettura): conteggi per esito, mai i payload."""
+
+    held: Annotated[int, Field(ge=0, le=10**12)]
+    not_realized: Annotated[int, Field(ge=0, le=10**12)]
+    by_outcome: Annotated[tuple[OutcomeCount, ...], Field(max_length=32)]
+
+    @model_validator(mode="after")
+    def _coherent(self) -> SettlementEffects:
+        outcomes = [o.outcome for o in self.by_outcome]
+        if len(set(outcomes)) != len(outcomes):
+            raise ValueError("duplicate outcome")
+        held = next((o.count for o in self.by_outcome if o.outcome == "HELD"), 0)
+        if held != self.held:
+            raise ValueError("held count disagrees with the outcome breakdown")
+        return self
+
+
+class CycleCheckpoints(StrictModel):
+    """Tabella `cycle_recovery_checkpoints`: checkpoint del ciclo dopo ogni settlement, per fase."""
+
+    by_stage: Annotated[tuple[StageCount, ...], Field(max_length=8)]
+    cycle_ambiguous: Annotated[int, Field(ge=0, le=10**12)]
+    submit_ambiguous: Annotated[int, Field(ge=0, le=10**12)]
+
+    @model_validator(mode="after")
+    def _unique(self) -> CycleCheckpoints:
+        stages = [s.stage for s in self.by_stage]
+        if len(set(stages)) != len(stages):
+            raise ValueError("duplicate stage")
+        return self
+
+
+SettlementField = Literal["effects", "checkpoints", "sim_settlements"]
+SETTLEMENT_OPTIONAL_FIELDS: tuple[str, ...] = ("effects", "checkpoints", "sim_settlements")
+
+
+class SettlementState(StrictModel):
+    """MCP-01h: stato dei settlement. Solo conteggi: nessun payload, riferimento o nome evento."""
+
+    # Settlement ricevuti ma non ancora registrati (in memoria, ritentati dal core).
+    unrecorded_settlements: Count
+    # Lotti Dutching trattenuti in attesa di riconciliazione.
+    held_batches: Count
+    effects: SettlementEffects | None
+    checkpoints: CycleCheckpoints | None
+    # Settlement registrati dal broker SIM; null in LIVE (nessun registro in memoria).
+    sim_settlements: Count | None
+    unavailable: Annotated[
+        tuple[SettlementField, ...],
+        Field(max_length=len(SETTLEMENT_OPTIONAL_FIELDS), json_schema_extra={"uniqueItems": True}),
+    ]
+
+    @model_validator(mode="after")
+    def _declared(self) -> SettlementState:
+        values: dict[str, object] = {
+            "effects": self.effects,
+            "checkpoints": self.checkpoints,
+            "sim_settlements": self.sim_settlements,
+        }
+        if tuple(values) != SETTLEMENT_OPTIONAL_FIELDS:
+            raise ValueError("optional field list out of sync")
+        _check_unavailable(values, self.unavailable)
+        return self
+
+
 ReconciliationField = Literal[
-    "startup", "ambiguities_pending", "ghosts", "hedge_registry_unreliable", "recovery_state"
+    "startup",
+    "ambiguities_pending",
+    "ghosts",
+    "hedge_registry_unreliable",
+    "recovery_state",
+    "settlement",
 ]
 RECONCILIATION_OPTIONAL_FIELDS: tuple[str, ...] = (
     "startup",
@@ -478,6 +577,7 @@ RECONCILIATION_OPTIONAL_FIELDS: tuple[str, ...] = (
     "ghosts",
     "hedge_registry_unreliable",
     "recovery_state",
+    "settlement",
 )
 
 
@@ -490,6 +590,7 @@ class ReconciliationStatusResponse(StrictModel):
     ghosts: GhostCounters | None
     hedge_registry_unreliable: bool | None
     recovery_state: RecoveryState | None
+    settlement: SettlementState | None
     unavailable: Annotated[
         tuple[ReconciliationField, ...],
         Field(
@@ -505,6 +606,7 @@ class ReconciliationStatusResponse(StrictModel):
             "ghosts": self.ghosts,
             "hedge_registry_unreliable": self.hedge_registry_unreliable,
             "recovery_state": self.recovery_state,
+            "settlement": self.settlement,
         }
         if tuple(values) != RECONCILIATION_OPTIONAL_FIELDS:
             raise ValueError("optional field list out of sync")
@@ -631,6 +733,32 @@ class AccountResponse(StrictModel):
 TableStatus = Literal["FREE", "ACTIVE", "RECOVERY", "LOCKED"]
 
 
+class SlTp(StrictModel):
+    """SL/TP del tavolo (MCP-01h, contratto 1.5.0), letto dal `meta` del tavolo del core.
+
+    NOT_ARMED: nessun importo SL/TP sul tavolo (oggi sempre, sul `main` del core: nessun percorso
+    li arma prima di F-02 di Claude D). ARMED: almeno un importo. TRIGGERED: il core ha segnato lo
+    scatto (`sl_tp_triggered`). UNKNOWN: valori presenti ma illeggibili. Il trailing compare solo
+    come percentuale configurata: il core non ha logica di trailing, mai dichiarata attiva.
+    """
+
+    state: Literal["NOT_ARMED", "ARMED", "TRIGGERED", "UNKNOWN"]
+    stop_loss: NonNegativeDecimal | None
+    take_profit: NonNegativeDecimal | None
+    stop_loss_pct: NonNegativeDecimal | None
+    take_profit_pct: NonNegativeDecimal | None
+    trailing_stop_pct: NonNegativeDecimal | None
+
+    @model_validator(mode="after")
+    def _coherent(self) -> SlTp:
+        has_amount = self.stop_loss is not None or self.take_profit is not None
+        if self.state == "NOT_ARMED" and has_amount:
+            raise ValueError("NOT_ARMED table with SL/TP amounts")
+        if self.state in ("ARMED", "TRIGGERED") and not has_amount:
+            raise ValueError("ARMED/TRIGGERED table without SL/TP amounts")
+        return self
+
+
 class RoserpinaTable(StrictModel):
     table_id: Annotated[int, Field(ge=1, le=10_000)]
     status: TableStatus
@@ -640,6 +768,7 @@ class RoserpinaTable(StrictModel):
     selection_id: Identifier | None
     current_exposure: Money
     loss_amount: Money
+    sl_tp: SlTp
 
 
 def _unique_tables(values: tuple[RoserpinaTable, ...]) -> tuple[RoserpinaTable, ...]:

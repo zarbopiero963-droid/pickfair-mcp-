@@ -90,6 +90,17 @@ SEMANTICS: Final = {
             "UNAVAILABLE not readable. Missing values stay null, never zero."
         ),
     },
+    "sl_tp": (
+        "Per Roserpina table, read from the table meta as the core writes it: NOT_ARMED (no "
+        "SL/TP amount), ARMED, TRIGGERED (core marked the trigger) or UNKNOWN (unreadable). "
+        "Trailing appears only as a configured percentage: the core has no trailing logic and "
+        "the contract never reports it as active."
+    ),
+    "settlement": (
+        "Counts only (no payload, reference or event name): unrecorded settlements, held "
+        "Dutching batches, settlement_effects by outcome, cycle checkpoints by stage, SIM "
+        "broker settlements (null in LIVE)."
+    ),
     "protections": (
         "Each protection is ACTIVE, INACTIVE, TRIGGERED, UNKNOWN or UNAVAILABLE; only ACTIVE has "
         "no reason. A protection that cannot be verified is UNKNOWN (core has it, value not "

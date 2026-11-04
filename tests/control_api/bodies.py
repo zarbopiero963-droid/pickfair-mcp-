@@ -123,7 +123,12 @@ def engine(**overrides: Any) -> dict[str, Any]:
             "accepting": True,
             "seconds_since_last_dequeue": 1.5,
         },
-        "queues": {"cashout_inflight": 0, "cashout_uncertain": 0, "direct_unmatched": 0},
+        "queues": {
+            "cashout_inflight": 0,
+            "cashout_uncertain": 0,
+            "cashout_barriers": 0,
+            "direct_unmatched": 0,
+        },
         "modes": {
             "configured_execution_mode": "SIM",
             "simulation_flag": True,
@@ -149,6 +154,7 @@ def reconciliation(**overrides: Any) -> dict[str, Any]:
         "ghosts": {"ghost_orders": 0, "suspected_ghosts": 0, "unconfirmed_inflight": 0},
         "hedge_registry_unreliable": False,
         "recovery_state": {"unreadable": False, "persist_failed": False},
+        "settlement": settlement(),
         "unavailable": [],
     }
     body.update(overrides)
@@ -202,6 +208,39 @@ def table(table_id: int, **overrides: Any) -> dict[str, Any]:
         "selection_id": None,
         "current_exposure": 0.0,
         "loss_amount": 0.0,
+        "sl_tp": not_armed(),
+    }
+    data.update(overrides)
+    return data
+
+
+def not_armed() -> dict[str, Any]:
+    return {
+        "state": "NOT_ARMED",
+        "stop_loss": None,
+        "take_profit": None,
+        "stop_loss_pct": None,
+        "take_profit_pct": None,
+        "trailing_stop_pct": None,
+    }
+
+
+def settlement(**overrides: Any) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "unrecorded_settlements": 0,
+        "held_batches": 0,
+        "effects": {
+            "held": 1,
+            "not_realized": 1,
+            "by_outcome": [{"outcome": "APPLIED", "count": 3}, {"outcome": "HELD", "count": 1}],
+        },
+        "checkpoints": {
+            "by_stage": [{"stage": "NEXT_TRADE_SUBMIT_CONFIRMED", "count": 2}],
+            "cycle_ambiguous": 0,
+            "submit_ambiguous": 0,
+        },
+        "sim_settlements": 4,
+        "unavailable": [],
     }
     data.update(overrides)
     return data
