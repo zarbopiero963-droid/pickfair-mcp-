@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "rc10_signals",
+  "x-status": "K3_DRAFT_NOT_RATIFIED_NOT_SERVED",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "source",
+    "observed_at",
+    "consistency",
+    "last_signal_at",
+    "decisions",
+    "queue_depth",
+    "unavailable"
+  ],
+  "properties": {
+    "source": {
+      "enum": [
+        "core",
+        "simulated"
+      ]
+    },
+    "observed_at": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "exclusiveMaximum": 100000000000.0
+    },
+    "consistency": {
+      "enum": [
+        "PER_FIELD_NON_ATOMIC"
+      ]
+    },
+    "last_signal_at": {
+      "anyOf": [
+        {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 100000000000.0
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "decisions": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "at",
+              "outcome",
+              "reason",
+              "market_id",
+              "selection_id"
+            ],
+            "properties": {
+              "at": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "exclusiveMaximum": 100000000000.0
+              },
+              "outcome": {
+                "enum": [
+                  "APPROVED",
+                  "REJECTED"
+                ]
+              },
+              "reason": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                    "maxLength": 64
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "market_id": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9A-Za-z._-]{1,32}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "selection_id": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9A-Za-z._-]{1,32}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "queue_depth": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "unavailable": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "last_signal_at",
+          "decisions",
+          "queue_depth"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "rc12_logs",
+  "x-status": "K3_DRAFT_NOT_RATIFIED_NOT_SERVED",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "source",
+    "observed_at",
+    "consistency",
+    "state",
+    "reason",
+    "entries",
+    "redacted",
+    "omitted",
+    "truncated",
+    "next_cursor"
+  ],
+  "properties": {
+    "source": {
+      "enum": [
+        "core",
+        "simulated"
+      ]
+    },
+    "observed_at": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "exclusiveMaximum": 100000000000.0
+    },
+    "consistency": {
+      "enum": [
+        "SINGLE_READ_TRANSACTION"
+      ]
+    },
+    "state": {
+      "enum": [
+        "OK",
+        "PARTIAL",
+        "UNKNOWN",
+        "UNAVAILABLE"
+      ]
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+          "maxLength": 64
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "entries": {
+      "type": "array",
+      "maxItems": 500,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "at",
+          "kind",
+          "severity",
+          "code",
+          "correlation_id"
+        ],
+        "properties": {
+          "at": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "exclusiveMaximum": 100000000000.0
+          },
+          "kind": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+            "maxLength": 64
+          },
+          "severity": {
+            "enum": [
+              "DEBUG",
+              "INFO",
+              "WARNING",
+              "ERROR",
+              "CRITICAL"
+            ]
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-Za-z._-]{1,32}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "redacted": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000
+    },
+    "omitted": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000
+    },
+    "truncated": {
+      "type": "boolean"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9A-Za-z._-]{1,32}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

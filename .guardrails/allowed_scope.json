@@ -504,6 +504,21 @@
         "tests/unit/test_handshake.py"
       ],
       "max_files": 24
+    },
+    "k3-read-specs": {
+      "issue": "mandato owner 05/11/2026 (ORDINE OWNER, punto 4: K3)",
+      "scheda": "K3 — specifiche offline di RC-10/RC-11/RC-12 (non ratificate, non servite)",
+      "description": "Bozze di schema fuori da src/ e test che provano che le route candidate restano inattive (404, nessun tool, fuori dal contratto); nessuna attivazione.",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "docs/design/K3_READ_ROUTES_SPEC.md",
+        "docs/design/k3/rc10_signals.schema.json",
+        "docs/design/k3/rc11_pnl.schema.json",
+        "docs/design/k3/rc12_logs.schema.json",
+        "tests/k3_offline/__init__.py",
+        "tests/k3_offline/test_k3_drafts_inactive.py"
+      ],
+      "max_files": 7
     }
   }
 }
