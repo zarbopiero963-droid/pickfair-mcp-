@@ -11,7 +11,7 @@ ripinnato al contratto successivo prima dell'integrazione.
 
 | Artefatto | Valore |
 |---|---|
-| Patch incrementale | `core_bridge_mcp01l.patch`, 8 file, SHA-256 `815bcb50cdb9816062d3cecca9fb75e0bbee1ca0b7be770ad8014e5730d6f17c` |
+| Patch incrementale | `core_bridge_mcp01l.patch`, 8 file, +433/−3, SHA-256 `815bcb50cdb9816062d3cecca9fb75e0bbee1ca0b7be770ad8014e5730d6f17c` |
 | Base della patch | `main` `ada40765` + patch MCP-01d … 01h, 01j, 01k |
 | Package | `pickfair_control_api` **1.8.0** dal branch `ccr-edf04c7d-e7vtj1-mcp01l-markets` |
 | Contratto | 1.8.0, schema hash `0bb7355fc5476f80f2e5c2c6865bba97eac2c9cc7bcab96620c8ddf347991309` |
