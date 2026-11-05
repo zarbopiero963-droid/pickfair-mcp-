@@ -964,6 +964,11 @@ ORDER_OPTIONAL_FIELDS: tuple[str, ...] = (
 MAX_ORDERS = 500
 
 
+# MCP-01k: esito non confermato dal core (AMBIGUOUS, PENDING). Un report conservato nella risposta (es. la
+# risposta senza esito del fix P0 di Claude D) non è un dato: importi abbinati e residui sempre null.
+UNCONFIRMED_ORDER_STATUSES: frozenset[str] = frozenset({"AMBIGUOUS", "PENDING"})
+
+
 class OrderReconciliation(StrictModel):
     # Stato non terminale del ledger che la riconciliazione del core considera aperto.
     in_reconciliation: bool
@@ -1037,6 +1042,12 @@ class Order(StrictModel):
             )
             if self.status != expected:
                 raise ValueError("matched split disagrees with the sizes")
+        if self.status in UNCONFIRMED_ORDER_STATUSES and (
+            self.size_matched is not None
+            or self.avg_price_matched is not None
+            or self.size_remaining is not None
+        ):
+            raise ValueError("unconfirmed order with matched or remaining amounts")
         if self.broker_view != "NOT_CHECKED" and self.bet_id is None:
             raise ValueError("broker comparison without a bet id")
         return self

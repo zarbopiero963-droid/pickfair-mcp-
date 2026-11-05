@@ -79,6 +79,11 @@ def test_ambiguous_core_order_can_never_be_reported_as_failed_or_settled() -> No
                 bodies.order(
                     core_status="AMBIGUOUS",
                     status="AMBIGUOUS",
+                    # 1.7.0 (MCP-01k): esito non confermato, nessun importo
+                    size_matched=None,
+                    avg_price_matched=None,
+                    size_remaining=None,
+                    unavailable=["size_matched", "avg_price_matched", "size_remaining"],
                     reconciliation={
                         "in_reconciliation": True,
                         "in_engine_queue": True,

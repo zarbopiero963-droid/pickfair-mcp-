@@ -369,3 +369,14 @@ Route già approvata (`GET /v1/config`, scope READ), nessuna route nuova; mandat
 - **Sola lettura**: nessun parametro di input, nessuna scrittura. `patch_config` resta un comando non
   esposto (design in `docs/design/WRITE_OPERATIONS_DESIGN.md`).
 
+## MCP-01k — compatibilità con le correzioni di Claude D (contratto 1.7.0)
+
+Nessuna route nuova. Regola nuova del contratto: un ordine con esito non confermato (`status` AMBIGUOUS o
+PENDING) non porta mai `size_matched`, `avg_price_matched` o `size_remaining`; il `bet_id` resta (identità della
+riconciliazione del core). Motivo: il fix P0 di Claude D conserva sulla riga AMBIGUOUS la risposta senza esito,
+che può contenere un report con `sizeMatched`. Quel numero non è un dato confermato. Lo schema lo ammette, la
+regola è applicata dal MCP (`UNCONFIRMED_ORDER_STATUSES`) e dal ponte del core (`UNCONFIRMED_STATUSES`).
+
+`protections.funds_freshness.limit`: il ponte non ricalcola la soglia del core. Con F-16 (soglia owner 30 s)
+il limite è `null` finché il core non espone un accessore unico; sul `main` attuale resta 120 s.
+

@@ -1,6 +1,6 @@
 {
   "contract_name": "pickfair-control-api",
-  "contract_version": "1.6.0",
+  "contract_version": "1.7.0",
   "error_codes": {
     "control_api": [
       "BAD_HOST",
@@ -287,7 +287,7 @@
           "MATCHED"
         ]
       },
-      "status_map_rule": "A core status outside the map is UNKNOWN. UNMATCHED / PARTIALLY_MATCHED / MATCHED for an accepted order only with explicit size_matched and size_remaining. AMBIGUOUS stays AMBIGUOUS, never FAILED or absent."
+      "status_map_rule": "A core status outside the map is UNKNOWN. UNMATCHED / PARTIALLY_MATCHED / MATCHED for an accepted order only with explicit size_matched and size_remaining. AMBIGUOUS stays AMBIGUOUS, never FAILED or absent. AMBIGUOUS and PENDING orders never carry size_matched, avg_price_matched or size_remaining: an unconfirmed report is not data; their bet_id stays (the core's reconciliation identity)."
     },
     "protections": "Each protection is ACTIVE, INACTIVE, TRIGGERED, UNKNOWN or UNAVAILABLE; only ACTIVE has no reason. A protection that cannot be verified is UNKNOWN (core has it, value not readable) or UNAVAILABLE (core does not expose it yet), never ACTIVE or INACTIVE; the derived lists `disabled` and `unverifiable` must match the items.",
     "settlement": "Counts only (no payload, reference or event name): unrecorded settlements, held Dutching batches, settlement_effects by outcome, cycle checkpoints by stage, SIM broker settlements (null in LIVE).",

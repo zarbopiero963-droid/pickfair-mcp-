@@ -5,7 +5,7 @@ Server MCP **locale su stdio** per controllare Pickfair attraverso strumenti aut
 un'autorità di trading**. Roserpina e l'Order Authority del core restano le uniche
 autorità finanziarie.
 
-Stato attuale (MCP-01a … MCP-01h e MCP-01j, contratto 1.6.0):
+Stato attuale (MCP-01a … MCP-01h, MCP-01j e MCP-01k, contratto 1.7.0):
 
 - tool esposti, tutti di sola lettura: `get_meta` (handshake di contratto fail-closed),
   `get_status` e `get_reconciliation_status` (MCP-02a: stato runtime, modalità, readiness, STOP,

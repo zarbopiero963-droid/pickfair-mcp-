@@ -125,7 +125,7 @@ def test_contract_info_prints_version_and_hash() -> None:
     proc = run_cli("contract-info")
     assert proc.returncode == 0
     info = json.loads(proc.stdout)
-    assert info["supported_contract_version"] == "1.6.0"
+    assert info["supported_contract_version"] == "1.7.0"
     assert len(info["schema_hash"]) == 64
     assert info["routes"] == 25
     assert info["tools"] == [

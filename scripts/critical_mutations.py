@@ -1117,6 +1117,17 @@ MUTANTS: tuple[Mutant, ...] = (
         ),
     ),
     Mutant(
+        "O12",
+        "ordine AMBIGUOUS/PENDING con importi non confermati accettato",
+        (
+            (
+                MO,
+                "        if self.status in UNCONFIRMED_ORDER_STATUSES and (",
+                "        if False and (",
+            ),
+        ),
+    ),
+    Mutant(
         "O01",
         "ordine AMBIGUOUS accettato come FAILED",
         (

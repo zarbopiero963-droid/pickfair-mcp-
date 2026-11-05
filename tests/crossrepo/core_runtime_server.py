@@ -342,6 +342,22 @@ for line in sys.stdin:
               max_daily_loss=cfg.max_daily_loss, table_count=cfg.table_count,
               risk_profile=cfg.risk_profile.value, max_session_loss=cfg.max_session_loss,
               commission_pct=cfg.commission_pct)
+    elif cmd[0] == "COMPAT_P0":
+        # Comando al CORE: riga AMBIGUOUS con la risposta senza esito come la persiste il fix P0 di Claude D
+        # (report con betId e sizeMatched non confermati).
+        oid = rc.db.insert_order({
+            "customer_ref": "cref-secret-p0", "correlation_id": "corr", "status": "AMBIGUOUS",
+            "ambiguity_reason": "bet_status_unrecognized",
+            "response": {"ok": False, "error": "BET_STATUS_UNRECOGNIZED", "classification": "UNKNOWN",
+                         "order_unknown": True,
+                         "result": {"instructionReports": [
+                             {"status": "SUCCESS", "betId": "31415", "sizeMatched": 5.0}]}},
+            "payload": {"market_id": "1.234567", "selection_id": 47972, "side": "BACK", "price": 2.5,
+                        "stake": 5.0, "event_key": "Juventus v Inter"},
+        })
+        cands, unattr = rc._open_order_candidates()
+        reply(event="COMPAT_P0", id=oid,
+              open_bet_ids=sorted(c["bet_id"] for c in list(cands) + list(unattr)))
     elif cmd[0] == "DIGEST":
         state["recording"] = False  # la misura stessa non deve contare come chiamata
         current = dict(server.request_counts()) if server is not None else {}

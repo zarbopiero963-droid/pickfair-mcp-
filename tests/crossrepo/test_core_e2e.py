@@ -521,3 +521,21 @@ async def test_e2e_config_is_read_only_and_redacted(core: Core, tmp_path: Path) 
     assert after["calls"] == baseline["calls"]  # nessuna chiamata a broker o Betfair
     assert after["db"] == baseline["db"] and after["state"] == baseline["state"]
     assert after["bus"] == baseline["bus"] and after["balance"] == baseline["balance"]
+
+
+async def test_e2e_p0_ambiguous_row_without_unconfirmed_amounts(core: Core, tmp_path: Path) -> None:
+    """MCP-01k: riga AMBIGUOUS nella forma del fix P0 di Claude D: betId visibile, importi mai esposti."""
+    errlog = (tmp_path / "mcp.err").open("w+")
+    async with mcp(core, errlog) as s:
+        tools = {t.name: t for t in (await s.list_tools()).tools}
+        written = core.send("COMPAT_P0")  # comando al CORE
+        is_error, payload = await call(s, "list_orders")
+    assert is_error is False, payload
+    jsonschema.validate(payload, tools["list_orders"].outputSchema)
+    row = next(o for o in payload["data"]["orders"]["snapshot"]["orders"]
+               if str(o["local_id"]) == str(written["id"]))
+    assert row["status"] == "AMBIGUOUS" and row["bet_id"] == "31415"
+    assert "31415" in written["open_bet_ids"]  # stessa identità della riconciliazione del core
+    assert (row["size_matched"], row["avg_price_matched"], row["size_remaining"]) == (None, None, None)
+    assert row["reconciliation"]["in_reconciliation"] is True
+    assert row["reconciliation"]["ambiguity_reason"] == "BET_STATUS_UNRECOGNIZED"

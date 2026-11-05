@@ -1,6 +1,6 @@
 # INTEGRATION INVENTORY — copertura MCP + Control API per area funzionale
 
-Aggiornato 05/11/2026 · MCP-01j · base core `ada40765` (Pickfair-nogui `main`) · Claude C.
+Aggiornato 05/11/2026 · MCP-01k · base core `ada40765` (Pickfair-nogui `main`) · Claude C.
 
 Livelli (cumulativi, ognuno richiede un'evidenza; senza evidenza il livello NON è raggiunto):
 
@@ -13,7 +13,7 @@ Livelli (cumulativi, ognuno richiede un'evidenza; senza evidenza il livello NON 
 | `INTEGRATED` | ponte mergiato in Pickfair-nogui `main` | SHA di merge (Claude B, merge owner) |
 | `CERTIFIED` | review indipendente + verifica d'integrazione di Claude B + certificazione #586 | dossier |
 
-Oggi **nessuna area è INTEGRATED né CERTIFIED**: i ponti MCP-01d … MCP-01h e MCP-01j sono patch consegnate a
+Oggi **nessuna area è INTEGRATED né CERTIFIED**: i ponti MCP-01d … MCP-01h, MCP-01j e MCP-01k sono patch consegnate a
 Claude B, da integrare dopo #608 e #606 con una PR indipendente e safety-critical.
 
 ## Stato per area (priorità owner)
@@ -51,3 +51,11 @@ Claude B, da integrare dopo #608 e #606 con una PR indipendente e safety-critica
 | SL/TP per tavolo | `TESTED` (lettura) | `GET /v1/exposure` · `get_exposure` | test core 11 + mutazioni 62/62; E2E 12/12 ×3 | sul `main` SL/TP non è mai armato (nessun percorso lo scrive); F-02 di Claude D lo introduce, contratto già compatibile; trailing assente nel core |
 | Cashout in corso | `TESTED` | `GET /v1/status` (barriere, in volo, incerti) + `list_orders` (hedge) | idem | storico dei cashout: nessuna tabella dedicata nel core (solo righe hedge e `audit_events`) |
 | Settlement | `TESTED` (conteggi) | `GET /v1/reconciliation/status` | idem | storico P/L di settlement con importi: da progettare (route K3 o estensione di `get_orders`) |
+
+## Aggiunte MCP-01k (compatibilità con le correzioni di Claude D)
+
+| Area | Livello | Route / tool | Evidenza | Nota |
+|---|---|---|---|---|
+| Ordini AMBIGUOUS dopo il fix P0 | `TESTED` | `GET /v1/orders` · `list_orders` | sonda sulla catena reale del branch P0 RED → GREEN; test core e E2E | importi del report non confermato mai esposti; betId mantenuto. Rapporto: `docs/handoff/compat_claude_d_20261105.md` |
+| Freschezza dei fondi dopo F-16 | `TESTED` | `GET /v1/status` (`protections.funds_freshness`) | sonda sul codice reale di F-16 RED → GREEN | limite null finché il core non espone `funds_max_age_s()` |
+

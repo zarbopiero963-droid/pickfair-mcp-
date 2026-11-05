@@ -472,6 +472,38 @@
         "tests/unit/test_registry_guard.py"
       ],
       "max_files": 39
+    },
+    "mcp01k-compat": {
+      "issue": "mandato owner 05/11/2026 (ORDINE OWNER, punto 3: compatibilità con le correzioni di Claude D)",
+      "scheda": "MCP-01k — compatibilità del ponte con P0 AMBIGUOUS e F-16 (contratto 1.7.0)",
+      "description": "Ordini con esito non confermato senza importi (forma del fix P0), limite della freschezza dei fondi non ricalcolato (F-16), rapporto di compatibilità per branch di Claude D; handoff della patch incrementale del core.",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "README.md",
+        "docs/contract_v1.md",
+        "docs/handoff/compat_claude_d_20261105.md",
+        "docs/handoff/core_bridge_mcp01k.patch.sha256",
+        "docs/handoff/mcp01k_compat.md",
+        "docs/roadmap/INTEGRATION_INVENTORY.md",
+        "scripts/critical_mutations.py",
+        "src/pickfair_control_api/__init__.py",
+        "src/pickfair_control_api/contract.py",
+        "src/pickfair_control_api/contract_v1.json",
+        "src/pickfair_mcp/adapters/simulated.py",
+        "src/pickfair_mcp/contract/descriptor.py",
+        "src/pickfair_mcp/contract/descriptor_v1.json",
+        "src/pickfair_mcp/contract/models.py",
+        "src/pickfair_mcp/contract/version.py",
+        "tests/crossrepo/core_runtime_server.py",
+        "tests/crossrepo/test_core_e2e.py",
+        "tests/e2e/test_stdio_subprocess.py",
+        "tests/unit/test_compat_models.py",
+        "tests/unit/test_contract_descriptor.py",
+        "tests/unit/test_contract_version.py",
+        "tests/unit/test_control_api_distribution.py",
+        "tests/unit/test_handshake.py"
+      ],
+      "max_files": 24
     }
   }
 }

@@ -84,7 +84,9 @@ SEMANTICS: Final = {
         "status_map_rule": (
             "A core status outside the map is UNKNOWN. UNMATCHED / PARTIALLY_MATCHED / MATCHED "
             "for an accepted order only with explicit size_matched and size_remaining. AMBIGUOUS "
-            "stays AMBIGUOUS, never FAILED or absent."
+            "stays AMBIGUOUS, never FAILED or absent. AMBIGUOUS and PENDING orders never carry "
+            "size_matched, avg_price_matched or size_remaining: an unconfirmed report is not data; "
+            "their bet_id stays (the core's reconciliation identity)."
         ),
         "not_in_core": ["APPROVED", "CANCELLED", "SETTLED"],
         "snapshot_states": (
