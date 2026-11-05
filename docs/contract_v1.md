@@ -419,7 +419,7 @@ fuga di token o di testo d'eccezione. Corrette quattro debolezze riprodotte (tes
 Codice d'errore nuovo nel contratto: `BAD_REQUEST`. Rischio residuo accettato e dichiarato: i campi codice
 (`^[A-Z][A-Z0-9_]{0,63}$`) arrivano all'agente come il core li produce (alfabeto ristretto, 64 caratteri, mai
 testo libero); le descrizioni dei tool dichiarano che sono dati, non istruzioni.
-## MCP-01i — stato della chiusura SL/TP (contratto 1.8.0, dipende da F-04)
+## MCP-01i — stato della chiusura SL/TP (contratto 1.10.0, dipende da F-04)
 
 Estensione di una route già approvata (`GET /v1/exposure` · `get_exposure`), nessuna route nuova. La sezione
 `sl_tp_closes` è sempre presente:
