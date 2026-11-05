@@ -2,12 +2,12 @@
  "certification_verdict": "NOT VERIFIED",
  "checkpoint_commit": null,
  "code": {
-  "branch": "ccr-edf04c7d-e7vtj1-mcp01m-trailing",
-  "sha": "ac65cc7399038badb9ee3e8d75d2d6c02530c50d"
+  "branch": "ccr-edf04c7d-e7vtj1-mcp01n-book-age",
+  "sha": "5ec79613b841f0f0603a7af4e3b1cf64d8a3a85d"
  },
- "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS",
- "next_atomic_action": "campagna G8 (scripts/run_suites.py campaign:all) con evidenze junit sul branch ccr-edf04c7d-e7vtj1-g8-suites, poi MCP-01n sopra 01l con MarketTracker.received_at/book_age_s di claude/d-market-book-age (offline)",
- "previous_checkpoint_sha": "f1f781c2e67f1742f5568ce4905d7a3ac4db0682",
+ "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C",
+ "next_atomic_action": "attendere la decisione owner A/B sulla pubblicazione delle sorgenti del core e l'hardening cross-repo di B; nel frattempo rendere deterministico test_rotation_mid_traffic (MCP-LOAD-FLAKE)",
+ "previous_checkpoint_sha": "05bb8524e803464e8b9cc8ea103a890e38a7edde",
  "schema": "pf-current/1",
- "seq": 3
+ "seq": 4
 }

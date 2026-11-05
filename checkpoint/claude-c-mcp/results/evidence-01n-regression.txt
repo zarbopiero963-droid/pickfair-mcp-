@@ -1,0 +1,5 @@
+MCP-01n core regression on core-01n f22d6bfb (01m + ea81e93e + 01n):
+FAILED tests/scripts/test_pf_test_dispatch.py::test_every_test_directory_and_module_is_reachable_from_the_catalog
+FAILED tests/scripts/test_run_mutation_guardrails_reale.py::test_il_catalogo_reale_e_applicabile_e_copre_le_aree_critiche
+2 failed, 12908 passed, 21 skipped, 18 xfailed, 34 warnings, 8 subtests passed in 424.09s (0:07:04)
+Both failures pre-existing: CORE-F13B-CATALOG (D stack) and canonical catalog reachability (#606 via D branch: tests/f02,f03,f13b,f18 of D + tests/control_api, closed by G8 entry + campaigns.all, proven: 661 passed, remaining 2 D-only)

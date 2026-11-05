@@ -1,0 +1,4 @@
+MCP-01n core mutations (control_api.views/bridge/launcher), core-01n f22d6bfb:
+   KILLED (rc=1, 0.83s) 
+   KILLED (rc=1, 1.0s) 
+GATE: PASS

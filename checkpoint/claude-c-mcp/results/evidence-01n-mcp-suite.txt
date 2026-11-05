@@ -1,0 +1,4 @@
+MCP-01n MCP suite full (2494e3e content = bfcd39c code), PICKFAIR_CORE_PATH=core-01n, PICKFAIR_CORE_BOOK_AGE=1:
+1886 passed, 1 skipped in 326.87s (0:05:26)
+
+[exited with code 0]

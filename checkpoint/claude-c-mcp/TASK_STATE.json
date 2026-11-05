@@ -1,10 +1,19 @@
 {
- "blocks": [],
+ "blocks": [
+  {
+   "descrizione": "i commit sorgente delle 12 patch del core (01d\u202601n) esistono solo nel clone locale di questa sessione (Pickfair-nogui in sola lettura per C, codice core vietato nel repo MCP); recuperabili solo dai file consegnati all'owner. Decisione owner: A = branch di consegna su Pickfair-nogui, B = patch come artefatto nella catena C",
+   "id": "CORE-HANDOFF-SOURCES-UNPUBLISHED",
+   "stato": "NEEDS_RECONCILIATION"
+  }
+ ],
  "dependencies": {
   "F-03 su main (con F-02, F-04)": "MCP-01m",
   "F-04 su main": "MCP-01i r2",
+  "claude/d-market-book-age su main": "MCP-01n",
   "correzione catalogo F-13b/F-02 (Claude B)": "regressione verde del core con F-03",
+  "decisione owner A/B (pubblicazione sorgenti core)": "riconciliazione degli handoff del core",
   "hardening pfckpt.py (Claude B)": "protezione squash merge / branch cancellati per questa catena",
+  "hardening pfckpt.py cross-repo (Claude B)": "prova INTEGRATED_VERIFIED degli handoff del core nella catena C",
   "integrazione patch (Claude B)": "MCP-01d...SEC-01",
   "ratifica owner K3": "RC-10/11/12"
  },
@@ -17,14 +26,15 @@
   "MCP-01i r2 su 01l+SEC-01 (06e9eda)",
   "MCP-01m trailing F-03/F-02/F-18 (ac65cc7)",
   "G8 manifest + runner (cf8627e)",
-  "K3 specifiche offline (bad873b)"
+  "K3 specifiche offline (bad873b)",
+  "G8 campagna all PASS 6/6, 1845 test (e029363)",
+  "MCP-01n et\u00e0 del book, contratto 1.12.0 (bfcd39c, evidenze 2494e3e)",
+  "handoff 01i riallineato alla r2 sui branch 01m/01n (5ec7961)"
  ],
- "lotto_corrente": "ripristino verificato (READY); prossimo: campagna G8 con evidenze e MCP-01n (et\u00e0 del book)",
- "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS",
- "next_atomic_action": "campagna G8 (scripts/run_suites.py campaign:all) con evidenze junit sul branch ccr-edf04c7d-e7vtj1-g8-suites, poi MCP-01n sopra 01l con MarketTracker.received_at/book_age_s di claude/d-market-book-age (offline)",
+ "lotto_corrente": "checkpoint seq 4: handoff del core registrati DELIVERED; sorgenti non pubblicate => NEEDS_RECONCILIATION in attesa della decisione owner A/B",
+ "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C",
+ "next_atomic_action": "attendere la decisione owner A/B sulla pubblicazione delle sorgenti del core e l'hardening cross-repo di B; nel frattempo rendere deterministico test_rotation_mid_traffic (MCP-LOAD-FLAKE)",
  "pr_505": "N/A (repository MCP)",
  "schema": "pf-task-state/1",
- "tests_missing": [
-  "G8: campagna all con evidenze junit"
- ]
+ "tests_missing": []
 }

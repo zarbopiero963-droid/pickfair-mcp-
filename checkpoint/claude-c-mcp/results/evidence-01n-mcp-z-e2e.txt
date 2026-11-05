@@ -1,0 +1,3 @@
+MCP-01n: Z01-Z04 4/4 KILLED (critical_mutations.py)
+E2E crossrepo 17/17 x3 (PICKFAIR_CORE_BOOK_AGE=1)
+Core new tests RED 8/9 failed without views -> GREEN 9/9

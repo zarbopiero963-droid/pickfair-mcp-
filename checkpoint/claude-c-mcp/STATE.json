@@ -1,14 +1,15 @@
 {
  "schema": "pf-checkpoint/3",
  "repository": "zarbopiero963-droid/pickfair-mcp-",
- "seq": 3,
+ "seq": 4,
  "agent": "claude-c",
  "agent_identity": "Claude C — MCP + Control API (sessione session_013X2mCaF4fE5YMWGVrM8LtR)",
- "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS",
- "previous_checkpoint_sha": "f1f781c2e67f1742f5568ce4905d7a3ac4db0682",
+ "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C",
+ "previous_checkpoint_sha": "05bb8524e803464e8b9cc8ea103a890e38a7edde",
  "code": {
-  "branch": "ccr-edf04c7d-e7vtj1-mcp01m-trailing",
-  "sha": "ac65cc7399038badb9ee3e8d75d2d6c02530c50d"
+  "branch": "ccr-edf04c7d-e7vtj1-mcp01n-book-age",
+  "sha": "5ec79613b841f0f0603a7af4e3b1cf64d8a3a85d",
+  "tree": "c9b13b5eebb295679b9cbaac9b0dd4bcff772b97"
  },
  "published_branches": {
   "ccr-edf04c7d-e7vtj1": "647d5e8d269952af975ec01df7be27abf2ff3c1e",
@@ -23,8 +24,9 @@
   "ccr-edf04c7d-e7vtj1-mcp01i-sltp-close": "3b25f96f5682c988b57cb5d6d793e0c3fb6bce30",
   "ccr-edf04c7d-e7vtj1-mcp01i-r2": "06e9eda4ea60768314d25d2f47846c000df6ee30",
   "ccr-edf04c7d-e7vtj1-mcp01m-trailing": "ac65cc7399038badb9ee3e8d75d2d6c02530c50d",
-  "ccr-edf04c7d-e7vtj1-g8-suites": "cf8627e66086cfd32084a373e766481fd970cbd2",
-  "ccr-edf04c7d-e7vtj1-k3-specs": "bad873b8262679f7b0f291ac9d508c55ff1fd70b"
+  "ccr-edf04c7d-e7vtj1-g8-suites": "e029363e361b311488b09e7253e715fd6fd36e51",
+  "ccr-edf04c7d-e7vtj1-k3-specs": "bad873b8262679f7b0f291ac9d508c55ff1fd70b",
+  "ccr-edf04c7d-e7vtj1-mcp01n-book-age": "5ec79613b841f0f0603a7af4e3b1cf64d8a3a85d"
  },
  "integration_chain": [
   "MCP-01d",
@@ -37,9 +39,10 @@
   "MCP-01l",
   "MCP-SEC-01",
   "MCP-01i r2 (dopo F-04 su main)",
-  "MCP-01m (dopo F-03 su main)"
+  "MCP-01m (dopo F-03 su main)",
+  "MCP-01n (dopo claude/d-market-book-age su main)"
  ],
- "lotto_corrente": "ripristino verificato (READY); prossimo: campagna G8 con evidenze e MCP-01n (età del book)",
+ "lotto_corrente": "checkpoint seq 4: handoff del core registrati DELIVERED; sorgenti non pubblicate => NEEDS_RECONCILIATION in attesa della decisione owner A/B",
  "lotti_completati": [
   "MCP-01j get_config (305b843)",
   "MCP-01k compatibilità P0/F-16 (4cd3e75)",
@@ -48,18 +51,30 @@
   "MCP-01i r2 su 01l+SEC-01 (06e9eda)",
   "MCP-01m trailing F-03/F-02/F-18 (ac65cc7)",
   "G8 manifest + runner (cf8627e)",
-  "K3 specifiche offline (bad873b)"
+  "K3 specifiche offline (bad873b)",
+  "G8 campagna all PASS 6/6, 1845 test (e029363)",
+  "MCP-01n età del book, contratto 1.12.0 (bfcd39c, evidenze 2494e3e)",
+  "handoff 01i riallineato alla r2 sui branch 01m/01n (5ec7961)"
  ],
- "next_atomic_action": "campagna G8 (scripts/run_suites.py campaign:all) con evidenze junit sul branch ccr-edf04c7d-e7vtj1-g8-suites, poi MCP-01n sopra 01l con MarketTracker.received_at/book_age_s di claude/d-market-book-age (offline)",
+ "next_atomic_action": "attendere la decisione owner A/B sulla pubblicazione delle sorgenti del core e l'hardening cross-repo di B; nel frattempo rendere deterministico test_rotation_mid_traffic (MCP-LOAD-FLAKE)",
  "dependencies": {
   "F-04 su main": "MCP-01i r2",
   "F-03 su main (con F-02, F-04)": "MCP-01m",
   "integrazione patch (Claude B)": "MCP-01d...SEC-01",
   "ratifica owner K3": "RC-10/11/12",
   "correzione catalogo F-13b/F-02 (Claude B)": "regressione verde del core con F-03",
-  "hardening pfckpt.py (Claude B)": "protezione squash merge / branch cancellati per questa catena"
+  "hardening pfckpt.py (Claude B)": "protezione squash merge / branch cancellati per questa catena",
+  "claude/d-market-book-age su main": "MCP-01n",
+  "decisione owner A/B (pubblicazione sorgenti core)": "riconciliazione degli handoff del core",
+  "hardening pfckpt.py cross-repo (Claude B)": "prova INTEGRATED_VERIFIED degli handoff del core nella catena C"
  },
- "blocks": [],
+ "blocks": [
+  {
+   "id": "CORE-HANDOFF-SOURCES-UNPUBLISHED",
+   "stato": "NEEDS_RECONCILIATION",
+   "descrizione": "i commit sorgente delle 12 patch del core (01d…01n) esistono solo nel clone locale di questa sessione (Pickfair-nogui in sola lettura per C, codice core vietato nel repo MCP); recuperabili solo dai file consegnati all'owner. Decisione owner: A = branch di consegna su Pickfair-nogui, B = patch come artefatto nella catena C"
+  }
+ ],
  "open_defects": [
   {
    "id": "CORE-F13B-CATALOG",
@@ -70,9 +85,15 @@
    "id": "MCP-LOAD-FLAKE",
    "owner": "Claude C",
    "descrizione": "test_rotation_mid_traffic_never_fails_a_reader_using_the_file (01d) sensibile al carico: fallito 1 volta su più esecuzioni con la CPU occupata, 3/3 da solo; da rendere deterministico"
+  },
+  {
+   "id": "CORE-CATALOG-REACHABILITY",
+   "owner": "Claude B (integrazione) / Claude D",
+   "descrizione": "catalogo canonico #606: tests/control_api coperto dalla voce G8 control-api + campaigns.all (provato); tests/f02, f03, f13b, f18 dello stack D non catalogati"
   }
  ],
  "github_evidence": [
+  "https://github.com/zarbopiero963-droid/pickfair-mcp-/issues/37#issuecomment-6662776892",
   "https://github.com/zarbopiero963-droid/pickfair-mcp-/issues/37#issuecomment-6662017266",
   "https://github.com/zarbopiero963-droid/pickfair-mcp-/issues/37#issuecomment-6659053582",
   "https://github.com/zarbopiero963-droid/pickfair-mcp-/issues/37#issuecomment-6658513559",
@@ -130,11 +151,40 @@
    "status": "PASS",
    "sha": "ac65cc7399038badb9ee3e8d75d2d6c02530c50d",
    "artifact": "results/evidence-ckpt-restore-seq2.txt"
+  },
+  {
+   "name": "MCP-01n: mutazioni core control_api 119/119",
+   "status": "PASS",
+   "sha": "5ec79613b841f0f0603a7af4e3b1cf64d8a3a85d",
+   "artifact": "results/evidence-01n-mutations.txt"
+  },
+  {
+   "name": "MCP-01n: suite MCP completa 1886 passed",
+   "status": "PASS",
+   "sha": "5ec79613b841f0f0603a7af4e3b1cf64d8a3a85d",
+   "artifact": "results/evidence-01n-mcp-suite.txt"
+  },
+  {
+   "name": "MCP-01n: Z01-Z04, E2E 17/17 x3, RED/GREEN core",
+   "status": "PASS",
+   "sha": "5ec79613b841f0f0603a7af4e3b1cf64d8a3a85d",
+   "artifact": "results/evidence-01n-mcp-z-e2e.txt"
+  },
+  {
+   "name": "MCP-01n: regressione core 12908 passed, 2 failed preesistenti",
+   "status": "FAIL",
+   "sha": "5ec79613b841f0f0603a7af4e3b1cf64d8a3a85d",
+   "artifact": "results/evidence-01n-regression.txt",
+   "note": "fallimenti preesistenti, indipendenti dalla patch"
+  },
+  {
+   "name": "G8: campagna all PASS 6/6, 1845 test",
+   "status": "PASS",
+   "sha": "e029363e361b311488b09e7253e715fd6fd36e51",
+   "artifact": "results/evidence-g8-campaign-all.json"
   }
  ],
- "tests_missing": [
-  "G8: campagna all con evidenze junit"
- ],
+ "tests_missing": [],
  "missing_historical_evidence": [
   "mutazioni e regressioni del core: eseguite su clone locale mai spinto; esiti nei file results/ e nei commenti di #37; i commit del core non sono risolvibili in questo repository (nessun SHA del core dichiarato come PASS qui)"
  ],
@@ -149,5 +199,130 @@
   "tests": "1555 passed, 1 skipped",
   "artifact": "results/evidence-ckpt-restore-seq2.txt",
   "limite": "i code.sha restano raggiungibili finché esistono i branch ccr-edf04c7d-e7vtj1-* (mai mergiati: consegna via patch); protezione contro cancellazione/squash dipende dall'hardening di pfckpt.py coordinato con Claude B"
- }
+ },
+ "core_handoffs_verdict": "NEEDS_RECONCILIATION (sorgenti non pubblicate; DELIVERED non equivale a integrato; nessuna patch del ponte su main, verificato: control_api/ assente su origin/main 89af178e)",
+ "handoffs_pending_reconciliation": [
+  {
+   "source_repo": "clone locale di zarbopiero963-droid/Pickfair-nogui (sessione C, mai spinto)",
+   "source_branch": "locale (nessun branch pubblicato)",
+   "source_sha": "ae17bb8e03498d3941831de98291a252332a3483",
+   "patch_sha256": "505f579c48493881d79a138bff77d02366e33c35dd31dfd93139920c9d3c7d0c",
+   "target_repo": "zarbopiero963-droid/Pickfair-nogui",
+   "handoff_ref": "zarbopiero963-droid/pickfair-mcp- #37; docs/handoff/core_bridge.patch.sha256 (MCP-01d)",
+   "status": "DELIVERED",
+   "base_sha": "ada40765e7949b8deb7661b3b5e9ddc8484adba3"
+  },
+  {
+   "source_repo": "clone locale di zarbopiero963-droid/Pickfair-nogui (sessione C, mai spinto)",
+   "source_branch": "locale (nessun branch pubblicato)",
+   "source_sha": "b8b26434c37a03a9e5a165ebe9849ca995ab3a28",
+   "patch_sha256": "39833bc317daacec037e4ca4c2f7758eb89e9043f6648c6e2faccbad04005bc4",
+   "target_repo": "zarbopiero963-droid/Pickfair-nogui",
+   "handoff_ref": "zarbopiero963-droid/pickfair-mcp- #37; docs/handoff/core_bridge_mcp01e.patch.sha256 (MCP-01e)",
+   "status": "DELIVERED",
+   "base_sha": "ae17bb8e03498d3941831de98291a252332a3483"
+  },
+  {
+   "source_repo": "clone locale di zarbopiero963-droid/Pickfair-nogui (sessione C, mai spinto)",
+   "source_branch": "locale (nessun branch pubblicato)",
+   "source_sha": "211374dca220bd6d8b5a2d43f17fa97a9874f234",
+   "patch_sha256": "5b847d946e18579d9e2a7c2c2e1afad5425cdfc95e92f2a3115b47ca5cf0fe74",
+   "target_repo": "zarbopiero963-droid/Pickfair-nogui",
+   "handoff_ref": "zarbopiero963-droid/pickfair-mcp- #37; docs/handoff/core_bridge_mcp01f.patch.sha256 (MCP-01f)",
+   "status": "DELIVERED",
+   "base_sha": "b8b26434c37a03a9e5a165ebe9849ca995ab3a28"
+  },
+  {
+   "source_repo": "clone locale di zarbopiero963-droid/Pickfair-nogui (sessione C, mai spinto)",
+   "source_branch": "locale (nessun branch pubblicato)",
+   "source_sha": "1bcfd7e1f597ffba893969e5459bdf5ec4700f7e",
+   "patch_sha256": "aa89bc71f6e28b28e1fc1d93b9b74fb6ae153ba6922d6bf4326a675165ce131c",
+   "target_repo": "zarbopiero963-droid/Pickfair-nogui",
+   "handoff_ref": "zarbopiero963-droid/pickfair-mcp- #37; docs/handoff/core_bridge_mcp01g.patch.sha256 (MCP-01g)",
+   "status": "DELIVERED",
+   "base_sha": "211374dca220bd6d8b5a2d43f17fa97a9874f234"
+  },
+  {
+   "source_repo": "clone locale di zarbopiero963-droid/Pickfair-nogui (sessione C, mai spinto)",
+   "source_branch": "locale (nessun branch pubblicato)",
+   "source_sha": "0a894c4d4b43f21862e7346c4ebccb32d6631e12",
+   "patch_sha256": "fbfa5210ba7a44fb59c8326e2c2a6d08bd24ce2bd4c508788028d476c0b2388e",
+   "target_repo": "zarbopiero963-droid/Pickfair-nogui",
+   "handoff_ref": "zarbopiero963-droid/pickfair-mcp- #37; docs/handoff/core_bridge_mcp01h.patch.sha256 (MCP-01h)",
+   "status": "DELIVERED",
+   "base_sha": "1bcfd7e1f597ffba893969e5459bdf5ec4700f7e"
+  },
+  {
+   "source_repo": "clone locale di zarbopiero963-droid/Pickfair-nogui (sessione C, mai spinto)",
+   "source_branch": "locale (nessun branch pubblicato)",
+   "source_sha": "05372f4e4939181a0b446d22a0482855f5aaaa4c",
+   "patch_sha256": "85fcfd7687d7cfd9e9cfaff9825faf2aabf4cd28febc1e842462d58cc61cd8de",
+   "target_repo": "zarbopiero963-droid/Pickfair-nogui",
+   "handoff_ref": "zarbopiero963-droid/pickfair-mcp- #37; docs/handoff/core_bridge_mcp01j.patch.sha256 (MCP-01j)",
+   "status": "DELIVERED",
+   "base_sha": "0a894c4d4b43f21862e7346c4ebccb32d6631e12"
+  },
+  {
+   "source_repo": "clone locale di zarbopiero963-droid/Pickfair-nogui (sessione C, mai spinto)",
+   "source_branch": "locale (nessun branch pubblicato)",
+   "source_sha": "190789d5a5e55ad32a6c11ff2a4f4c350669943b",
+   "patch_sha256": "7e29ca8b7f1b33547a9f6274f304c6d6dda550eef2430f22ab27298c01562bdc",
+   "target_repo": "zarbopiero963-droid/Pickfair-nogui",
+   "handoff_ref": "zarbopiero963-droid/pickfair-mcp- #37; docs/handoff/core_bridge_mcp01k.patch.sha256 (MCP-01k)",
+   "status": "DELIVERED",
+   "base_sha": "05372f4e4939181a0b446d22a0482855f5aaaa4c"
+  },
+  {
+   "source_repo": "clone locale di zarbopiero963-droid/Pickfair-nogui (sessione C, mai spinto)",
+   "source_branch": "locale (nessun branch pubblicato)",
+   "source_sha": "210ac9ad954db94a5c3636a1a0903eef6a6d1a63",
+   "patch_sha256": "815bcb50cdb9816062d3cecca9fb75e0bbee1ca0b7be770ad8014e5730d6f17c",
+   "target_repo": "zarbopiero963-droid/Pickfair-nogui",
+   "handoff_ref": "zarbopiero963-droid/pickfair-mcp- #37; docs/handoff/core_bridge_mcp01l.patch.sha256 (MCP-01l)",
+   "status": "DELIVERED",
+   "base_sha": "190789d5a5e55ad32a6c11ff2a4f4c350669943b"
+  },
+  {
+   "source_repo": "clone locale di zarbopiero963-droid/Pickfair-nogui (sessione C, mai spinto)",
+   "source_branch": "locale (nessun branch pubblicato)",
+   "source_sha": "4525b28cbb057319d11db6d5b449b2c0205b47d9",
+   "patch_sha256": "a0f6d249a57e124666cd1763ced6a8957cb4c765b483bbcf163f432c4f47d254",
+   "target_repo": "zarbopiero963-droid/Pickfair-nogui",
+   "handoff_ref": "zarbopiero963-droid/pickfair-mcp- #37; docs/handoff/core_bridge_mcpsec01.patch.sha256 (MCP-sec01)",
+   "status": "DELIVERED",
+   "base_sha": "210ac9ad954db94a5c3636a1a0903eef6a6d1a63"
+  },
+  {
+   "source_repo": "clone locale di zarbopiero963-droid/Pickfair-nogui (sessione C, mai spinto)",
+   "source_branch": "locale (nessun branch pubblicato)",
+   "source_sha": "044af41d78d78053b9ab1249b22cc6ff29a5c52c",
+   "patch_sha256": "5fe5b25b032c5f481864aa0bcaf562b5f5a17d69c1c3e0476f28a4462822f6f4",
+   "target_repo": "zarbopiero963-droid/Pickfair-nogui",
+   "handoff_ref": "zarbopiero963-droid/pickfair-mcp- #37; docs/handoff/core_bridge_mcp01i.patch.sha256 (MCP-01i-r2)",
+   "status": "DELIVERED",
+   "base_sha": "772ab58152b9bde7ce4a6ca88a4face72bd25b0c"
+  },
+  {
+   "source_repo": "clone locale di zarbopiero963-droid/Pickfair-nogui (sessione C, mai spinto)",
+   "source_branch": "locale (nessun branch pubblicato)",
+   "source_sha": "0dca9d58a28b8a4e9b85449928906a6b08f35f1b",
+   "patch_sha256": "0c877b9aac0c824224ca01d226d6d8ed8d6648e19f06d13c42a0c3bdd6bb83cb",
+   "target_repo": "zarbopiero963-droid/Pickfair-nogui",
+   "handoff_ref": "zarbopiero963-droid/pickfair-mcp- #37; docs/handoff/core_bridge_mcp01m.patch.sha256 (MCP-01m)",
+   "status": "DELIVERED",
+   "base_sha": "a0a6013738aaee7b4c281e524eb014c02246dded"
+  },
+  {
+   "source_repo": "clone locale di zarbopiero963-droid/Pickfair-nogui (sessione C, mai spinto)",
+   "source_branch": "locale (nessun branch pubblicato)",
+   "source_sha": "f22d6bfb521c742cbf08bbfc9895dd635b885e09",
+   "patch_sha256": "ebd7a2d544579583bd2cf3036a2618753abddff8ca1767f5ef75c708a405e83e",
+   "target_repo": "zarbopiero963-droid/Pickfair-nogui",
+   "handoff_ref": "zarbopiero963-droid/pickfair-mcp- #37; docs/handoff/core_bridge_mcp01n.patch.sha256 (MCP-01n)",
+   "status": "DELIVERED",
+   "base_sha": "2ea5187a9fad9a1b9cacfa310269bda45f89b3ba"
+  }
+ ],
+ "handoffs_note": "Record nel formato `handoffs` dell'hardening di B (pfckpt-squash-durable @ b449f359), tenuti fuori dal campo `handoffs` perché `save` li rifiuta con CODE_SHA_NOT_DURABLE (12/12 sorgenti non pubblicate; prova results/evidence-ckpt-save-refused-seq4.json). Esito della catena per il codice del core: NEEDS_RECONCILIATION, mai READY. Il READY di bootstrap vale SOLO per il codice MCP (code.sha). Passano in `handoffs` dopo la decisione owner A/B e l'hardening cross-repo di B; mai --allow-branch-only come prova.",
+ "checkpoint_tool": "pfckpt.py di Pickfair-nogui pfckpt-squash-durable @ b449f3592a81dcfe8e668c8c67c56aeac629e13b (hardening di B, non ancora su main)"
 }
