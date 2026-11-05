@@ -45,6 +45,7 @@ READ_TOOLS = (
     "get_exposure",
     "list_positions",
     "list_orders",
+    "get_config",
 )
 
 
@@ -368,7 +369,7 @@ async def test_e2e_unserved_reads_are_not_implemented(core: Core) -> None:
     from pickfair_mcp.adapters.http import _LoopbackConnection  # niente DNS: socket IPv4 diretto
 
     token = core.token_path.read_text()
-    for path in ("/v1/config", "/v1/markets/1.2/book", "/v1/operations/op-1"):
+    for path in ("/v1/events", "/v1/markets/1.2/book", "/v1/operations/op-1"):
         conn = _LoopbackConnection(core.port, 5.0)
         conn.request("GET", path, headers={"Authorization": f"Bearer {token}"})
         resp = conn.getresponse()
@@ -488,3 +489,35 @@ async def test_e2e_sl_tp_settlement_and_cashout_barriers(core: Core, tmp_path: P
     assert status[1]["data"]["status"]["engine"]["queues"]["cashout_barriers"] == 0
     text = json.dumps([exposure, recon])
     assert "cref-secret" not in text and "Juventus" not in text
+
+
+async def test_e2e_config_is_read_only_and_redacted(core: Core, tmp_path: Path) -> None:
+    """MCP-01j: get_config dalla RoserpinaConfig reale del core; segreti nel DB mai esposti."""
+    errlog = (tmp_path / "mcp.err").open("w+")
+    async with mcp(core, errlog) as s:
+        tools = {t.name: t for t in (await s.list_tools()).tools}
+        expected = core.send("CONFIG")  # comando al CORE
+        baseline = core.send("DIGEST")
+        result = await call(s, "get_config")
+        after = core.send("DIGEST")
+    is_error, payload = result
+    assert is_error is False, payload
+    jsonschema.validate(payload, tools["get_config"].outputSchema)
+    cfg = payload["data"]["config"]
+    assert cfg["source"] == "core" and cfg["unavailable"] == []
+    s = {x["key"]: x for x in cfg["settings"]}
+    assert s["max_single_bet_pct"]["value"] == "4.25" == str(expected["max_single_bet_pct"])
+    assert s["max_daily_loss"]["value"] == "75.5" == str(expected["max_daily_loss"])
+    assert s["table_count"]["value"] == expected["table_count"] == 3
+    assert s["risk_profile"]["value"] == expected["risk_profile"]
+    assert expected["max_session_loss"] is None
+    assert s["max_session_loss"] == {"key": "max_session_loss", "kind": "DECIMAL",
+                                     "state": "NOT_SET", "value": None}
+    text = json.dumps(payload)
+    for secret in ("E2E-APPKEY-SECRET", "E2E-CERT-SECRET", "E2E-PK-SECRET",
+                   "E2E-PASSWORD-SECRET", "E2E-HASH-SECRET", "E2E-SS-SECRET", "424242",
+                   "e2e-user"):
+        assert secret not in text
+    assert after["calls"] == baseline["calls"]  # nessuna chiamata a broker o Betfair
+    assert after["db"] == baseline["db"] and after["state"] == baseline["state"]
+    assert after["bus"] == baseline["bus"] and after["balance"] == baseline["balance"]

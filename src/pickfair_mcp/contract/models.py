@@ -1086,3 +1086,172 @@ class OrdersResponse(StrictModel):
     # Tutte le righe da una sola transazione di lettura: nessun ordine a metà fra due stati.
     consistency: Literal["SINGLE_READ_TRANSACTION"]
     snapshot: OrdersSnapshotRead | OrdersSnapshotMissing
+
+
+# ------------------------------------------------------------------ MCP-01j: get_config
+
+# Allowlist ESPLICITA delle impostazioni operative esposte (campi di `RoserpinaConfig` nel core,
+# `core/system_state.py`). Nient'altro della configurazione esce: credenziali Betfair, Telegram,
+# certificati e impostazioni persistite non sono mai lette dalla vista. Un campo nuovo del core
+# non entra da solo: compare per nome in `unlisted` (mai il valore) finché il contratto non lo
+# aggiunge qui.
+CONFIG_KEYS: dict[str, str] = {
+    "target_profit_cycle_pct": "DECIMAL",
+    "max_single_bet_pct": "DECIMAL",
+    "max_total_exposure_pct": "DECIMAL",
+    "max_event_exposure_pct": "DECIMAL",
+    "max_daily_loss": "DECIMAL",
+    "max_drawdown_hard_stop_pct": "DECIMAL",
+    "max_open_exposure": "DECIMAL",
+    "max_order_exposure": "DECIMAL",
+    "max_market_exposure": "DECIMAL",
+    "max_event_exposure_abs": "DECIMAL",
+    "max_drawdown_abs": "DECIMAL",
+    "max_session_loss": "DECIMAL",
+    "max_exposure_stop": "DECIMAL",
+    "max_recovery_chase_abs": "DECIMAL",
+    "auto_reset_drawdown_pct": "DECIMAL",
+    "defense_drawdown_pct": "DECIMAL",
+    "lockdown_drawdown_pct": "DECIMAL",
+    "expansion_profit_pct": "DECIMAL",
+    "expansion_multiplier": "DECIMAL",
+    "defense_multiplier": "DECIMAL",
+    "risk_profile": "ENUM",
+    "table_count": "INT",
+    "max_recovery_tables": "INT",
+    "allow_recovery": "BOOL",
+    "anti_duplication_enabled": "BOOL",
+    "commission_pct": "DECIMAL",
+    "min_stake": "DECIMAL",
+    "max_stake_abs": "DECIMAL",
+    "book_warning": "DECIMAL",
+    "book_block": "DECIMAL",
+    "liquidity_guard_enabled": "BOOL",
+    "liquidity_multiplier": "DECIMAL",
+    "min_liquidity_absolute": "DECIMAL",
+    "liquidity_warning_only": "BOOL",
+    "min_price": "DECIMAL",
+    "max_win": "DECIMAL",
+    "max_win_warning_only": "BOOL",
+    "max_stake_pct": "DECIMAL",
+    "profit_epsilon": "DECIMAL",
+    "profit_epsilon_enabled": "BOOL",
+    "auto_green_delay_enabled": "BOOL",
+    "auto_green_delay_sec": "DECIMAL",
+}
+
+# Campi `Optional` del core: `None` = non configurato (limite non attivo o percentuale mancante,
+# che il core tratta come blocco). Solo questi possono essere NOT_SET; per gli altri un valore
+# assente è INVALID.
+OPTIONAL_CONFIG_KEYS: frozenset[str] = frozenset({
+    "target_profit_cycle_pct", "max_single_bet_pct", "max_total_exposure_pct",
+    "max_event_exposure_pct", "max_daily_loss", "max_drawdown_hard_stop_pct",
+    "max_open_exposure", "max_order_exposure", "max_market_exposure", "max_event_exposure_abs",
+    "max_drawdown_abs", "max_session_loss", "max_exposure_stop", "max_recovery_chase_abs",
+    "max_stake_abs", "max_win",
+})
+
+# Frammenti che un nome in `unlisted` non può contenere: seconda barriera, oltre al filtro
+# `core.redaction.is_sensitive_key` del core, contro la fuga anche solo del NOME di un segreto.
+SENSITIVE_NAME_FRAGMENTS: tuple[str, ...] = (
+    "token", "secret", "password", "passwd", "auth", "bearer", "key", "session", "api",
+    "cert", "cookie", "ssoid", "private", "credential", "hash", "pin",
+)
+
+ConfigKey = Literal[tuple(CONFIG_KEYS)]  # type: ignore[valid-type]
+SettingState = Literal["SET", "NOT_SET", "INVALID"]
+RiskProfile = Literal["CONSERVATIVE", "BALANCED", "AGGRESSIVE"]
+FieldName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,63}$")]
+MAX_UNLISTED = 64
+
+
+class _SettingBase(StrictModel):
+    key: ConfigKey
+    # SET = valore leggibile e restituito; NOT_SET = campo opzionale non configurato;
+    # INVALID = valore presente ma illeggibile (tipo errato, NaN/inf): mai convertito in zero.
+    state: SettingState
+
+    def _value(self) -> object:
+        raise NotImplementedError
+
+    @model_validator(mode="after")
+    def _state_matches_value(self) -> _SettingBase:
+        if (self.state == "SET") != (self._value() is not None):
+            raise ValueError("value present iff state is SET")
+        return self
+
+
+class DecimalSetting(_SettingBase):
+    kind: Literal["DECIMAL"]
+    value: DecimalStr | None
+
+    def _value(self) -> object:
+        return self.value
+
+
+class BoolSetting(_SettingBase):
+    kind: Literal["BOOL"]
+    value: bool | None
+
+    def _value(self) -> object:
+        return self.value
+
+
+class IntSetting(_SettingBase):
+    kind: Literal["INT"]
+    value: Annotated[int, Field(ge=-1_000_000_000, le=1_000_000_000)] | None
+
+    def _value(self) -> object:
+        return self.value
+
+
+class EnumSetting(_SettingBase):
+    kind: Literal["ENUM"]
+    value: RiskProfile | None
+
+    def _value(self) -> object:
+        return self.value
+
+
+ConfigSetting = DecimalSetting | BoolSetting | IntSetting | EnumSetting
+
+
+def _check_unlisted(values: tuple[str, ...]) -> tuple[str, ...]:
+    if len(set(values)) != len(values):
+        raise ValueError("duplicate unlisted names")
+    for name in values:
+        if name in CONFIG_KEYS:
+            raise ValueError("listed key reported as unlisted")
+        if any(fragment in name for fragment in SENSITIVE_NAME_FRAGMENTS):
+            raise ValueError("sensitive field name must be redacted, not listed")
+    return values
+
+
+class ConfigResponse(StrictModel):
+    source: Source
+    observed_at: ObservedAt
+    # Il core sostituisce la configurazione per riferimento (`reload_config`): un solo riferimento
+    # letto => tutte le impostazioni appartengono alla stessa versione della configurazione.
+    consistency: Literal["SINGLE_REFERENCE_READ"]
+    settings: Annotated[tuple[ConfigSetting, ...], Field(max_length=len(CONFIG_KEYS))] | None
+    unlisted: Annotated[
+        tuple[FieldName, ...], Field(max_length=MAX_UNLISTED), AfterValidator(_check_unlisted)
+    ]
+    redacted: Count
+    unavailable: Annotated[
+        tuple[Literal["settings"], ...], Field(max_length=1, json_schema_extra={"uniqueItems": True})
+    ]
+
+    @model_validator(mode="after")
+    def _complete(self) -> ConfigResponse:
+        _check_unavailable({"settings": self.settings}, self.unavailable)
+        if self.settings is None:
+            return self
+        if tuple(s.key for s in self.settings) != tuple(CONFIG_KEYS):
+            raise ValueError("settings must list every contract key once, in contract order")
+        for s in self.settings:
+            if s.kind != CONFIG_KEYS[s.key]:
+                raise ValueError("setting kind does not match the contract")
+            if s.state == "NOT_SET" and s.key not in OPTIONAL_CONFIG_KEYS:
+                raise ValueError("only optional settings can be NOT_SET")
+        return self

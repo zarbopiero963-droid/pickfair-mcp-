@@ -28,6 +28,7 @@ class Providers:
         self.exposure: Callable[[], dict[str, Any]] = bodies.exposure
         self.positions: Callable[[], dict[str, Any]] = bodies.positions
         self.orders: Callable[[], dict[str, Any]] = bodies.orders
+        self.config: Callable[[], dict[str, Any]] = bodies.config
         self.calls = 0
 
     def mapping(self) -> dict[str, Callable[[], dict[str, Any]]]:
@@ -55,7 +56,12 @@ class Providers:
             self.calls += 1
             return self.orders()
 
+        def config() -> dict[str, Any]:
+            self.calls += 1
+            return self.config()
+
         return {
+            "config": config,
             "orders": orders,
             "positions": positions,
             "status": status,

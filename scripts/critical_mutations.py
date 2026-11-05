@@ -1029,6 +1029,94 @@ MUTANTS: tuple[Mutant, ...] = (
         ),
     ),
     Mutant(
+        "K01",
+        "impostazione SET senza valore (o valore con NOT_SET/INVALID) accettata",
+        (
+            (
+                MO,
+                '        if (self.state == "SET") != (self._value() is not None):\n            raise ValueError("value present iff state is SET")',
+                "        pass",
+            ),
+        ),
+    ),
+    Mutant(
+        "K02",
+        "chiave mancante, duplicata o fuori ordine accettata",
+        (
+            (
+                MO,
+                '        if tuple(s.key for s in self.settings) != tuple(CONFIG_KEYS):\n            raise ValueError("settings must list every contract key once, in contract order")',
+                "        pass",
+            ),
+        ),
+    ),
+    Mutant(
+        "K03",
+        "tipo dell'impostazione diverso dal contratto accettato",
+        (
+            (
+                MO,
+                '            if s.kind != CONFIG_KEYS[s.key]:\n                raise ValueError("setting kind does not match the contract")',
+                "            pass",
+            ),
+        ),
+    ),
+    Mutant(
+        "K04",
+        "campo obbligatorio presentato come NOT_SET accettato",
+        (
+            (
+                MO,
+                '            if s.state == "NOT_SET" and s.key not in OPTIONAL_CONFIG_KEYS:',
+                "            if False:",
+            ),
+        ),
+    ),
+    Mutant(
+        "K05",
+        "nome sensibile accettato in unlisted",
+        (
+            (
+                MO,
+                '        if any(fragment in name for fragment in SENSITIVE_NAME_FRAGMENTS):\n            raise ValueError("sensitive field name must be redacted, not listed")',
+                "        pass",
+            ),
+        ),
+    ),
+    Mutant(
+        "K06",
+        "chiave dell'allowlist ripetuta in unlisted accettata",
+        (
+            (
+                MO,
+                '        if name in CONFIG_KEYS:\n            raise ValueError("listed key reported as unlisted")',
+                "        pass",
+            ),
+        ),
+    ),
+    Mutant(
+        "K07",
+        "impostazioni nulle senza dichiarazione in unavailable accettate",
+        (
+            (
+                MO,
+                '        _check_unavailable({"settings": self.settings}, self.unavailable)',
+                "        pass",
+            ),
+        ),
+    ),
+    Mutant(
+        "K08",
+        "nomi duplicati in unlisted accettati",
+        (
+            (
+                MO,
+                '    if len(set(values)) != len(values):\n        raise ValueError("duplicate unlisted names")',
+                "    pass",
+            ),
+        ),
+    ),
+    Mutant(
         "O01",
         "ordine AMBIGUOUS accettato come FAILED",
         (

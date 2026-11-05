@@ -325,6 +325,23 @@ for line in sys.stdin:
             "'b', '1.234567', 1.5, 'i', 0, 1, '{}')"
         )
         reply(event="SLTP_SETTLEMENT")
+    elif cmd[0] == "CONFIG":
+        # Comando al CORE: credenziali e segreti nel DB reale (cifrati a riposo dal core) e
+        # impostazioni Roserpina ricaricate; risposta con i valori letti DIRETTAMENTE dal core.
+        db.save_credentials(username="e2e-user", app_key="E2E-APPKEY-SECRET",
+                            certificate="E2E-CERT-SECRET", private_key="E2E-PK-SECRET")
+        db.save_password("E2E-PASSWORD-SECRET")
+        db.save_telegram_settings({"api_id": "424242", "api_hash": "E2E-HASH-SECRET",
+                                   "session_string": "E2E-SS-SECRET"})
+        settings.save_settings({"roserpina.max_single_bet_pct": "4.25",
+                                "roserpina.max_daily_loss": "75.5",
+                                "roserpina.table_count": "3"})
+        rc.reload_config()
+        cfg = rc.config
+        reply(event="CONFIG", max_single_bet_pct=cfg.max_single_bet_pct,
+              max_daily_loss=cfg.max_daily_loss, table_count=cfg.table_count,
+              risk_profile=cfg.risk_profile.value, max_session_loss=cfg.max_session_loss,
+              commission_pct=cfg.commission_pct)
     elif cmd[0] == "DIGEST":
         state["recording"] = False  # la misura stessa non deve contare come chiamata
         current = dict(server.request_counts()) if server is not None else {}

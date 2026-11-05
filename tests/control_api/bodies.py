@@ -348,3 +348,32 @@ def orders(**overrides: Any) -> dict[str, Any]:
     }
     body.update(overrides)
     return body
+
+
+def setting(key: str, **overrides: Any) -> dict[str, Any]:
+    from pickfair_mcp.contract.models import CONFIG_KEYS, OPTIONAL_CONFIG_KEYS
+
+    kind = CONFIG_KEYS[key]
+    if key in OPTIONAL_CONFIG_KEYS:
+        data: dict[str, Any] = {"key": key, "kind": kind, "state": "NOT_SET", "value": None}
+    else:
+        value = {"DECIMAL": "1.5", "BOOL": True, "INT": 5, "ENUM": "BALANCED"}[kind]
+        data = {"key": key, "kind": kind, "state": "SET", "value": value}
+    data.update(overrides)
+    return data
+
+
+def config(**overrides: Any) -> dict[str, Any]:
+    from pickfair_mcp.contract.models import CONFIG_KEYS
+
+    body: dict[str, Any] = {
+        "source": "core",
+        "observed_at": time.time(),
+        "consistency": "SINGLE_REFERENCE_READ",
+        "settings": [setting(k) for k in CONFIG_KEYS],
+        "unlisted": [],
+        "redacted": 0,
+        "unavailable": [],
+    }
+    body.update(overrides)
+    return body

@@ -52,6 +52,7 @@ def test_default_registry_exposes_only_read_tools() -> None:
         "get_exposure",
         "list_positions",
         "list_orders",
+        "get_config",
     )
 
 

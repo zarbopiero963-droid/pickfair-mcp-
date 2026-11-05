@@ -55,6 +55,7 @@ async def test_stdio_initialize_list_and_call_get_meta(tmp_path: Path) -> None:
                 "get_exposure",
                 "list_positions",
                 "list_orders",
+                "get_config",
             ]
             result = await session.call_tool("get_meta", {})
             assert result.isError is False
@@ -124,7 +125,7 @@ def test_contract_info_prints_version_and_hash() -> None:
     proc = run_cli("contract-info")
     assert proc.returncode == 0
     info = json.loads(proc.stdout)
-    assert info["supported_contract_version"] == "1.5.0"
+    assert info["supported_contract_version"] == "1.6.0"
     assert len(info["schema_hash"]) == 64
     assert info["routes"] == 25
     assert info["tools"] == [
@@ -135,5 +136,6 @@ def test_contract_info_prints_version_and_hash() -> None:
         "get_exposure",
         "list_positions",
         "list_orders",
+        "get_config",
     ]
     assert info["mutation_exposure"] == "BLOCKED_UNTIL_CORE_AUTHORITY_READY"

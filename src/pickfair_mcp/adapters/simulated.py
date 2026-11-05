@@ -19,6 +19,7 @@ from typing import Any
 import anyio
 
 from pickfair_mcp.adapters.base import AdapterKind, UpstreamUnavailable
+from pickfair_mcp.contract.models import CONFIG_KEYS
 from pickfair_mcp.contract.version import SUPPORTED_CONTRACT_VERSION, contract_schema_hash
 
 SIMULATED_GIT_SHA = hashlib.sha1(  # noqa: S324 - identificativo fittizio, non sicurezza
@@ -49,6 +50,7 @@ SIMULATED_CAPABILITIES = [
     "GET /v1/exposure",
     "GET /v1/positions",
     "GET /v1/orders",
+    "GET /v1/config",
 ]
 
 
@@ -109,6 +111,7 @@ class SimulatedControlApiAdapter:
         self.exposure_calls = 0
         self.positions_calls = 0
         self.orders_calls = 0
+        self.config_calls = 0
 
     @property
     def kind(self) -> AdapterKind:
@@ -167,6 +170,10 @@ class SimulatedControlApiAdapter:
         self.orders_calls += 1
         return await self._status_like(_orders_body)
 
+    async def get_config_raw(self) -> bytes:
+        self.config_calls += 1
+        return await self._status_like(_config_body)
+
     async def _status_like(self, build: Callable[[StatusScenario, float], dict[str, Any]]) -> bytes:
         if self._delay_s > 0:
             await anyio.sleep(self._delay_s)
@@ -189,7 +196,7 @@ class SimulatedControlApiAdapter:
 _SCENARIO_BODIES: dict[Scenario, bytes] = {
     Scenario.COMPATIBLE: _encode(_meta()),
     Scenario.INCOMPATIBLE_MAJOR: _encode(_meta(contract_version="2.0.0")),
-    Scenario.UNSUPPORTED_MINOR: _encode(_meta(contract_version="1.6.0")),
+    Scenario.UNSUPPORTED_MINOR: _encode(_meta(contract_version="1.7.0")),
     Scenario.SCHEMA_HASH_MISMATCH: _encode(_meta(schema_hash="0" * 64)),
     Scenario.MISSING_META_CAPABILITY: _encode(_meta(capabilities=["GET /v1/status"])),
     Scenario.META_ONLY: _encode(_meta(capabilities=["GET /v1/meta"])),
@@ -725,4 +732,67 @@ def _orders_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
         "observed_at": _observed_at(scenario, now),
         "consistency": "SINGLE_READ_TRANSACTION",
         "snapshot": snapshot,
+    }
+
+
+_CONFIG_SAMPLE: dict[str, Any] = {
+    "max_single_bet_pct": "5",
+    "max_total_exposure_pct": "30",
+    "max_event_exposure_pct": "10",
+    "target_profit_cycle_pct": "3",
+    "max_daily_loss": "50",
+    "auto_reset_drawdown_pct": "15",
+    "defense_drawdown_pct": "7.5",
+    "lockdown_drawdown_pct": "20",
+    "expansion_profit_pct": "5",
+    "expansion_multiplier": "1.1",
+    "defense_multiplier": "0.8",
+    "risk_profile": "BALANCED",
+    "table_count": 5,
+    "max_recovery_tables": 0,
+    "allow_recovery": False,
+    "anti_duplication_enabled": True,
+    "commission_pct": "4.5",
+    "min_stake": "0.01",
+    "book_warning": "105",
+    "book_block": "110",
+    "liquidity_guard_enabled": True,
+    "liquidity_multiplier": "3",
+    "min_liquidity_absolute": "50",
+    "liquidity_warning_only": True,
+    "min_price": "1.02",
+    "max_win_warning_only": True,
+    "max_stake_pct": "30",
+    "profit_epsilon": "0.5",
+    "profit_epsilon_enabled": True,
+    "auto_green_delay_enabled": False,
+    "auto_green_delay_sec": "2.5",
+}
+
+
+def _config_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
+    """Impostazioni fittizie: i limiti opzionali non presenti in `_CONFIG_SAMPLE` sono NOT_SET."""
+    settings: list[dict[str, Any]] | None = []
+    for key, kind in CONFIG_KEYS.items():
+        value = _CONFIG_SAMPLE.get(key)
+        state = "SET" if value is not None else "NOT_SET"
+        settings.append({"key": key, "kind": kind, "state": state, "value": value})
+    unlisted: list[str] = []
+    unavailable: list[str] = []
+    if scenario is StatusScenario.NOT_STARTED:
+        settings, unavailable = None, ["settings"]
+    elif scenario is StatusScenario.EXTRA_FIELD:
+        settings[0] = {**settings[0], "raw": 1.0}
+    elif scenario is StatusScenario.INJECTION_TEXT:
+        unlisted = ["telegram_bot_token"]  # nome di un segreto: deve essere rifiutato
+    elif scenario is StatusScenario.INCONSISTENT:
+        settings[0] = {**settings[0], "state": "SET", "value": None}  # mai SET senza valore
+    return {
+        "source": "core" if scenario is StatusScenario.WRONG_SOURCE else "simulated",
+        "observed_at": _observed_at(scenario, now),
+        "consistency": "SINGLE_REFERENCE_READ",
+        "settings": settings,
+        "unlisted": unlisted,
+        "redacted": 0,
+        "unavailable": unavailable,
     }

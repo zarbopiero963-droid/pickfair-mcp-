@@ -71,6 +71,7 @@ async def test_both_tools_listed_as_read_only_with_output_schema() -> None:
         "get_exposure",
         "list_positions",
         "list_orders",
+        "get_config",
     }
     for name in TOOLS:
         tool = tools[name]

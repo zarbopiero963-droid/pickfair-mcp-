@@ -45,8 +45,8 @@ def test_both_committed_copies_equal_the_generated_descriptor() -> None:
 
 def test_hash_and_version_are_shared() -> None:
     assert api_contract.schema_hash() == contract_schema_hash()
-    assert api_contract.CONTRACT_VERSION == SUPPORTED_CONTRACT_VERSION == "1.5.0"
-    assert COMPAT_MATRIX == {"1.5.0": frozenset({contract_schema_hash()})}
+    assert api_contract.CONTRACT_VERSION == SUPPORTED_CONTRACT_VERSION == "1.6.0"
+    assert COMPAT_MATRIX == {"1.6.0": frozenset({contract_schema_hash()})}
 
 
 def test_descriptor_covers_tools_errors_and_semantics() -> None:
@@ -59,6 +59,7 @@ def test_descriptor_covers_tools_errors_and_semantics() -> None:
         "get_exposure",
         "list_positions",
         "list_orders",
+        "get_config",
     }
     for tool in d["tools"].values():
         assert tool["input_schema"]["additionalProperties"] is False
@@ -74,6 +75,7 @@ def test_descriptor_covers_tools_errors_and_semantics() -> None:
         "exposure",
         "positions",
         "orders",
+        "config",
         "error",
     }
     assert {"unavailable", "codes", "consistency", "freshness", "money", "not_implemented"} <= set(

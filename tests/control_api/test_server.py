@@ -121,7 +121,6 @@ def test_unknown_paths(api: Any, path: str) -> None:
 @pytest.mark.parametrize(
     "path",
     [
-        "/v1/config",
         "/v1/events",
         "/v1/markets",
         "/v1/markets/1.234567/book",

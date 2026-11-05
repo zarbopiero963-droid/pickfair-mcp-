@@ -14,7 +14,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Final
 
-CONTRACT_VERSION: Final = "1.5.0"
+CONTRACT_VERSION: Final = "1.6.0"
 DESCRIPTOR_PATH: Final = Path(__file__).with_name("contract_v1.json")
 
 # Route servite in sola lettura. Nessuna route di comando.
@@ -26,6 +26,7 @@ ROUTE_SCHEMAS: Final = {
     "/v1/exposure": "exposure",
     "/v1/positions": "positions",
     "/v1/orders": "orders",
+    "/v1/config": "config",
 }
 # Provider che il core deve fornire: uno per ogni route servita tranne /v1/meta.
 PROVIDER_NAMES: Final = frozenset(name for name in ROUTE_SCHEMAS.values() if name != "meta")

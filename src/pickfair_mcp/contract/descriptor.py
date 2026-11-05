@@ -19,8 +19,11 @@ import json
 from typing import Any, Final
 
 from pickfair_mcp.contract.models import (
+    CONFIG_KEYS,
+    OPTIONAL_CONFIG_KEYS,
     ORDER_STATUS_MAP,
     AccountResponse,
+    ConfigResponse,
     ExposureResponse,
     OrdersResponse,
     PositionsResponse,
@@ -101,6 +104,24 @@ SEMANTICS: Final = {
         "Dutching batches, settlement_effects by outcome, cycle checkpoints by stage, SIM "
         "broker settlements (null in LIVE)."
     ),
+    "config": {
+        "source": (
+            "The core's RoserpinaConfig, read through one reference (reload_config swaps it "
+            "whole). Only the allowlisted keys below are returned; credentials, tokens, "
+            "certificates and persisted settings are never read."
+        ),
+        "keys": dict(CONFIG_KEYS),
+        "optional_keys": sorted(OPTIONAL_CONFIG_KEYS),
+        "states": (
+            "SET exact value; NOT_SET optional setting not configured (the core treats a missing "
+            "risk percentage as a block, a missing optional cap as inactive); INVALID present but "
+            "unreadable, never shown as zero."
+        ),
+        "unlisted": (
+            "Names of other core config fields, never their values; a sensitive name is never "
+            "listed, only counted in `redacted`."
+        ),
+    },
     "protections": (
         "Each protection is ACTIVE, INACTIVE, TRIGGERED, UNKNOWN or UNAVAILABLE; only ACTIVE has "
         "no reason. A protection that cannot be verified is UNKNOWN (core has it, value not "
@@ -168,6 +189,7 @@ def build_contract_descriptor() -> dict[str, Any]:
             "exposure": _schema(ExposureResponse),
             "positions": _schema(PositionsResponse),
             "orders": _schema(OrdersResponse),
+            "config": _schema(ConfigResponse),
             "error": error_schema,
         },
         "tools": tools,

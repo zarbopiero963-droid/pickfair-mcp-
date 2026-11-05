@@ -205,14 +205,14 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | CAP-ROS-04 | Allocazione evento → tavolo | `allocate`, `activate` | (interno) | — | 011, 025 | NOT_IMPLEMENTED | P/NO/NR |
 | CAP-ROS-05 | Sblocco forzato di un tavolo (privilegiato) | `force_unlock*` | RC-06 | (candidato) | 015 | OWNER_BLOCKED | P/NO/NR |
 | CAP-ROS-06 | Tavoli di recovery | `max_recovery_tables`, `allow_recovery` | `GET /v1/exposure` | `get_exposure` | 011 · MCP-01e | NOT_IMPLEMENTED | P/HRN/NR |
-| CAP-ROS-07 | Target di profitto del ciclo | `target_profit_cycle_pct` | `GET/PATCH /v1/config` | config | 011, 014 | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-ROS-07 | Target di profitto del ciclo | `target_profit_cycle_pct` | `GET/PATCH /v1/config` | config | 011, 014 · MCP-01j | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-ROS-08 | Transizioni desk EXPANSION / DEFENSE / LOCKDOWN | `risk_desk`, soglie drawdown | `GET /v1/status` | `get_status` | 011 · ROS-01/02 (#586) | NOT_IMPLEMENTED | Pz/NO/NR |
 | CAP-ROS-09 | Auto-reset del ciclo | `auto_reset_drawdown_pct`, `reset_cycle` | RC-02 | (candidato) | 015 | OWNER_BLOCKED | P/NO/NR |
 | CAP-ROS-10 | Avvio / pausa / STOP **per tavolo** | assente (STOP è globale) | — | — | 015 | CORE_BLOCKED | A/NO/NR |
 | CAP-ROS-11 | Allocazione del capitale per tavolo | MM Roserpina | `GET /v1/exposure` | `get_exposure` | 011, 012 | NOT_IMPLEMENTED | V/NO/NR |
 | CAP-ROS-12 | Debito di recovery persistente dopo crash | F-10 (#599) | `GET /v1/exposure` | `get_exposure` | 011, 020 | NOT_IMPLEMENTED | F/NO/NR |
 | CAP-ROS-13 | Equity e bankroll Roserpina | `docs/roserpina_bankroll_equity.md` | `GET /v1/account` | `get_account` | 012 · MCP-01e | NOT_IMPLEMENTED | P/HRN/NR |
-| CAP-ROS-14 | Tetto all'inseguimento del recovery | `max_recovery_chase_abs` | `GET/PATCH /v1/config` | config | 011, 014 | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-ROS-14 | Tetto all'inseguimento del recovery | `max_recovery_chase_abs` | `GET/PATCH /v1/config` | config | 011, 014 · MCP-01j | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-ROS-15 | Auto-trade MM ed esecutore di ciclo (ingressi automatici del ciclo Roserpina) | `AUTO_TRADE_MM_RESULT`, `_last_cycle_executor_result` | `GET /v1/status` (stato) | `get_status` | 011, 025 | NOT_IMPLEMENTED | P/NO/NR |
 
 ### 2.10 BKR — Bankroll, Money Management, limiti (17)
@@ -230,21 +230,21 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | CAP-BKR-09 | Commissione configurabile senza default nascosti | `commission_pct` (t80u) | `GET /v1/config` | `get_config` | 012 | CORE_BLOCKED | Pz/NO/NR |
 | CAP-BKR-10 | Motivi di rifiuto machine-readable | reason codes del core | `POST /v1/preview` | `preview_order` | 012, 006 | CORE_BLOCKED | Pz/NO/NR |
 | CAP-BKR-11 | Stake MM in percentuale del bankroll verificato | `money_management`, 23/10 | `POST /v1/preview` | `preview_order` | 012 · MM-01/02 | NOT_IMPLEMENTED | Pz/NO/NR |
-| CAP-BKR-12 | Profilo di rischio | `RiskProfile` | `GET /v1/config` | `get_config` | 012 | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-BKR-12 | Profilo di rischio | `RiskProfile` | `GET /v1/config` | `get_config` | 012 · MCP-01j | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-BKR-13 | P/L di sessione e giornaliero | `pnl_engine` | `GET /v1/exposure` o `/v1/account` | — | 012, 013 | NOT_IMPLEMENTED | P/NO/NR |
 | CAP-BKR-14 | Liquidity guard | `liquidity_guard_*` | `POST /v1/preview` | `preview_order` | 012 | NOT_IMPLEMENTED | P/NO/NR |
 | CAP-BKR-15 | Max win | `max_win`, `max_win_warning_only` | idem | idem | 012 | NOT_IMPLEMENTED | P/NO/NR |
-| CAP-BKR-16 | Cap opzionali OFF di default, valore invalido = fail-closed | `RoserpinaConfig` Optional | `GET /v1/config` | `get_config` | 012, 014 | NOT_IMPLEMENTED | Pz/NO/NR |
+| CAP-BKR-16 | Cap opzionali OFF di default, valore invalido = fail-closed | `RoserpinaConfig` Optional | `GET /v1/config` | `get_config` | 012, 014 · MCP-01j | NOT_IMPLEMENTED | Pz/HRN/NR |
 | CAP-BKR-17 | Sincronizzazione del bankroll | `BANKROLL_SYNC_RESULT` | `GET /v1/account` | `get_account` | 012 | NOT_IMPLEMENTED | P/NO/NR |
 | CAP-BKR-18 | Guardia overround del book (warning / blocco) | `book_warning`, `book_block` | `POST /v1/preview` | `preview_order` | 012, 036 | NOT_IMPLEMENTED | P/NO/NR |
 | CAP-BKR-19 | Quota minima ammessa | `min_price` | `POST /v1/preview` | `preview_order` | 012, 016 | NOT_IMPLEMENTED | P/NO/NR |
-| CAP-BKR-20 | Epsilon di profitto (soglia di green) | `profit_epsilon`, `profit_epsilon_enabled` | `GET/PATCH /v1/config` | config | 012, 018 | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-BKR-20 | Epsilon di profitto (soglia di green) | `profit_epsilon`, `profit_epsilon_enabled` | `GET/PATCH /v1/config` | config | 012, 018 · MCP-01j | NOT_IMPLEMENTED | P/HRN/NR |
 
 ### 2.11 CFG — Configurazioni (10)
 
 | ID | Capacità | Core: componente | Endpoint | Tool MCP | Schede | Stato | L1/L2/L3 |
 |---|---|---|---|---|---|---|---|
-| CAP-CFG-01 | Lettura config redatta | `settings_service`, `config_registry` | `GET /v1/config` | `get_config` | 014 · MCP-02e | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-CFG-01 | Lettura config redatta | `settings_service`, `config_registry` | `GET /v1/config` | `get_config` | 014 · MCP-02e · MCP-01j | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-CFG-02 | Patch atomica, nessuna mutazione parziale | `config_store`, `atomic_io` | `PATCH /v1/config` | `patch_config` | 014 · MCP-03a | NOT_IMPLEMENTED | Pz/NO/NR |
 | CAP-CFG-03 | Validazione senza applicare (dry-run) | — | `PATCH /v1/config` (estensione) o RC-07 | `patch_config` | 014 | CORE_BLOCKED | A/NO/NR |
 | CAP-CFG-04 | Versionamento e rollback | — | RC-08 | — | 014 | CORE_BLOCKED | A/NO/NR |
@@ -252,7 +252,7 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | CAP-CFG-06 | Save fallito non distrugge, config corrotta in backup | `config_store` | — | — | 014, 020 | NOT_IMPLEMENTED | P/NO/NR |
 | CAP-CFG-07 | `reload_config` preserva tavoli, esposizione, pending | PR28 | `PATCH /v1/config` | `patch_config` | 014 | NOT_IMPLEMENTED | Pz/NO/NR |
 | CAP-CFG-08 | Inventario completo delle chiavi (GUI 42 + RoserpinaConfig + runtime) | CFG-01..07 (#586) | `GET /v1/config` | `get_config` | 001, 014 | NOT_IMPLEMENTED | Pz/NO/NR |
-| CAP-CFG-09 | Segreti mai esposti (redazione) | `core/redaction.py`, `config_registry` mask | `GET /v1/config` | `get_config` | 014, 023 | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-CFG-09 | Segreti mai esposti (redazione) | `core/redaction.py`, `config_registry` mask | `GET /v1/config` | `get_config` | 014, 023 · MCP-01j | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-CFG-10 | Audit delle modifiche di configurazione | — | `GET /v1/audit/{id}` | `get_audit_trail` | 014, 007 | CORE_BLOCKED | A/NO/NR |
 
 ### 2.12 STR / SIG — Strategie e segnali (12)
@@ -380,7 +380,7 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | **Totale** | **232** | **137** | **65** | **27** | **3** | **0** |
 
 Denominatore applicabile v0.2 = 232 − 3 RETIRED (duplicati, ID conservati) − 0 OUT_OF_SCOPE = **229**. COMPLETE = **0/229**.
-Capacità con catena reale su branch (L2 = `HRN`): **41** — non contano come COMPLETE.
+Capacità con catena reale su branch (L2 = `HRN`): **48** — non contano come COMPLETE.
 
 Il catalogo è **incompleto per costruzione** (PF-MCP-001): mancano la GUI riga per riga (42 chiavi),
 le singole strategie del perimetro storico, lo streaming (gap #586), la sicurezza applicativa del core,
@@ -477,3 +477,12 @@ sempre NOT_ARMED, nessun percorso arma SL/TP prima di F-02 di Claude D), SET-03 
 checkpoint ambigui contati), CSH-12 (hedge del cashout nel ledger, letto da `list_orders` e contato dalle
 barriere). Trailing: nessuna logica nel core, mai riportato attivo. Capacità con L2 = `HRN`: 41.
 COMPLETE: ancora **0/229**.
+
+## 12. Aggiornamento 05/11/2026 (MCP-01j)
+
+`get_config` in sola lettura (contratto 1.6.0) sulla route già approvata `GET /v1/config`: 42 impostazioni
+di `RoserpinaConfig` da un'allowlist, SET/NOT_SET/INVALID (mai zero), credenziali/token/certificati mai
+letti, nomi sensibili solo contati. L2 = `HRN` per CFG-01, CFG-09, BKR-12, BKR-16, ROS-07, ROS-14 e
+BKR-20 (solo la parte di lettura: la scrittura resta `patch_config`, non esposta). CFG-08 resta `NO`:
+l'inventario completo (GUI, runtime, impostazioni persistite) va oltre `RoserpinaConfig`. Capacità con
+L2 = `HRN`: 48. COMPLETE: ancora **0/229**.

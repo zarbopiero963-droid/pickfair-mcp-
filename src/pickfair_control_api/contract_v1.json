@@ -1,6 +1,6 @@
 {
   "contract_name": "pickfair-control-api",
-  "contract_version": "1.5.0",
+  "contract_version": "1.6.0",
   "error_codes": {
     "control_api": [
       "BAD_HOST",
@@ -155,6 +155,73 @@
   ],
   "semantics": {
     "codes": "Codes and reasons match ^[A-Z][A-Z0-9_]{0,63}$; free text from the core becomes UNSTRUCTURED and never crosses the API.",
+    "config": {
+      "keys": {
+        "allow_recovery": "BOOL",
+        "anti_duplication_enabled": "BOOL",
+        "auto_green_delay_enabled": "BOOL",
+        "auto_green_delay_sec": "DECIMAL",
+        "auto_reset_drawdown_pct": "DECIMAL",
+        "book_block": "DECIMAL",
+        "book_warning": "DECIMAL",
+        "commission_pct": "DECIMAL",
+        "defense_drawdown_pct": "DECIMAL",
+        "defense_multiplier": "DECIMAL",
+        "expansion_multiplier": "DECIMAL",
+        "expansion_profit_pct": "DECIMAL",
+        "liquidity_guard_enabled": "BOOL",
+        "liquidity_multiplier": "DECIMAL",
+        "liquidity_warning_only": "BOOL",
+        "lockdown_drawdown_pct": "DECIMAL",
+        "max_daily_loss": "DECIMAL",
+        "max_drawdown_abs": "DECIMAL",
+        "max_drawdown_hard_stop_pct": "DECIMAL",
+        "max_event_exposure_abs": "DECIMAL",
+        "max_event_exposure_pct": "DECIMAL",
+        "max_exposure_stop": "DECIMAL",
+        "max_market_exposure": "DECIMAL",
+        "max_open_exposure": "DECIMAL",
+        "max_order_exposure": "DECIMAL",
+        "max_recovery_chase_abs": "DECIMAL",
+        "max_recovery_tables": "INT",
+        "max_session_loss": "DECIMAL",
+        "max_single_bet_pct": "DECIMAL",
+        "max_stake_abs": "DECIMAL",
+        "max_stake_pct": "DECIMAL",
+        "max_total_exposure_pct": "DECIMAL",
+        "max_win": "DECIMAL",
+        "max_win_warning_only": "BOOL",
+        "min_liquidity_absolute": "DECIMAL",
+        "min_price": "DECIMAL",
+        "min_stake": "DECIMAL",
+        "profit_epsilon": "DECIMAL",
+        "profit_epsilon_enabled": "BOOL",
+        "risk_profile": "ENUM",
+        "table_count": "INT",
+        "target_profit_cycle_pct": "DECIMAL"
+      },
+      "optional_keys": [
+        "max_daily_loss",
+        "max_drawdown_abs",
+        "max_drawdown_hard_stop_pct",
+        "max_event_exposure_abs",
+        "max_event_exposure_pct",
+        "max_exposure_stop",
+        "max_market_exposure",
+        "max_open_exposure",
+        "max_order_exposure",
+        "max_recovery_chase_abs",
+        "max_session_loss",
+        "max_single_bet_pct",
+        "max_stake_abs",
+        "max_total_exposure_pct",
+        "max_win",
+        "target_profit_cycle_pct"
+      ],
+      "source": "The core's RoserpinaConfig, read through one reference (reload_config swaps it whole). Only the allowlisted keys below are returned; credentials, tokens, certificates and persisted settings are never read.",
+      "states": "SET exact value; NOT_SET optional setting not configured (the core treats a missing risk percentage as a block, a missing optional cap as inactive); INVALID present but unreadable, never shown as zero.",
+      "unlisted": "Names of other core config fields, never their values; a sensitive name is never listed, only counted in `redacted`."
+    },
     "consistency": "PER_FIELD_NON_ATOMIC: fields are read one at a time without a runtime-wide critical section; observed_at is the read instant. PER_SECTION_LOCKED: each section is produced by one core call under the lock of the component that owns it, or is one value replaced as a whole; two sections may reflect nearby instants.",
     "freshness": {
       "max_clock_skew_s": 5.0,
@@ -716,6 +783,640 @@
         "type": "object"
       },
       "route": "GET /v1/account",
+      "scope": "read"
+    },
+    "get_config": {
+      "input_schema": {
+        "additionalProperties": false,
+        "description": "Nessun argomento ammesso.",
+        "properties": {},
+        "title": "NoInput",
+        "type": "object"
+      },
+      "output_schema": {
+        "$defs": {
+          "BoolSetting": {
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "enum": [
+                  "target_profit_cycle_pct",
+                  "max_single_bet_pct",
+                  "max_total_exposure_pct",
+                  "max_event_exposure_pct",
+                  "max_daily_loss",
+                  "max_drawdown_hard_stop_pct",
+                  "max_open_exposure",
+                  "max_order_exposure",
+                  "max_market_exposure",
+                  "max_event_exposure_abs",
+                  "max_drawdown_abs",
+                  "max_session_loss",
+                  "max_exposure_stop",
+                  "max_recovery_chase_abs",
+                  "auto_reset_drawdown_pct",
+                  "defense_drawdown_pct",
+                  "lockdown_drawdown_pct",
+                  "expansion_profit_pct",
+                  "expansion_multiplier",
+                  "defense_multiplier",
+                  "risk_profile",
+                  "table_count",
+                  "max_recovery_tables",
+                  "allow_recovery",
+                  "anti_duplication_enabled",
+                  "commission_pct",
+                  "min_stake",
+                  "max_stake_abs",
+                  "book_warning",
+                  "book_block",
+                  "liquidity_guard_enabled",
+                  "liquidity_multiplier",
+                  "min_liquidity_absolute",
+                  "liquidity_warning_only",
+                  "min_price",
+                  "max_win",
+                  "max_win_warning_only",
+                  "max_stake_pct",
+                  "profit_epsilon",
+                  "profit_epsilon_enabled",
+                  "auto_green_delay_enabled",
+                  "auto_green_delay_sec"
+                ],
+                "title": "Key",
+                "type": "string"
+              },
+              "kind": {
+                "const": "BOOL",
+                "title": "Kind",
+                "type": "string"
+              },
+              "state": {
+                "enum": [
+                  "SET",
+                  "NOT_SET",
+                  "INVALID"
+                ],
+                "title": "State",
+                "type": "string"
+              },
+              "value": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Value"
+              }
+            },
+            "required": [
+              "key",
+              "state",
+              "kind",
+              "value"
+            ],
+            "title": "BoolSetting",
+            "type": "object"
+          },
+          "ConfigResponse": {
+            "additionalProperties": false,
+            "properties": {
+              "consistency": {
+                "const": "SINGLE_REFERENCE_READ",
+                "title": "Consistency",
+                "type": "string"
+              },
+              "observed_at": {
+                "exclusiveMaximum": 100000000000.0,
+                "exclusiveMinimum": 0,
+                "title": "Observed At",
+                "type": "number"
+              },
+              "redacted": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Redacted",
+                "type": "integer"
+              },
+              "settings": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/DecimalSetting"
+                        },
+                        {
+                          "$ref": "#/$defs/BoolSetting"
+                        },
+                        {
+                          "$ref": "#/$defs/IntSetting"
+                        },
+                        {
+                          "$ref": "#/$defs/EnumSetting"
+                        }
+                      ]
+                    },
+                    "maxItems": 42,
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Settings"
+              },
+              "source": {
+                "enum": [
+                  "core",
+                  "simulated"
+                ],
+                "title": "Source",
+                "type": "string"
+              },
+              "unavailable": {
+                "items": {
+                  "const": "settings",
+                  "type": "string"
+                },
+                "maxItems": 1,
+                "title": "Unavailable",
+                "type": "array",
+                "uniqueItems": true
+              },
+              "unlisted": {
+                "items": {
+                  "pattern": "^[a-z][a-z0-9_]{0,63}$",
+                  "type": "string"
+                },
+                "maxItems": 64,
+                "title": "Unlisted",
+                "type": "array"
+              }
+            },
+            "required": [
+              "source",
+              "observed_at",
+              "consistency",
+              "settings",
+              "unlisted",
+              "redacted",
+              "unavailable"
+            ],
+            "title": "ConfigResponse",
+            "type": "object"
+          },
+          "DecimalSetting": {
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "enum": [
+                  "target_profit_cycle_pct",
+                  "max_single_bet_pct",
+                  "max_total_exposure_pct",
+                  "max_event_exposure_pct",
+                  "max_daily_loss",
+                  "max_drawdown_hard_stop_pct",
+                  "max_open_exposure",
+                  "max_order_exposure",
+                  "max_market_exposure",
+                  "max_event_exposure_abs",
+                  "max_drawdown_abs",
+                  "max_session_loss",
+                  "max_exposure_stop",
+                  "max_recovery_chase_abs",
+                  "auto_reset_drawdown_pct",
+                  "defense_drawdown_pct",
+                  "lockdown_drawdown_pct",
+                  "expansion_profit_pct",
+                  "expansion_multiplier",
+                  "defense_multiplier",
+                  "risk_profile",
+                  "table_count",
+                  "max_recovery_tables",
+                  "allow_recovery",
+                  "anti_duplication_enabled",
+                  "commission_pct",
+                  "min_stake",
+                  "max_stake_abs",
+                  "book_warning",
+                  "book_block",
+                  "liquidity_guard_enabled",
+                  "liquidity_multiplier",
+                  "min_liquidity_absolute",
+                  "liquidity_warning_only",
+                  "min_price",
+                  "max_win",
+                  "max_win_warning_only",
+                  "max_stake_pct",
+                  "profit_epsilon",
+                  "profit_epsilon_enabled",
+                  "auto_green_delay_enabled",
+                  "auto_green_delay_sec"
+                ],
+                "title": "Key",
+                "type": "string"
+              },
+              "kind": {
+                "const": "DECIMAL",
+                "title": "Kind",
+                "type": "string"
+              },
+              "state": {
+                "enum": [
+                  "SET",
+                  "NOT_SET",
+                  "INVALID"
+                ],
+                "title": "State",
+                "type": "string"
+              },
+              "value": {
+                "anyOf": [
+                  {
+                    "maxLength": 48,
+                    "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Value"
+              }
+            },
+            "required": [
+              "key",
+              "state",
+              "kind",
+              "value"
+            ],
+            "title": "DecimalSetting",
+            "type": "object"
+          },
+          "EnumSetting": {
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "enum": [
+                  "target_profit_cycle_pct",
+                  "max_single_bet_pct",
+                  "max_total_exposure_pct",
+                  "max_event_exposure_pct",
+                  "max_daily_loss",
+                  "max_drawdown_hard_stop_pct",
+                  "max_open_exposure",
+                  "max_order_exposure",
+                  "max_market_exposure",
+                  "max_event_exposure_abs",
+                  "max_drawdown_abs",
+                  "max_session_loss",
+                  "max_exposure_stop",
+                  "max_recovery_chase_abs",
+                  "auto_reset_drawdown_pct",
+                  "defense_drawdown_pct",
+                  "lockdown_drawdown_pct",
+                  "expansion_profit_pct",
+                  "expansion_multiplier",
+                  "defense_multiplier",
+                  "risk_profile",
+                  "table_count",
+                  "max_recovery_tables",
+                  "allow_recovery",
+                  "anti_duplication_enabled",
+                  "commission_pct",
+                  "min_stake",
+                  "max_stake_abs",
+                  "book_warning",
+                  "book_block",
+                  "liquidity_guard_enabled",
+                  "liquidity_multiplier",
+                  "min_liquidity_absolute",
+                  "liquidity_warning_only",
+                  "min_price",
+                  "max_win",
+                  "max_win_warning_only",
+                  "max_stake_pct",
+                  "profit_epsilon",
+                  "profit_epsilon_enabled",
+                  "auto_green_delay_enabled",
+                  "auto_green_delay_sec"
+                ],
+                "title": "Key",
+                "type": "string"
+              },
+              "kind": {
+                "const": "ENUM",
+                "title": "Kind",
+                "type": "string"
+              },
+              "state": {
+                "enum": [
+                  "SET",
+                  "NOT_SET",
+                  "INVALID"
+                ],
+                "title": "State",
+                "type": "string"
+              },
+              "value": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "CONSERVATIVE",
+                      "BALANCED",
+                      "AGGRESSIVE"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Value"
+              }
+            },
+            "required": [
+              "key",
+              "state",
+              "kind",
+              "value"
+            ],
+            "title": "EnumSetting",
+            "type": "object"
+          },
+          "ErrorBody": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "$ref": "#/$defs/ErrorCode"
+              },
+              "details": {
+                "$ref": "#/$defs/ErrorDetails"
+              },
+              "message": {
+                "maxLength": 200,
+                "title": "Message",
+                "type": "string"
+              },
+              "retryable": {
+                "title": "Retryable",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "retryable",
+              "details"
+            ],
+            "title": "ErrorBody",
+            "type": "object"
+          },
+          "ErrorCode": {
+            "enum": [
+              "INVALID_REQUEST",
+              "UNKNOWN_TOOL",
+              "CONTRACT_INCOMPATIBLE",
+              "UPSTREAM_TIMEOUT",
+              "UPSTREAM_UNAVAILABLE",
+              "UPSTREAM_INVALID_RESPONSE",
+              "UPSTREAM_UNAUTHORIZED",
+              "UPSTREAM_NOT_IMPLEMENTED",
+              "INTERNAL_ERROR",
+              "JOURNAL_UNAVAILABLE",
+              "FORBIDDEN"
+            ],
+            "title": "ErrorCode",
+            "type": "string"
+          },
+          "ErrorDetails": {
+            "additionalProperties": false,
+            "properties": {
+              "handshake_status": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Z_]{1,32}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Handshake Status"
+              },
+              "reasons": {
+                "items": {
+                  "maxLength": 160,
+                  "pattern": "^[A-Z_]+(:[A-Za-z0-9_{}/?=. -]{1,140})?$",
+                  "type": "string"
+                },
+                "maxItems": 32,
+                "title": "Reasons",
+                "type": "array"
+              }
+            },
+            "required": [
+              "reasons",
+              "handshake_status"
+            ],
+            "title": "ErrorDetails",
+            "type": "object"
+          },
+          "GetConfigData": {
+            "additionalProperties": false,
+            "properties": {
+              "age_s": {
+                "maximum": 30.0,
+                "minimum": 0,
+                "title": "Age S",
+                "type": "number"
+              },
+              "config": {
+                "$ref": "#/$defs/ConfigResponse"
+              },
+              "upstream": {
+                "$ref": "#/$defs/UpstreamInfo"
+              }
+            },
+            "required": [
+              "config",
+              "age_s",
+              "upstream"
+            ],
+            "title": "GetConfigData",
+            "type": "object"
+          },
+          "IntSetting": {
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "enum": [
+                  "target_profit_cycle_pct",
+                  "max_single_bet_pct",
+                  "max_total_exposure_pct",
+                  "max_event_exposure_pct",
+                  "max_daily_loss",
+                  "max_drawdown_hard_stop_pct",
+                  "max_open_exposure",
+                  "max_order_exposure",
+                  "max_market_exposure",
+                  "max_event_exposure_abs",
+                  "max_drawdown_abs",
+                  "max_session_loss",
+                  "max_exposure_stop",
+                  "max_recovery_chase_abs",
+                  "auto_reset_drawdown_pct",
+                  "defense_drawdown_pct",
+                  "lockdown_drawdown_pct",
+                  "expansion_profit_pct",
+                  "expansion_multiplier",
+                  "defense_multiplier",
+                  "risk_profile",
+                  "table_count",
+                  "max_recovery_tables",
+                  "allow_recovery",
+                  "anti_duplication_enabled",
+                  "commission_pct",
+                  "min_stake",
+                  "max_stake_abs",
+                  "book_warning",
+                  "book_block",
+                  "liquidity_guard_enabled",
+                  "liquidity_multiplier",
+                  "min_liquidity_absolute",
+                  "liquidity_warning_only",
+                  "min_price",
+                  "max_win",
+                  "max_win_warning_only",
+                  "max_stake_pct",
+                  "profit_epsilon",
+                  "profit_epsilon_enabled",
+                  "auto_green_delay_enabled",
+                  "auto_green_delay_sec"
+                ],
+                "title": "Key",
+                "type": "string"
+              },
+              "kind": {
+                "const": "INT",
+                "title": "Kind",
+                "type": "string"
+              },
+              "state": {
+                "enum": [
+                  "SET",
+                  "NOT_SET",
+                  "INVALID"
+                ],
+                "title": "State",
+                "type": "string"
+              },
+              "value": {
+                "anyOf": [
+                  {
+                    "maximum": 1000000000,
+                    "minimum": -1000000000,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Value"
+              }
+            },
+            "required": [
+              "key",
+              "state",
+              "kind",
+              "value"
+            ],
+            "title": "IntSetting",
+            "type": "object"
+          },
+          "UpstreamInfo": {
+            "additionalProperties": false,
+            "properties": {
+              "certified": {
+                "title": "Certified",
+                "type": "boolean"
+              },
+              "kind": {
+                "enum": [
+                  "simulated",
+                  "http"
+                ],
+                "title": "Kind",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "certified"
+            ],
+            "title": "UpstreamInfo",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/GetConfigData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ErrorBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "request_id": {
+            "pattern": "^req_[0-9a-f]{32}$",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]{2,47}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool"
+          }
+        },
+        "required": [
+          "ok",
+          "request_id",
+          "tool",
+          "data",
+          "error"
+        ],
+        "title": "Envelope[GetConfigData]",
+        "type": "object"
+      },
+      "route": "GET /v1/config",
       "scope": "read"
     },
     "get_exposure": {
@@ -4802,6 +5503,449 @@
         "unavailable"
       ],
       "title": "AccountResponse",
+      "type": "object"
+    },
+    "config": {
+      "$defs": {
+        "BoolSetting": {
+          "additionalProperties": false,
+          "properties": {
+            "key": {
+              "enum": [
+                "target_profit_cycle_pct",
+                "max_single_bet_pct",
+                "max_total_exposure_pct",
+                "max_event_exposure_pct",
+                "max_daily_loss",
+                "max_drawdown_hard_stop_pct",
+                "max_open_exposure",
+                "max_order_exposure",
+                "max_market_exposure",
+                "max_event_exposure_abs",
+                "max_drawdown_abs",
+                "max_session_loss",
+                "max_exposure_stop",
+                "max_recovery_chase_abs",
+                "auto_reset_drawdown_pct",
+                "defense_drawdown_pct",
+                "lockdown_drawdown_pct",
+                "expansion_profit_pct",
+                "expansion_multiplier",
+                "defense_multiplier",
+                "risk_profile",
+                "table_count",
+                "max_recovery_tables",
+                "allow_recovery",
+                "anti_duplication_enabled",
+                "commission_pct",
+                "min_stake",
+                "max_stake_abs",
+                "book_warning",
+                "book_block",
+                "liquidity_guard_enabled",
+                "liquidity_multiplier",
+                "min_liquidity_absolute",
+                "liquidity_warning_only",
+                "min_price",
+                "max_win",
+                "max_win_warning_only",
+                "max_stake_pct",
+                "profit_epsilon",
+                "profit_epsilon_enabled",
+                "auto_green_delay_enabled",
+                "auto_green_delay_sec"
+              ],
+              "title": "Key",
+              "type": "string"
+            },
+            "kind": {
+              "const": "BOOL",
+              "title": "Kind",
+              "type": "string"
+            },
+            "state": {
+              "enum": [
+                "SET",
+                "NOT_SET",
+                "INVALID"
+              ],
+              "title": "State",
+              "type": "string"
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Value"
+            }
+          },
+          "required": [
+            "key",
+            "state",
+            "kind",
+            "value"
+          ],
+          "title": "BoolSetting",
+          "type": "object"
+        },
+        "DecimalSetting": {
+          "additionalProperties": false,
+          "properties": {
+            "key": {
+              "enum": [
+                "target_profit_cycle_pct",
+                "max_single_bet_pct",
+                "max_total_exposure_pct",
+                "max_event_exposure_pct",
+                "max_daily_loss",
+                "max_drawdown_hard_stop_pct",
+                "max_open_exposure",
+                "max_order_exposure",
+                "max_market_exposure",
+                "max_event_exposure_abs",
+                "max_drawdown_abs",
+                "max_session_loss",
+                "max_exposure_stop",
+                "max_recovery_chase_abs",
+                "auto_reset_drawdown_pct",
+                "defense_drawdown_pct",
+                "lockdown_drawdown_pct",
+                "expansion_profit_pct",
+                "expansion_multiplier",
+                "defense_multiplier",
+                "risk_profile",
+                "table_count",
+                "max_recovery_tables",
+                "allow_recovery",
+                "anti_duplication_enabled",
+                "commission_pct",
+                "min_stake",
+                "max_stake_abs",
+                "book_warning",
+                "book_block",
+                "liquidity_guard_enabled",
+                "liquidity_multiplier",
+                "min_liquidity_absolute",
+                "liquidity_warning_only",
+                "min_price",
+                "max_win",
+                "max_win_warning_only",
+                "max_stake_pct",
+                "profit_epsilon",
+                "profit_epsilon_enabled",
+                "auto_green_delay_enabled",
+                "auto_green_delay_sec"
+              ],
+              "title": "Key",
+              "type": "string"
+            },
+            "kind": {
+              "const": "DECIMAL",
+              "title": "Kind",
+              "type": "string"
+            },
+            "state": {
+              "enum": [
+                "SET",
+                "NOT_SET",
+                "INVALID"
+              ],
+              "title": "State",
+              "type": "string"
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "maxLength": 48,
+                  "pattern": "^(?:-?[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?|-0\\.[0-9]{0,27}[1-9])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Value"
+            }
+          },
+          "required": [
+            "key",
+            "state",
+            "kind",
+            "value"
+          ],
+          "title": "DecimalSetting",
+          "type": "object"
+        },
+        "EnumSetting": {
+          "additionalProperties": false,
+          "properties": {
+            "key": {
+              "enum": [
+                "target_profit_cycle_pct",
+                "max_single_bet_pct",
+                "max_total_exposure_pct",
+                "max_event_exposure_pct",
+                "max_daily_loss",
+                "max_drawdown_hard_stop_pct",
+                "max_open_exposure",
+                "max_order_exposure",
+                "max_market_exposure",
+                "max_event_exposure_abs",
+                "max_drawdown_abs",
+                "max_session_loss",
+                "max_exposure_stop",
+                "max_recovery_chase_abs",
+                "auto_reset_drawdown_pct",
+                "defense_drawdown_pct",
+                "lockdown_drawdown_pct",
+                "expansion_profit_pct",
+                "expansion_multiplier",
+                "defense_multiplier",
+                "risk_profile",
+                "table_count",
+                "max_recovery_tables",
+                "allow_recovery",
+                "anti_duplication_enabled",
+                "commission_pct",
+                "min_stake",
+                "max_stake_abs",
+                "book_warning",
+                "book_block",
+                "liquidity_guard_enabled",
+                "liquidity_multiplier",
+                "min_liquidity_absolute",
+                "liquidity_warning_only",
+                "min_price",
+                "max_win",
+                "max_win_warning_only",
+                "max_stake_pct",
+                "profit_epsilon",
+                "profit_epsilon_enabled",
+                "auto_green_delay_enabled",
+                "auto_green_delay_sec"
+              ],
+              "title": "Key",
+              "type": "string"
+            },
+            "kind": {
+              "const": "ENUM",
+              "title": "Kind",
+              "type": "string"
+            },
+            "state": {
+              "enum": [
+                "SET",
+                "NOT_SET",
+                "INVALID"
+              ],
+              "title": "State",
+              "type": "string"
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "CONSERVATIVE",
+                    "BALANCED",
+                    "AGGRESSIVE"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Value"
+            }
+          },
+          "required": [
+            "key",
+            "state",
+            "kind",
+            "value"
+          ],
+          "title": "EnumSetting",
+          "type": "object"
+        },
+        "IntSetting": {
+          "additionalProperties": false,
+          "properties": {
+            "key": {
+              "enum": [
+                "target_profit_cycle_pct",
+                "max_single_bet_pct",
+                "max_total_exposure_pct",
+                "max_event_exposure_pct",
+                "max_daily_loss",
+                "max_drawdown_hard_stop_pct",
+                "max_open_exposure",
+                "max_order_exposure",
+                "max_market_exposure",
+                "max_event_exposure_abs",
+                "max_drawdown_abs",
+                "max_session_loss",
+                "max_exposure_stop",
+                "max_recovery_chase_abs",
+                "auto_reset_drawdown_pct",
+                "defense_drawdown_pct",
+                "lockdown_drawdown_pct",
+                "expansion_profit_pct",
+                "expansion_multiplier",
+                "defense_multiplier",
+                "risk_profile",
+                "table_count",
+                "max_recovery_tables",
+                "allow_recovery",
+                "anti_duplication_enabled",
+                "commission_pct",
+                "min_stake",
+                "max_stake_abs",
+                "book_warning",
+                "book_block",
+                "liquidity_guard_enabled",
+                "liquidity_multiplier",
+                "min_liquidity_absolute",
+                "liquidity_warning_only",
+                "min_price",
+                "max_win",
+                "max_win_warning_only",
+                "max_stake_pct",
+                "profit_epsilon",
+                "profit_epsilon_enabled",
+                "auto_green_delay_enabled",
+                "auto_green_delay_sec"
+              ],
+              "title": "Key",
+              "type": "string"
+            },
+            "kind": {
+              "const": "INT",
+              "title": "Kind",
+              "type": "string"
+            },
+            "state": {
+              "enum": [
+                "SET",
+                "NOT_SET",
+                "INVALID"
+              ],
+              "title": "State",
+              "type": "string"
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "maximum": 1000000000,
+                  "minimum": -1000000000,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Value"
+            }
+          },
+          "required": [
+            "key",
+            "state",
+            "kind",
+            "value"
+          ],
+          "title": "IntSetting",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "consistency": {
+          "const": "SINGLE_REFERENCE_READ",
+          "title": "Consistency",
+          "type": "string"
+        },
+        "observed_at": {
+          "exclusiveMaximum": 100000000000.0,
+          "exclusiveMinimum": 0,
+          "title": "Observed At",
+          "type": "number"
+        },
+        "redacted": {
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Redacted",
+          "type": "integer"
+        },
+        "settings": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/DecimalSetting"
+                  },
+                  {
+                    "$ref": "#/$defs/BoolSetting"
+                  },
+                  {
+                    "$ref": "#/$defs/IntSetting"
+                  },
+                  {
+                    "$ref": "#/$defs/EnumSetting"
+                  }
+                ]
+              },
+              "maxItems": 42,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Settings"
+        },
+        "source": {
+          "enum": [
+            "core",
+            "simulated"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "unavailable": {
+          "items": {
+            "const": "settings",
+            "type": "string"
+          },
+          "maxItems": 1,
+          "title": "Unavailable",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "unlisted": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]{0,63}$",
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Unlisted",
+          "type": "array"
+        }
+      },
+      "required": [
+        "source",
+        "observed_at",
+        "consistency",
+        "settings",
+        "unlisted",
+        "redacted",
+        "unavailable"
+      ],
+      "title": "ConfigResponse",
       "type": "object"
     },
     "error": {

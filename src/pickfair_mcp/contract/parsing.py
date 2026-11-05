@@ -16,6 +16,7 @@ from pydantic import ValidationError
 
 from pickfair_mcp.contract.models import (
     AccountResponse,
+    ConfigResponse,
     ExposureResponse,
     MetaResponse,
     OrdersResponse,
@@ -147,5 +148,13 @@ def parse_orders(raw: bytes) -> OrdersResponse:
     obj = parse_json_object(raw)
     try:
         return OrdersResponse.model_validate(_tuplify(obj))
+    except (ValidationError, ArithmeticError):
+        raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None
+
+
+def parse_config(raw: bytes) -> ConfigResponse:
+    obj = parse_json_object(raw)
+    try:
+        return ConfigResponse.model_validate(_tuplify(obj))
     except (ValidationError, ArithmeticError):
         raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None

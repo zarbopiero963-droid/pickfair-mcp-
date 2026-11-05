@@ -344,3 +344,28 @@ Estensioni di route già approvate (OWN-MCP-02F), nessuna route nuova.
   `submit_ambiguous`), `sim_settlements` (null in LIVE). Nessun payload, riferimento o nome di evento.
 - **`get_status` → `engine.queues.cashout_barriers`**: barriere di cashout attive. Gli hedge dei cashout
   sono in `list_orders` (`role = HEDGE`).
+
+## MCP-01j — `get_config` (contratto 1.6.0)
+
+Route già approvata (`GET /v1/config`, scope READ), nessuna route nuova; mandato owner del 05/11/2026
+(«sola lettura, segreti e credenziali sempre oscurati»).
+
+- **Fonte**: `RoserpinaConfig` del runtime (`rc.config`), letta con un solo riferimento
+  (`reload_config` la sostituisce intera): consistenza `SINGLE_REFERENCE_READ`.
+- **Allowlist chiusa** di 42 chiavi (`models.CONFIG_KEYS`, ripetuta in `semantics.config.keys`): percentuali
+  di rischio, cap assoluti opzionali, soglie di drawdown, moltiplicatori, profilo di rischio, numero di
+  tavoli, recovery, anti-duplicazione, guardie di book e liquidità, commissione, stake e quota minimi,
+  avvisi max_win/stake/epsilon, auto-green. Le voci sono tutte presenti, una volta, nell'ordine del
+  contratto.
+- **Valore**: `kind` DECIMAL (stringa decimale esatta), BOOL, INT o ENUM (CONSERVATIVE/BALANCED/
+  AGGRESSIVE); `state` SET (valore presente), NOT_SET (solo per i 16 campi `Optional` del core: non
+  configurato; per le percentuali di rischio il core nega ogni nuova entrata, per i cap significa non
+  attivo) o INVALID (valore presente ma illeggibile: mai convertito in zero).
+- **Segreti**: credenziali Betfair e Telegram, certificati, token e impostazioni persistite non sono
+  mai letti dalla vista. Un campo del core fuori allowlist compare solo per **nome** in `unlisted`
+  (massimo 64, mai il valore); un nome sensibile o non canonico è soltanto contato in `redacted`. Il
+  MCP rifiuta un `unlisted` che contiene un frammento di `SENSITIVE_NAME_FRAGMENTS` (seconda
+  barriera rispetto a `core.redaction.is_sensitive_key` del core).
+- **Sola lettura**: nessun parametro di input, nessuna scrittura. `patch_config` resta un comando non
+  esposto (design in `docs/design/WRITE_OPERATIONS_DESIGN.md`).
+
