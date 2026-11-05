@@ -106,8 +106,9 @@ SEMANTICS: Final = {
         "`risk.sl_tp_close.*`), read in one read-only transaction with the position's orders and the "
         "ledger hedge rows: table, position, trigger, close state (CLAIMED/ROUTED/NOT_EXECUTED/"
         "UNCERTAIN, unreadable UNKNOWN), retryable as the core decides, detail code, residual "
-        "exposure only from the table that still holds the position. Hedges are counted per "
-        "SELECTION: the core does not link an hedge to its table. Closes rejected before the claim "
+        "exposure only from the table that still holds the position. Hedges of the close are the "
+        "ledger rows whose cashout_request_id is recorded in the close (cashout_request_ids); null "
+        "when the record does not carry them. Closes rejected before the claim "
         "are not persisted by the core and never appear. Without F-04: UNAVAILABLE CORE_PENDING_F04."
     ),
     "settlement": (

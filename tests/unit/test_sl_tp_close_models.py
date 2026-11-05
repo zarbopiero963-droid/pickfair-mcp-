@@ -54,6 +54,10 @@ def test_section_missing_is_explicit(missing: dict[str, Any]) -> None:
         {"bet_ids": ["1", "1"]},
         {"position": {"orders": 1, "partially_matched": 2, "in_reconciliation": 0, "ambiguous": 0,
                       "unreadable": 0}},
+        {"hedges": {"requests": 1, "pending": 0, "placed": 0, "unmatched": 0, "ambiguous": 0,
+                    "failed": 0, "not_in_ledger": 2}},                     # più mancanti che richieste
+        {"hedges": {"requests": 0, "pending": 1, "placed": 0, "unmatched": 0, "ambiguous": 0,
+                    "failed": 0, "not_in_ledger": 0}},                     # riga senza richiesta
     ],
 )
 def test_close_rules_are_enforced_by_the_mcp(overrides: dict[str, Any]) -> None:
@@ -68,8 +72,8 @@ def test_close_rules_are_enforced_by_the_mcp(overrides: dict[str, Any]) -> None:
         {"trigger": "TRAILING"},
         {"residual_exposure": 40.0},                         # importo in float
         {"residual_exposure": "-1"},
-        {"selection_hedges": {"scope": "TABLE", "pending": 0, "placed": 0, "unmatched": 0,
-                              "ambiguous": 0, "failed": 0}},  # mai attribuito al tavolo
+        {"hedges": {"requests": 1, "pending": 0, "placed": 0, "unmatched": 0, "ambiguous": 0,
+                    "failed": 0, "not_in_ledger": 0, "selection_id": "1"}},  # schema chiuso
         {"detail": "free text with spaces"},
     ],
 )
@@ -91,3 +95,7 @@ def test_close_shape_is_closed_in_the_schema(overrides: dict[str, Any]) -> None:
 )
 def test_snapshot_state_rules(section: dict[str, Any]) -> None:
     rejected(body(**section))
+
+
+def test_hedges_null_when_the_record_has_no_request_ids() -> None:
+    parse_exposure(raw(body(bodies.sl_tp_close(hedges=None))))

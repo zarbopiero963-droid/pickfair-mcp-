@@ -63,5 +63,5 @@ Claude B, da integrare dopo #608 e #606 con una PR indipendente e safety-critica
 
 | Area | Livello | Route / tool | Evidenza | Nota |
 |---|---|---|---|---|
-| Chiusura SL/TP per tavolo | `TESTED` (offline, su `main` + F-04 locale) | `GET /v1/exposure` (`sl_tp_closes`) · `get_exposure` | test core sulla catena reale di F-04 (scenari di D: tre tavoli, SL instradato, SL non eseguito); E2E fra processi | **non integrabile** finché F-04 (`claude/d-f04-sl-tp-close`) non è su `main`; hedge per selezione (lacuna di contratto segnalata a D); su un core senza F-04 la sezione è UNAVAILABLE `CORE_PENDING_F04` |
+| Chiusura SL/TP per tavolo | `TESTED` (offline, su `main` + F-04 locale) | `GET /v1/exposure` (`sl_tp_closes`) · `get_exposure` | test core sulla catena reale di F-04 (scenari di D: tre tavoli, SL instradato, SL non eseguito); E2E fra processi | **non integrabile** finché F-04 (`claude/d-f04-sl-tp-close` @ `2d0cf4ca`) non è su `main`; hedge legati alla chiusura per id di richiesta (campo aggiunto da D su richiesta di MCP-01k); su un core senza F-04 la sezione è UNAVAILABLE `CORE_PENDING_F04` |
 

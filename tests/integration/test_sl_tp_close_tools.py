@@ -58,7 +58,7 @@ async def test_simulated_close_is_schema_valid() -> None:
     assert is_error is False, payload
     jsonschema.validate(payload, tools["get_exposure"].outputSchema)
     close = payload["data"]["exposure"]["sl_tp_closes"]["closes"][0]
-    assert (close["close_state"], close["selection_hedges"]["scope"]) == ("ROUTED", "SELECTION")
+    assert (close["close_state"], close["hedges"]["placed"]) == ("ROUTED", 1)
 
 
 @pytest.mark.loopback

@@ -12,7 +12,7 @@ import copy
 
 from pickfair_mcp.contract import version as v
 
-GOLDEN_SCHEMA_HASH = "fed5733e93af14f3b1fca914ac049143ef533016bdeed686fa930bdd6ffd7890"
+GOLDEN_SCHEMA_HASH = "3928ea8b28215476e0ad84621bf7b7e2e750c0564b49844546261da42818268a"
 
 
 def test_supported_version_is_semver_1_5_0() -> None:
