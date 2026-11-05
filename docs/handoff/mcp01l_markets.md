@@ -9,7 +9,13 @@ ripinnato al contratto successivo prima dell'integrazione.
 
 ## 1. Artefatti
 
-Patch, SHA e contratto: vedi il commento di consegna su pickfair-mcp- #37 e `core_bridge_mcp01l.patch.sha256`.
+| Artefatto | Valore |
+|---|---|
+| Patch incrementale | `core_bridge_mcp01l.patch`, 8 file, SHA-256 `815bcb50cdb9816062d3cecca9fb75e0bbee1ca0b7be770ad8014e5730d6f17c` |
+| Base della patch | `main` `ada40765` + patch MCP-01d … 01h, 01j, 01k |
+| Package | `pickfair_control_api` **1.8.0** dal branch `ccr-edf04c7d-e7vtj1-mcp01l-markets` |
+| Contratto | 1.8.0, schema hash `0bb7355fc5476f80f2e5c2c6865bba97eac2c9cc7bcab96620c8ddf347991309` |
+| Scope del core | `pf_api9_control_api_markets` (8 file = diff) |
 
 ## 2. Cosa cambia nel core
 
@@ -30,4 +36,12 @@ Patch, SHA e contratto: vedi il commento di consegna su pickfair-mcp- #37 e `cor
 
 ## 4. Evidenze
 
-Vedi il commento di consegna su #37.
+| Prova | Esito |
+|---|---|
+| Test core nuovi (`test_market_views.py`, book reali da `MarketTracker.on_market_book`) | 8 passed; `tests/control_api` 213 passed |
+| Route con parametro sul server reale (`tests/control_api/test_market_routes.py`) | 22 passed: id valido passato al provider; 14 forme non valide (`..`, `%2e%2e`, risalite, lettere, lunghezze, query, barra finale) → 404 senza chiamare il core; token e metodi |
+| Mutazioni `control_api` | 90/90 KILLED, GATE PASS. Primo giro 90/91: sopravvissuto `cap_book_string_number`, **equivalente** (il controllo di tipo era ridondante: `decimal_str` rifiuta già stringhe e bool); controllo ridondante e mutante rimossi |
+| Mutanti critici MCP N01–N06 | 6/6 KILLED. Primo giro 5/6: N05 (id non validato nell'adapter HTTP) sopravvissuto, lacuna reale; test aggiunto, N05 ucciso |
+| E2E fra processi | 15/15, su 3 esecuzioni (book entrato dal percorso reale dello stream nel core in SIM; NOT_TRACKED; nessun effetto) |
+| Suite MCP | 1781 passed, 16 skipped (+6 test dell'adapter dopo N05) |
+| Regressione completa del core (`pytest -n 4 tests`) | 11994 passed, 0 failed, 16 skipped, 56 xfailed |

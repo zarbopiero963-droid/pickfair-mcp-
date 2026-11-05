@@ -97,3 +97,12 @@ async def test_real_control_api_book_round_trip_and_id_echo(tmp_path: Path) -> N
         assert providers.book_requests == ["1.42", "1.42"]
     assert ok[0] is False and ok[1]["data"]["book"]["market_id"] == "1.42"
     assert wrong[0] is True and wrong[1]["error"]["code"] == "UPSTREAM_INVALID_RESPONSE"
+
+
+@pytest.mark.parametrize("bad", ["../etc", "1.2/../x", "1.2a", "", "1.1234567890123456", "1.2\n"])
+async def test_http_adapter_never_builds_a_path_from_an_unvalidated_id(tmp_path: Path, bad: str) -> None:
+    """Seconda barriera (MCP-01l): anche chiamato direttamente, l'adapter non costruisce il percorso."""
+    token = tmp_path / "t"
+    adapter = HttpControlApiAdapter(port=1, token_file=LocalTokenFile(token), timeout_s=0.1)
+    with pytest.raises(ValueError):
+        await adapter.get_market_book_raw(bad)
