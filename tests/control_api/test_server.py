@@ -208,10 +208,11 @@ def test_token_never_logged(api: Any, caplog: pytest.LogCaptureFixture) -> None:
 class _RotationPacer:
     """Rotazioni legate all'avanzamento dei lettori, non al tempo (MCP-LOAD-FLAKE).
 
-    Ogni tentativo registra la generazione del token in cui parte; la rotazione k+1 avviene solo quando ogni lettore
-    ancora attivo ha completato un tentativo partito nella generazione k. Così nessun tentativo (né il suo unico
-    nuovo tentativo) può attraversare due rotazioni, qualunque sia la durata di un'andata e ritorno: il contratto
-    dichiarato («un solo nuovo tentativo copre una rotazione») è provato senza dipendere dal carico della macchina.
+    Ogni tentativo registra la generazione del token in cui parte; la rotazione k+1 avviene solo
+    quando ogni lettore ancora attivo ha completato un tentativo partito nella generazione k.
+    Così nessun tentativo (né il suo unico nuovo tentativo) attraversa due rotazioni, qualunque
+    sia la durata di un'andata e ritorno: il contratto dichiarato («un solo nuovo tentativo copre
+    una rotazione») è provato senza dipendere dal carico della macchina.
     """
 
     def __init__(self, readers: int) -> None:
@@ -238,7 +239,9 @@ class _RotationPacer:
     def rotate(self, do_rotate: Any, timeout: float = 30.0) -> None:
         with self.cond:
             ready = self.cond.wait_for(
-                lambda: all(self.done_in[r] >= self.generation for r in self.active), timeout=timeout)
+                lambda: all(self.done_in[r] >= self.generation for r in self.active),
+                timeout=timeout,
+            )
             assert ready, "lettori fermi: nessun avanzamento entro il limite"
             self.during_traffic += bool(self.active)
             do_rotate()
@@ -246,9 +249,11 @@ class _RotationPacer:
 
 
 @pytest.mark.parametrize("gap_s", [0.0, 0.12])
-def test_rotation_mid_traffic_never_fails_a_reader_using_the_file(api: Any, gap_s: float) -> None:
-    # gap_s simula un'andata e ritorno lenta (macchina carica) fra la lettura del file e la richiesta: con le
-    # rotazioni a tempo fisso (50 ms) il vecchio test dava 401 legittimi in questo caso.
+def test_rotation_mid_traffic_never_fails_a_reader_using_the_file(
+    api: Any, gap_s: float
+) -> None:
+    # gap_s simula un'andata e ritorno lenta (macchina carica) fra la lettura del file e la
+    # richiesta: con le rotazioni a tempo fisso (50 ms) il vecchio test dava 401 legittimi.
     server, store, token_path, _p = api
     results: list[int] = []
     lock = threading.Lock()
@@ -266,7 +271,7 @@ def test_rotation_mid_traffic_never_fails_a_reader_using_the_file(api: Any, gap_
         try:
             for _ in range(20):
                 status = attempt(i)
-                if status == 401:  # lettura del file avvenuta prima della revoca: rilettura una volta
+                if status == 401:  # file letto prima della revoca: rilettura una volta
                     status = attempt(i)
                 with lock:
                     results.append(status)
@@ -283,7 +288,8 @@ def test_rotation_mid_traffic_never_fails_a_reader_using_the_file(api: Any, gap_
     for t in readers:
         t.join()
     assert results == [200] * 100
-    assert (pacer.generation, pacer.during_traffic) == (10, 10)  # tutte avvenute con lettori attivi
+    # tutte le rotazioni avvenute con lettori attivi
+    assert (pacer.generation, pacer.during_traffic) == (10, 10)
 
 
 @pytest.mark.parametrize("host", ["0.0.0.0", "localhost", "::1", "127.0.0.2", ""])
