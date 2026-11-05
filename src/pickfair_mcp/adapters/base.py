@@ -83,3 +83,11 @@ class ControlApiAdapter(Protocol):
     async def get_config_raw(self) -> bytes:
         """Corpo grezzo di GET /v1/config (MCP-01j, impostazioni redatte)."""
         ...
+
+    async def get_markets_raw(self) -> bytes:
+        """Corpo grezzo di GET /v1/markets (MCP-01l)."""
+        ...
+
+    async def get_market_book_raw(self, market_id: str) -> bytes:
+        """Corpo grezzo di GET /v1/markets/{id}/book (MCP-01l); `market_id` già validato dal tool."""
+        ...

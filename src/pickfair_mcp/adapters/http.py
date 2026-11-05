@@ -22,6 +22,8 @@ Solo GET di lettura: questo adapter non ha metodi di comando.
 
 from __future__ import annotations
 
+import re
+
 import http.client
 import socket
 import threading
@@ -39,6 +41,8 @@ from pickfair_mcp.adapters.base import (
 )
 from pickfair_mcp.auth.token_file import LocalTokenFile, TokenFileError
 from pickfair_mcp.contract.parsing import MAX_UPSTREAM_BYTES
+
+_MARKET_ID_RE = re.compile(r"[0-9]{1,4}\.[0-9]{1,15}")
 
 LOOPBACK_HOST: Final = "127.0.0.1"
 EXPECTED_CONTENT_TYPE: Final = "application/json; charset=utf-8"
@@ -176,3 +180,12 @@ class HttpControlApiAdapter:
 
     async def get_config_raw(self) -> bytes:
         return await self._get("/v1/config")
+
+    async def get_markets_raw(self) -> bytes:
+        return await self._get("/v1/markets")
+
+    async def get_market_book_raw(self, market_id: str) -> bytes:
+        # Seconda barriera: il percorso si costruisce solo da un id che rispetta il pattern stretto.
+        if not isinstance(market_id, str) or not _MARKET_ID_RE.fullmatch(market_id):
+            raise ValueError("market_id")
+        return await self._get(f"/v1/markets/{market_id}/book")

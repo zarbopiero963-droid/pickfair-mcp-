@@ -51,6 +51,8 @@ SIMULATED_CAPABILITIES = [
     "GET /v1/positions",
     "GET /v1/orders",
     "GET /v1/config",
+    "GET /v1/markets",
+    "GET /v1/markets/{id}/book",
 ]
 
 
@@ -112,6 +114,8 @@ class SimulatedControlApiAdapter:
         self.positions_calls = 0
         self.orders_calls = 0
         self.config_calls = 0
+        self.markets_calls = 0
+        self.market_book_calls = 0
 
     @property
     def kind(self) -> AdapterKind:
@@ -174,6 +178,14 @@ class SimulatedControlApiAdapter:
         self.config_calls += 1
         return await self._status_like(_config_body)
 
+    async def get_markets_raw(self) -> bytes:
+        self.markets_calls += 1
+        return await self._status_like(_markets_body)
+
+    async def get_market_book_raw(self, market_id: str) -> bytes:
+        self.market_book_calls += 1
+        return await self._status_like(lambda sc, now: _market_book_body(sc, now, market_id))
+
     async def _status_like(self, build: Callable[[StatusScenario, float], dict[str, Any]]) -> bytes:
         if self._delay_s > 0:
             await anyio.sleep(self._delay_s)
@@ -196,7 +208,7 @@ class SimulatedControlApiAdapter:
 _SCENARIO_BODIES: dict[Scenario, bytes] = {
     Scenario.COMPATIBLE: _encode(_meta()),
     Scenario.INCOMPATIBLE_MAJOR: _encode(_meta(contract_version="2.0.0")),
-    Scenario.UNSUPPORTED_MINOR: _encode(_meta(contract_version="1.8.0")),
+    Scenario.UNSUPPORTED_MINOR: _encode(_meta(contract_version="1.9.0")),
     Scenario.SCHEMA_HASH_MISMATCH: _encode(_meta(schema_hash="0" * 64)),
     Scenario.MISSING_META_CAPABILITY: _encode(_meta(capabilities=["GET /v1/status"])),
     Scenario.META_ONLY: _encode(_meta(capabilities=["GET /v1/meta"])),
@@ -795,4 +807,64 @@ def _config_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
         "unlisted": unlisted,
         "redacted": 0,
         "unavailable": unavailable,
+    }
+
+
+_SIM_MARKET = "1.200000001"
+
+
+def _markets_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
+    """Mercati fittizi seguiti dal tracker simulato."""
+    markets: list[dict[str, Any]] | None = [
+        {"market_id": _SIM_MARKET, "book_status": "OPEN", "inplay": False, "runners": 3,
+         "total_matched": "12500.5", "last_match_time": now - 5.0},
+        {"market_id": "1.200000002", "book_status": "SUSPENDED", "inplay": True, "runners": 2,
+         "total_matched": None, "last_match_time": None},
+    ]
+    unavailable: list[str] = []
+    if scenario is StatusScenario.NOT_STARTED:
+        markets, unavailable = None, ["markets"]
+    elif scenario is StatusScenario.EXTRA_FIELD:
+        markets[0] = {**markets[0], "event_name": "Juventus v Inter"}  # type: ignore[index]
+    elif scenario is StatusScenario.INJECTION_TEXT:
+        markets[0] = {**markets[0], "market_id": _INJECTION}  # type: ignore[index]
+    elif scenario is StatusScenario.INCONSISTENT:
+        markets.reverse()  # type: ignore[union-attr]  # ordine non garantito: rifiutato
+    return {
+        "source": "core" if scenario is StatusScenario.WRONG_SOURCE else "simulated",
+        "observed_at": _observed_at(scenario, now),
+        "consistency": "SINGLE_REFERENCE_READ",
+        "markets": markets,
+        "omitted": 0,
+        "truncated": False,
+        "unavailable": unavailable,
+    }
+
+
+def _market_book_body(scenario: StatusScenario, now: float, market_id: str) -> dict[str, Any]:
+    book: dict[str, Any] | None = {
+        "book_status": "OPEN",
+        "inplay": False,
+        "total_matched": "12500.5",
+        "last_match_time": now - 5.0,
+        "runners": [
+            {"selection_id": "47972", "status": "ACTIVE", "last_price_traded": "2.5",
+             "total_matched": "8000", "back": [{"price": "2.5", "size": "120"},
+                                                {"price": "2.48", "size": "300"}],
+             "lay": [{"price": "2.52", "size": "90"}]},
+        ],
+        "omitted_runners": 0,
+    }
+    state = "OK" if market_id == _SIM_MARKET else "NOT_TRACKED"
+    if state != "OK":
+        book = None
+    if scenario is StatusScenario.INCONSISTENT and book is not None:
+        book["runners"][0]["back"].reverse()  # scala dei prezzi fuori ordine: rifiutata
+    return {
+        "source": "core" if scenario is StatusScenario.WRONG_SOURCE else "simulated",
+        "observed_at": _observed_at(scenario, now),
+        "consistency": "SINGLE_REFERENCE_READ",
+        "market_id": market_id,
+        "state": state,
+        "book": book,
     }

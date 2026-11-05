@@ -122,8 +122,6 @@ def test_unknown_paths(api: Any, path: str) -> None:
     "path",
     [
         "/v1/events",
-        "/v1/markets",
-        "/v1/markets/1.234567/book",
         "/v1/operations/op-1",
         "/v1/operations?status=pending",
         "/v1/audit/corr-1",

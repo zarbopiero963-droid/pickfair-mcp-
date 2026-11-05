@@ -140,6 +140,8 @@ def test_stdout_is_pure_jsonrpc_and_stderr_has_no_client_input(server: RawServer
         "list_positions",
         "list_orders",
         "get_config",
+        "list_markets",
+        "get_market_book",
     ]
     server.send(
         {

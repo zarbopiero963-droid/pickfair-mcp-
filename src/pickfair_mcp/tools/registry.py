@@ -20,6 +20,8 @@ class RegistryViolation(Exception):
 @dataclass(frozen=True, slots=True)
 class ToolContext:
     request_id: str
+    # Input del tool già validato contro `input_model` (MCP-01l); None per i tool senza parametri.
+    arguments: StrictModel | None = None
 
 
 Handler = Callable[[ToolContext], Awaitable[StrictModel]]

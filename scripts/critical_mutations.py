@@ -1128,6 +1128,72 @@ MUTANTS: tuple[Mutant, ...] = (
         ),
     ),
     Mutant(
+        "N01",
+        "book di un altro mercato accettato per il mercato richiesto",
+        (
+            (
+                "src/pickfair_mcp/tools/markets.py",
+                "        if snapshot.market_id != market_id:",
+                "        if False:",
+            ),
+        ),
+    ),
+    Mutant(
+        "N02",
+        "scala dei prezzi fuori ordine accettata",
+        (
+            (
+                MO,
+                "        if back != sorted(back, reverse=True) or lay != sorted(lay):",
+                "        if False:",
+            ),
+        ),
+    ),
+    Mutant(
+        "N03",
+        "book presente con stato diverso da OK accettato",
+        (
+            (
+                MO,
+                "        if (self.book is not None) != (self.state == \"OK\"):",
+                "        if False:",
+            ),
+        ),
+    ),
+    Mutant(
+        "N04",
+        "mercati non ordinati o duplicati accettati",
+        (
+            (
+                MO,
+                "    if ids != sorted(ids):\n        raise ValueError(\"markets must be sorted by market_id\")",
+                "    pass",
+            ),
+        ),
+    ),
+    Mutant(
+        "N05",
+        "percorso del book costruito da un id non validato",
+        (
+            (
+                "src/pickfair_mcp/adapters/http.py",
+                "        if not isinstance(market_id, str) or not _MARKET_ID_RE.fullmatch(market_id):",
+                "        if not isinstance(market_id, str):",
+            ),
+        ),
+    ),
+    Mutant(
+        "N06",
+        "id del mercato non validato dalla Control API",
+        (
+            (
+                "src/pickfair_control_api/contract.py",
+                '    "/v1/markets/{id}/book": re.compile(r"\\A/v1/markets/(?P<id>[0-9]{1,4}\\.[0-9]{1,15})/book\\Z"),',
+                '    "/v1/markets/{id}/book": re.compile(r"\\A/v1/markets/(?P<id>[^/]+)/book\\Z"),',
+            ),
+        ),
+    ),
+    Mutant(
         "O01",
         "ordine AMBIGUOUS accettato come FAILED",
         (

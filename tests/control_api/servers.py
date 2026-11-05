@@ -29,6 +29,9 @@ class Providers:
         self.positions: Callable[[], dict[str, Any]] = bodies.positions
         self.orders: Callable[[], dict[str, Any]] = bodies.orders
         self.config: Callable[[], dict[str, Any]] = bodies.config
+        self.markets: Callable[[], dict[str, Any]] = bodies.markets
+        self.market_book: Callable[[str], dict[str, Any]] = bodies.market_book
+        self.book_requests: list[str] = []
         self.calls = 0
 
     def mapping(self) -> dict[str, Callable[[], dict[str, Any]]]:
@@ -60,7 +63,18 @@ class Providers:
             self.calls += 1
             return self.config()
 
+        def markets() -> dict[str, Any]:
+            self.calls += 1
+            return self.markets()
+
+        def market_book(market_id: str) -> dict[str, Any]:
+            self.calls += 1
+            self.book_requests.append(market_id)
+            return self.market_book(market_id)
+
         return {
+            "markets": markets,
+            "market_book": market_book,
             "config": config,
             "orders": orders,
             "positions": positions,

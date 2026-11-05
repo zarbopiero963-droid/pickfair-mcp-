@@ -46,6 +46,8 @@ READ_TOOLS = (
     "list_positions",
     "list_orders",
     "get_config",
+    "list_markets",
+    "get_market_book",
 )
 
 
@@ -219,8 +221,12 @@ async def test_e2e_reads_have_no_side_effects_on_the_core(core: Core, tmp_path: 
     async with mcp(core, errlog) as s:
         results: list[bool] = []
 
+        # MCP-01l: get_market_book ha un parametro; un mercato non seguito è una lettura valida (NOT_TRACKED).
+        tool_args = {"get_market_book": {"market_id": "1.1"}}
+
         async def one(name: str) -> None:
-            results.append((await call(s, name))[0])
+            result = await s.call_tool(name, tool_args.get(name, {}))
+            results.append(bool(result.isError))
 
         async with anyio.create_task_group() as tg:  # letture concorrenti
             for i in range(30):
@@ -369,7 +375,7 @@ async def test_e2e_unserved_reads_are_not_implemented(core: Core) -> None:
     from pickfair_mcp.adapters.http import _LoopbackConnection  # niente DNS: socket IPv4 diretto
 
     token = core.token_path.read_text()
-    for path in ("/v1/events", "/v1/markets/1.2/book", "/v1/operations/op-1"):
+    for path in ("/v1/events", "/v1/operations/op-1", "/v1/audit/corr-1"):
         conn = _LoopbackConnection(core.port, 5.0)
         conn.request("GET", path, headers={"Authorization": f"Bearer {token}"})
         resp = conn.getresponse()
@@ -539,3 +545,28 @@ async def test_e2e_p0_ambiguous_row_without_unconfirmed_amounts(core: Core, tmp_
     assert (row["size_matched"], row["avg_price_matched"], row["size_remaining"]) == (None, None, None)
     assert row["reconciliation"]["in_reconciliation"] is True
     assert row["reconciliation"]["ambiguity_reason"] == "BET_STATUS_UNRECOGNIZED"
+
+
+async def test_e2e_markets_and_book_from_the_real_tracker(core: Core, tmp_path: Path) -> None:
+    """MCP-01l: list_markets e get_market_book dal MarketTracker reale del core avviato in SIM."""
+    errlog = (tmp_path / "mcp.err").open("w+")
+    async with mcp(core, errlog) as s:
+        tools = {t.name: t for t in (await s.list_tools()).tools}
+        core.send("MARKET")  # comando al CORE
+        baseline = core.send("DIGEST")
+        markets = await call(s, "list_markets")
+        result = await s.call_tool("get_market_book", {"market_id": "1.987654"})
+        missing = await s.call_tool("get_market_book", {"market_id": "1.1"})
+        after = core.send("DIGEST")
+    is_error, payload = markets
+    assert is_error is False, payload
+    jsonschema.validate(payload, tools["list_markets"].outputSchema)
+    assert "1.987654" in [m["market_id"] for m in payload["data"]["markets"]["markets"]]
+    book = result.structuredContent
+    assert result.isError is False, book
+    jsonschema.validate(book, tools["get_market_book"].outputSchema)
+    runner = book["data"]["book"]["book"]["runners"][0]
+    assert runner["back"] == [{"price": "2.5", "size": "100"}] and runner["lay"] == [{"price": "2.52", "size": "60"}]
+    assert missing.structuredContent["data"]["book"]["state"] == "NOT_TRACKED"
+    assert after["calls"] == baseline["calls"] and after["db"] == baseline["db"]
+    assert after["bus"] == baseline["bus"] and after["balance"] == baseline["balance"]

@@ -98,12 +98,12 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | ID | Capacità | Core: componente | Endpoint | Tool MCP | Schede | Stato | L1/L2/L3 |
 |---|---|---|---|---|---|---|---|
 | CAP-MKT-01 | Eventi per nome | `CatalogSyncService` | `GET /v1/events` | `list_events` | 009 · MCP-02c | NOT_IMPLEMENTED | P/NO/NR |
-| CAP-MKT-02 | Mercati e runner | catalogo DB, `betfair_service` | `GET /v1/markets` | `list_markets` | 009 · MCP-02c | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-MKT-02 | Mercati e runner | catalogo DB, `betfair_service` | `GET /v1/markets` | `list_markets` | 009 · MCP-02c · MCP-01l | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-MKT-03 | Risoluzione deterministica evento/mercato/runner per nome | `DeterministicResolver`, PR08 | `GET /v1/markets` | `list_markets` | 009 · PR08 | NOT_IMPLEMENTED | Pz/NO/NR |
-| CAP-MKT-04 | Book e quote | `betfair_service`, `MARKET_BOOK_UPDATE` | `GET /v1/markets/{id}/book` | `get_market_book` | 009 · MCP-02c | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-MKT-04 | Book e quote | `betfair_service`, `MARKET_BOOK_UPDATE` | `GET /v1/markets/{id}/book` | `get_market_book` | 009 · MCP-02c · MCP-01l | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-MKT-05 | Freshness dichiarata del book | feed Delayed/stream | idem | idem | 009 | CORE_BLOCKED | Pz/NO/NR |
-| CAP-MKT-06 | Liquidità e ladder | `core/liquidity.py` | idem | idem | 009 | NOT_IMPLEMENTED | P/NO/NR |
-| CAP-MKT-07 | Stato del mercato (sospeso, chiuso, in-play) | book | idem | idem | 009 | NOT_IMPLEMENTED | P/NO/NR |
+| CAP-MKT-06 | Liquidità e ladder | `core/liquidity.py` | idem | idem | 009 · MCP-01l | NOT_IMPLEMENTED | P/HRN/NR |
+| CAP-MKT-07 | Stato del mercato (sospeso, chiuso, in-play) | book | idem | idem | 009 · MCP-01l | NOT_IMPLEMENTED | P/HRN/NR |
 | CAP-MKT-08 | Market Stream operativo | `services/streaming_feed.py`, PR11 | (interno) | — | 009, 022 · PR11 | CORE_BLOCKED | Pz/NO/NR |
 | CAP-MKT-09 | Order Stream | assente (#495) | (interno) | — | 022 | CORE_BLOCKED | A/NO/NR |
 | CAP-MKT-10 | Market P/L e superficie personale #495 | parziale | estensione route esistenti | — | 009, 013 · MCP-02f | CORE_BLOCKED | Pz/NO/NR |
@@ -380,7 +380,7 @@ non approvate sono `RC-nn` (§4) e richiedono ratifica owner (conflitto K3).
 | **Totale** | **232** | **137** | **65** | **27** | **3** | **0** |
 
 Denominatore applicabile v0.2 = 232 − 3 RETIRED (duplicati, ID conservati) − 0 OUT_OF_SCOPE = **229**. COMPLETE = **0/229**.
-Capacità con catena reale su branch (L2 = `HRN`): **48** — non contano come COMPLETE.
+Capacità con catena reale su branch (L2 = `HRN`): **52** — non contano come COMPLETE.
 
 Il catalogo è **incompleto per costruzione** (PF-MCP-001): mancano la GUI riga per riga (42 chiavi),
 le singole strategie del perimetro storico, lo streaming (gap #586), la sicurezza applicativa del core,
@@ -486,3 +486,12 @@ letti, nomi sensibili solo contati. L2 = `HRN` per CFG-01, CFG-09, BKR-12, BKR-1
 BKR-20 (solo la parte di lettura: la scrittura resta `patch_config`, non esposta). CFG-08 resta `NO`:
 l'inventario completo (GUI, runtime, impostazioni persistite) va oltre `RoserpinaConfig`. Capacità con
 L2 = `HRN`: 48. COMPLETE: ancora **0/229**.
+
+## 13. Aggiornamento 05/11/2026 (MCP-01l)
+
+`list_markets` e `get_market_book` (contratto 1.8.0) dal `MarketTracker`: L2 = `HRN` per MKT-02 (mercati e runner
+seguiti), MKT-04 (book e quote), MKT-06 (ladder: tre migliori livelli per lato; la liquidità calcolata di
+`core/liquidity.py` non è esposta), MKT-07 (stato del book, in-play: dato Betfair, non il giudizio F-23). MKT-01
+(eventi per nome) resta `NO`: il core non ha un catalogo degli eventi senza rete. MKT-05 (freschezza) resta
+CORE_BLOCKED: il tracker non registra l'istante di ricezione. Capacità con L2 = `HRN`: 52. COMPLETE: ancora **0/229**.
+

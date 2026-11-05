@@ -1,6 +1,6 @@
 # INTEGRATION INVENTORY — copertura MCP + Control API per area funzionale
 
-Aggiornato 05/11/2026 · MCP-01k · base core `ada40765` (Pickfair-nogui `main`) · Claude C.
+Aggiornato 05/11/2026 · MCP-01l · base core `ada40765` (Pickfair-nogui `main`) · Claude C.
 
 Livelli (cumulativi, ognuno richiede un'evidenza; senza evidenza il livello NON è raggiunto):
 
@@ -13,7 +13,7 @@ Livelli (cumulativi, ognuno richiede un'evidenza; senza evidenza il livello NON 
 | `INTEGRATED` | ponte mergiato in Pickfair-nogui `main` | SHA di merge (Claude B, merge owner) |
 | `CERTIFIED` | review indipendente + verifica d'integrazione di Claude B + certificazione #586 | dossier |
 
-Oggi **nessuna area è INTEGRATED né CERTIFIED**: i ponti MCP-01d … MCP-01h, MCP-01j e MCP-01k sono patch consegnate a
+Oggi **nessuna area è INTEGRATED né CERTIFIED**: i ponti MCP-01d … MCP-01h, MCP-01j, MCP-01k e MCP-01l sono patch consegnate a
 Claude B, da integrare dopo #608 e #606 con una PR indipendente e safety-critical.
 
 ## Stato per area (priorità owner)
@@ -28,7 +28,7 @@ Claude B, da integrare dopo #608 e #606 con una PR indipendente e safety-critica
 | 6 | Stato Money Management | `TESTED` (desk mode, parametri) | `GET /v1/account` (`desk_mode`), `GET /v1/config` · `get_config` | `determine_desk_mode` puro (`core/money_management.py:131`); parametri di `RoserpinaConfig` (`core/system_state.py:61`) esposti da MCP-01j | integrazione (Claude B) |
 | 7 | Configurazioni operative | `TESTED` (lettura redatta) | `GET /v1/config` · `get_config` | MCP-01j: allowlist di 42 chiavi, SET/NOT_SET/INVALID, credenziali mai lette, nomi sensibili solo contati (`core.redaction.is_sensitive_key` + frammenti del contratto); test core + mutazioni 75/75; E2E 13/13 | integrazione (Claude B); scrittura (`patch_config`) solo design, non esposta |
 | 8 | Strategie e segnali | strategie: **assenti nel core** · segnali: `CORE_AVAILABLE` (parziale) | nessuna route approvata | `CAP-STR-*` CORE_BLOCKED; `last_signal_at`; `duplication_guard.snapshot()` **non è puro** (TTL, `core/duplication_guard.py:217`); `signal_queue` non raggiungibile dal runtime | **decisione owner K3** (route) + core (Claude D) |
-| 9 | Mercati, quote, liquidità | `CORE_AVAILABLE` | `GET /v1/markets`, `GET /v1/markets/{id}/book`, `GET /v1/events` | `MarketTracker.snapshot()`/`get_market()` puri (`core/market_tracker.py:107-109`); `liquidity.py` funzioni pure | MCP-01h (dipende da F-23 di Claude D per lo stato dei mercati) |
+| 9 | Mercati, quote, liquidità | `TESTED` (mercati, book) · eventi: non nel core | `GET /v1/markets` · `list_markets`, `GET /v1/markets/{id}/book` · `get_market_book`; `GET /v1/events` resta 501 | MCP-01l: `MarketTracker` copiato in una sola lettura, tre livelli per lato in Decimal, id del mercato validato in modo stretto (route con parametro); test core + mutazioni, E2E | integrazione (Claude B); età del book solo via `lastMatchTime` (richiesta non bloccante: istante di ricezione nel tracker); stato negoziabile = F-23 |
 | 10 | Simulazioni e risultati | `TESTED` (saldo SIM via `get_account`, `execution_mode=SIM`) · `CORE_AVAILABLE` (settlement) | `GET /v1/account`; risultati: `GET /v1/orders` (cleared) o K3 | `SimulationBroker.list_settlements()` puro sotto lock (`simulation_broker.py:1267`); `snapshot()` del broker NON puro (cache) | MCP-01f/g |
 | 11 | Stato delle protezioni | `TESTED` | `GET /v1/status` (`protections`) | MCP-01f: 22 protezioni, UNKNOWN/UNAVAILABLE mai «sicuro»; regole del core chiamate direttamente; freschezza fondi = gate attuale del core (120 s); stato negoziabile del mercato `UNAVAILABLE` (F-23) | integrazione; aggiornare quando arrivano F-16/F-11/F-12/F-23 di Claude D |
 | 12 | Audit, eventi, riconciliazione | riconciliazione `TESTED` · audit `CORE_AVAILABLE` (parziale) | `GET /v1/reconciliation/status`, `GET /v1/audit/{correlation_id}` | MCP-01d; audit per correlazione: solo `get_recent_audit_events_for_diagnostics()` (DB, `database.py:2528`), nessun indice per `correlation_id`; log: K3 | audit: progettare con Claude B; log: K3 |

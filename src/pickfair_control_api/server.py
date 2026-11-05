@@ -8,7 +8,9 @@ sul ``RuntimeController`` appartiene al repository Pickfair-nogui (handoff a Cla
 Regole:
 - bind solo su ``127.0.0.1`` con porta esplicita (0 solo con ``allow_ephemeral_port``);
 - ``Authorization: Bearer <token>`` (TokenStore, tempo costante) e ``Host: 127.0.0.1:<porta>``;
-- solo GET esatti sulle route di ``contract.ROUTE_SCHEMAS``, senza query né corpo;
+- solo GET esatti sulle route di ``contract.ROUTE_SCHEMAS``, senza query né corpo; le route con un
+  parametro (``contract.PARAM_ROUTE_SCHEMAS``, MCP-01l) solo se il parametro rispetta il suo pattern
+  stretto (altrimenti 404) e il provider riceve il valore già validato;
 - una route di lettura approvata ma non servita risponde ``501 NOT_IMPLEMENTED`` (mai un dato);
   un percorso fuori contratto ``404 NOT_FOUND``; ogni metodo diverso da GET ``405``;
 - ogni risposta è validata contro lo schema del contratto PRIMA dell'invio: una risposta fuori
@@ -31,6 +33,8 @@ from pickfair_control_api.contract import (
     CAPABILITIES,
     CONTRACT_VERSION,
     GIT_SHA_RE,
+    PARAM_ROUTE_PATTERNS,
+    PARAM_ROUTE_SCHEMAS,
     PROVIDER_NAMES,
     ROUTE_SCHEMAS,
     response_schema,
@@ -48,6 +52,7 @@ REQUEST_TIMEOUT_S: Final = 5.0
 MAX_RESPONSE_BYTES: Final = 64 * 1024
 SHUTDOWN_POLL_S: Final = 0.1  # arresto rapido: stop() attende al più un ciclo
 Provider = Callable[[], dict[str, Any]]
+ParamProvider = Callable[[str], dict[str, Any]]
 
 
 class ControlApiConfigError(Exception):
@@ -104,17 +109,28 @@ class _Handler(BaseHTTPRequestHandler):
         raw_path = parts[1] if len(parts) == 3 else ""
         exact = raw_path == self.path
         route = raw_path if exact and raw_path in app.routes else None
-        if route is None:
+        read: Callable[[], dict[str, Any]] | None = app.routes.get(route) if route else None
+        schema_name = ROUTE_SCHEMAS.get(route) if route else None
+        if route is None and exact:
+            for template, pattern in PARAM_ROUTE_PATTERNS.items():
+                match = pattern.fullmatch(raw_path)
+                if match:
+                    value = match.group("id")
+                    provider = app.param_routes[template]
+                    route, schema_name = template, PARAM_ROUTE_SCHEMAS[template]
+                    read = lambda: provider(value)  # noqa: E731
+                    break
+        if route is None or read is None or schema_name is None:
             if exact and any(p.fullmatch(raw_path) for p in unserved_read_routes()):
                 return self._error(501, "NOT_IMPLEMENTED")
             return self._error(404, "NOT_FOUND")
         try:
-            body = app.routes[route]()
+            body = read()
         except Exception:  # noqa: BLE001 - mai testo di eccezione verso il client
             logger.error("control_api: lettura fallita (%s)", route)
             return self._error(500, "INTERNAL")
         try:
-            validate(body, response_schema(ROUTE_SCHEMAS[route]))
+            validate(body, response_schema(schema_name))
             size = len(json.dumps(body, sort_keys=True, allow_nan=False).encode("utf-8"))
         except (SchemaViolation, SchemaUnsupported, ValueError, TypeError):
             logger.error("control_api: risposta fuori contratto (%s)", route)
@@ -131,8 +147,15 @@ class _Handler(BaseHTTPRequestHandler):
 
 
 class _App:
-    def __init__(self, routes: dict[str, Provider], tokens: TokenStore, port: int) -> None:
+    def __init__(
+        self,
+        routes: dict[str, Provider],
+        tokens: TokenStore,
+        port: int,
+        param_routes: dict[str, ParamProvider] | None = None,
+    ) -> None:
         self.routes = routes
+        self.param_routes = param_routes or {}
         self.tokens = tokens
         self.expected_host = f"{LOOPBACK_HOST}:{port}"
         self._counts: dict[str, int] = {}
@@ -168,7 +191,7 @@ class ControlApiServer:
 
     def __init__(
         self,
-        providers: Mapping[str, Provider],
+        providers: Mapping[str, Callable[..., dict[str, Any]]],
         *,
         port: int,
         tokens: TokenStore,
@@ -202,7 +225,10 @@ class ControlApiServer:
         }
         self._httpd = _Server((host, port), _Handler, bind_and_activate=True)
         self.port = int(self._httpd.server_address[1])
-        self._httpd.app = _App(routes, tokens, self.port)
+        param_routes: dict[str, ParamProvider] = {
+            template: providers[name] for template, name in PARAM_ROUTE_SCHEMAS.items()
+        }
+        self._httpd.app = _App(routes, tokens, self.port, param_routes)
         self._thread: threading.Thread | None = None
         self._lock = threading.Lock()
 

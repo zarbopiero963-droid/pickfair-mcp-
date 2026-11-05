@@ -380,3 +380,25 @@ regola è applicata dal MCP (`UNCONFIRMED_ORDER_STATUSES`) e dal ponte del core 
 `protections.funds_freshness.limit`: il ponte non ricalcola la soglia del core. Con F-16 (soglia owner 30 s)
 il limite è `null` finché il core non espone un accessore unico; sul `main` attuale resta 120 s.
 
+## MCP-01l — `list_markets` e `get_market_book` (contratto 1.8.0)
+
+Route già approvate (`GET /v1/markets`, `GET /v1/markets/{id}/book`), nessuna route nuova. Fonte: il
+`MarketTracker` del core, cioè l'ultimo book che Pickfair ha ricevuto per ogni mercato, copiato in una sola
+lettura (`SINGLE_REFERENCE_READ`). Nessuna chiamata di rete: un mercato che Pickfair non segue risponde
+`state = NOT_TRACKED`.
+
+- `list_markets`: `market_id`, `book_status` (dato Betfair OPEN/SUSPENDED/CLOSED/INACTIVE, altrimenti UNKNOWN),
+  `inplay`, numero di `runners`, `total_matched`, `last_match_time`; elenco ordinato, al più 256 (`truncated`),
+  voci illeggibili contate in `omitted`.
+- `get_market_book` (`market_id` obbligatorio, `^[0-9]{1,4}\.[0-9]{1,15}$`): per ogni runner `status`,
+  `last_price_traded`, `total_matched` e i tre migliori livelli `back` (prezzo decrescente) e `lay` (crescente)
+  come stringhe decimali; runner illeggibili contati in `omitted_runners`. Il MCP rifiuta un book di un mercato
+  diverso da quello richiesto.
+- Prima route con parametro: la Control API accetta solo l'id nel pattern stretto (altrimenti 404, nessuna
+  chiamata al core) e passa al provider il valore già validato; l'adapter HTTP ricontrolla prima di costruire
+  il percorso.
+
+Limiti dichiarati: `book_status` non è un giudizio di negoziabilità (quello è la protezione
+`market_tradability`, F-23); l'età del book è nota solo con `last_match_time` (il tracker non registra
+l'istante di ricezione); `list_events` resta 501: il core non ha un catalogo degli eventi senza rete.
+

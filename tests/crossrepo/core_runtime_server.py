@@ -358,6 +358,18 @@ for line in sys.stdin:
         cands, unattr = rc._open_order_candidates()
         reply(event="COMPAT_P0", id=oid,
               open_bet_ids=sorted(c["bet_id"] for c in list(cands) + list(unattr)))
+    elif cmd[0] == "MARKET":
+        # Comando al CORE: un book Betfair nella forma di listMarketBook entra dal percorso reale del runtime
+        # (`_stream_market_book_callback` -> MarketTracker, come lo stream; in SIM anche al broker simulato).
+        rc._stream_market_book_callback({
+            "marketId": "1.987654", "status": "OPEN", "inplay": False, "totalMatched": 2500.5,
+            "lastMatchTime": "2026-11-05T10:00:00.000Z",
+            "runners": [{"selectionId": 47972, "status": "ACTIVE", "lastPriceTraded": 2.5,
+                         "totalMatched": 900.0,
+                         "ex": {"availableToBack": [{"price": 2.5, "size": 100.0}],
+                                "availableToLay": [{"price": 2.52, "size": 60.0}]}}],
+        })
+        reply(event="MARKET")
     elif cmd[0] == "DIGEST":
         state["recording"] = False  # la misura stessa non deve contare come chiamata
         current = dict(server.request_counts()) if server is not None else {}

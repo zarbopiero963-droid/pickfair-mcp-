@@ -1266,3 +1266,118 @@ class ConfigResponse(StrictModel):
             if s.state == "NOT_SET" and s.key not in OPTIONAL_CONFIG_KEYS:
                 raise ValueError("only optional settings can be NOT_SET")
         return self
+
+
+# ------------------------------------------------------------------ MCP-01l: mercati e book
+
+# Identificativo di mercato Betfair («1.234567»): stretto, mai «.» o «..», usabile in un percorso.
+MARKET_ID_PATTERN = r"^[0-9]{1,4}\.[0-9]{1,15}$"
+MarketId = Annotated[str, StringConstraints(pattern=MARKET_ID_PATTERN, max_length=20)]
+# Stato del mercato COME LO RIPORTA IL BOOK ricevuto (dato Betfair), non un giudizio di negoziabilità del
+# core: quello è F-23 (Claude D), la protezione `market_tradability` resta la fonte del giudizio.
+BookStatus = Literal["OPEN", "SUSPENDED", "CLOSED", "INACTIVE", "UNKNOWN"]
+RunnerStatus = Literal["ACTIVE", "REMOVED", "WINNER", "LOSER", "PLACED", "HIDDEN", "UNKNOWN"]
+MAX_MARKETS = 256
+MAX_RUNNERS = 64
+MAX_LEVELS = 3
+
+
+class MarketSummary(StrictModel):
+    market_id: MarketId
+    book_status: BookStatus
+    inplay: bool | None
+    runners: Annotated[int, Field(ge=0, le=1000)]
+    total_matched: NonNegativeDecimal | None
+    last_match_time: EpochSeconds | None
+
+
+def _unique_markets(values: tuple[MarketSummary, ...]) -> tuple[MarketSummary, ...]:
+    ids = [m.market_id for m in values]
+    if len(set(ids)) != len(ids):
+        raise ValueError("duplicate market_id")
+    if ids != sorted(ids):
+        raise ValueError("markets must be sorted by market_id")
+    return values
+
+
+class MarketsResponse(StrictModel):
+    source: Source
+    observed_at: ObservedAt
+    # Copia del dizionario dei book del MarketTracker in una sola operazione: ogni book è l'ultimo
+    # ricevuto per quel mercato; l'età del book è nota solo se il book riporta `lastMatchTime`.
+    consistency: Literal["SINGLE_REFERENCE_READ"]
+    markets: (
+        Annotated[
+            tuple[MarketSummary, ...], Field(max_length=MAX_MARKETS), AfterValidator(_unique_markets)
+        ]
+        | None
+    )
+    omitted: Count
+    truncated: bool
+    unavailable: Annotated[
+        tuple[Literal["markets"], ...], Field(max_length=1, json_schema_extra={"uniqueItems": True})
+    ]
+
+    @model_validator(mode="after")
+    def _declared(self) -> MarketsResponse:
+        _check_unavailable({"markets": self.markets}, self.unavailable)
+        if self.markets is None and (self.omitted or self.truncated):
+            raise ValueError("omissions without a market list")
+        return self
+
+
+class PriceLevel(StrictModel):
+    price: NonNegativeDecimal
+    size: NonNegativeDecimal
+
+
+class RunnerBook(StrictModel):
+    selection_id: Identifier
+    status: RunnerStatus
+    last_price_traded: NonNegativeDecimal | None
+    total_matched: NonNegativeDecimal | None
+    # Migliori livelli disponibili: BACK in ordine di prezzo decrescente, LAY crescente, come nel book.
+    back: Annotated[tuple[PriceLevel, ...], Field(max_length=MAX_LEVELS)]
+    lay: Annotated[tuple[PriceLevel, ...], Field(max_length=MAX_LEVELS)]
+
+    @model_validator(mode="after")
+    def _ordered(self) -> RunnerBook:
+        back = [Decimal(level.price) for level in self.back]
+        lay = [Decimal(level.price) for level in self.lay]
+        if back != sorted(back, reverse=True) or lay != sorted(lay):
+            raise ValueError("price ladder out of order")
+        return self
+
+
+class MarketBook(StrictModel):
+    book_status: BookStatus
+    inplay: bool | None
+    total_matched: NonNegativeDecimal | None
+    last_match_time: EpochSeconds | None
+    runners: Annotated[tuple[RunnerBook, ...], Field(max_length=MAX_RUNNERS)]
+    omitted_runners: Count
+
+    @model_validator(mode="after")
+    def _unique(self) -> MarketBook:
+        ids = [r.selection_id for r in self.runners]
+        if len(set(ids)) != len(ids):
+            raise ValueError("duplicate selection_id")
+        return self
+
+
+class MarketBookResponse(StrictModel):
+    source: Source
+    observed_at: ObservedAt
+    consistency: Literal["SINGLE_REFERENCE_READ"]
+    market_id: MarketId
+    # OK: book presente; NOT_TRACKED: Pickfair non ha un book per questo mercato (nessuna chiamata di rete
+    # per procurarlo); UNAVAILABLE: book presente ma illeggibile o tracker non raggiungibile.
+    state: Literal["OK", "NOT_TRACKED", "UNAVAILABLE"]
+    book: MarketBook | None
+
+    @model_validator(mode="after")
+    def _coherent(self) -> MarketBookResponse:
+        if (self.book is not None) != (self.state == "OK"):
+            raise ValueError("book present iff state is OK")
+        return self
+

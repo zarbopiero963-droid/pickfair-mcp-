@@ -24,6 +24,8 @@ from pickfair_mcp.contract.models import (
     ORDER_STATUS_MAP,
     AccountResponse,
     ConfigResponse,
+    MarketBookResponse,
+    MarketsResponse,
     ExposureResponse,
     OrdersResponse,
     PositionsResponse,
@@ -124,6 +126,14 @@ SEMANTICS: Final = {
             "listed, only counted in `redacted`."
         ),
     },
+    "markets": (
+        "list_markets / get_market_book: the core MarketTracker's last received book per market, "
+        "copied in one read; no network call. NOT_TRACKED for a market Pickfair does not hold. "
+        "book_status is Betfair book data, never a tradability judgement (protection "
+        "market_tradability). Book age is known only through last_match_time. Prices and sizes "
+        "are exact decimal strings; best three levels per side; market id pattern "
+        "^[0-9]{1,4}\\.[0-9]{1,15}$, anything else is 404 on the Control API."
+    ),
     "protections": (
         "Each protection is ACTIVE, INACTIVE, TRIGGERED, UNKNOWN or UNAVAILABLE; only ACTIVE has "
         "no reason. A protection that cannot be verified is UNKNOWN (core has it, value not "
@@ -192,6 +202,8 @@ def build_contract_descriptor() -> dict[str, Any]:
             "positions": _schema(PositionsResponse),
             "orders": _schema(OrdersResponse),
             "config": _schema(ConfigResponse),
+            "markets": _schema(MarketsResponse),
+            "market_book": _schema(MarketBookResponse),
             "error": error_schema,
         },
         "tools": tools,

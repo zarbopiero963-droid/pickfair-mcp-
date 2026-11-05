@@ -377,3 +377,39 @@ def config(**overrides: Any) -> dict[str, Any]:
     }
     body.update(overrides)
     return body
+
+
+def market(market_id: str = "1.200000001", **overrides: Any) -> dict[str, Any]:
+    data: dict[str, Any] = {"market_id": market_id, "book_status": "OPEN", "inplay": False,
+                            "runners": 2, "total_matched": "1500.25",
+                            "last_match_time": time.time() - 3.0}
+    data.update(overrides)
+    return data
+
+
+def markets(**overrides: Any) -> dict[str, Any]:
+    body: dict[str, Any] = {"source": "core", "observed_at": time.time(),
+                            "consistency": "SINGLE_REFERENCE_READ", "markets": [market()],
+                            "omitted": 0, "truncated": False, "unavailable": []}
+    body.update(overrides)
+    return body
+
+
+def runner(selection_id: str = "47972", **overrides: Any) -> dict[str, Any]:
+    data: dict[str, Any] = {"selection_id": selection_id, "status": "ACTIVE", "last_price_traded": "2.5",
+                            "total_matched": "800", "back": [{"price": "2.5", "size": "100"},
+                                                             {"price": "2.48", "size": "40"}],
+                            "lay": [{"price": "2.52", "size": "70"}, {"price": "2.54", "size": "15"}]}
+    data.update(overrides)
+    return data
+
+
+def market_book(market_id: str = "1.200000001", **overrides: Any) -> dict[str, Any]:
+    body: dict[str, Any] = {
+        "source": "core", "observed_at": time.time(), "consistency": "SINGLE_REFERENCE_READ",
+        "market_id": market_id, "state": "OK",
+        "book": {"book_status": "OPEN", "inplay": False, "total_matched": "1500.25",
+                 "last_match_time": time.time() - 3.0, "runners": [runner()], "omitted_runners": 0},
+    }
+    body.update(overrides)
+    return body

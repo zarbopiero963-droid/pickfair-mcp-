@@ -14,7 +14,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Final
 
-CONTRACT_VERSION: Final = "1.7.0"
+CONTRACT_VERSION: Final = "1.8.0"
 DESCRIPTOR_PATH: Final = Path(__file__).with_name("contract_v1.json")
 
 # Route servite in sola lettura. Nessuna route di comando.
@@ -27,10 +27,22 @@ ROUTE_SCHEMAS: Final = {
     "/v1/positions": "positions",
     "/v1/orders": "orders",
     "/v1/config": "config",
+    "/v1/markets": "markets",
+}
+# MCP-01l: route servite con UN parametro di percorso. Il parametro deve rispettare il proprio pattern
+# (mai «.» o «..»); fuori pattern la route risponde 404. Il provider riceve il valore validato.
+MARKET_ID_RE: Final = re.compile(r"[0-9]{1,4}\.[0-9]{1,15}")
+PARAM_ROUTE_SCHEMAS: Final = {"/v1/markets/{id}/book": "market_book"}
+PARAM_ROUTE_PATTERNS: Final = {
+    "/v1/markets/{id}/book": re.compile(r"\A/v1/markets/(?P<id>[0-9]{1,4}\.[0-9]{1,15})/book\Z"),
 }
 # Provider che il core deve fornire: uno per ogni route servita tranne /v1/meta.
-PROVIDER_NAMES: Final = frozenset(name for name in ROUTE_SCHEMAS.values() if name != "meta")
-CAPABILITIES: Final[tuple[str, ...]] = tuple(f"GET {p}" for p in ROUTE_SCHEMAS)
+PROVIDER_NAMES: Final = frozenset(
+    [name for name in ROUTE_SCHEMAS.values() if name != "meta"] + list(PARAM_ROUTE_SCHEMAS.values())
+)
+CAPABILITIES: Final[tuple[str, ...]] = tuple(
+    [f"GET {p}" for p in ROUTE_SCHEMAS] + [f"GET {p}" for p in PARAM_ROUTE_SCHEMAS]
+)
 _TEMPLATE_RE: Final = re.compile(r"\{[a-z_]+\}")
 _SEGMENT: Final = "[A-Za-z0-9_-][A-Za-z0-9._-]{0,63}"  # mai «.» o «..» come segmento
 
@@ -44,7 +56,7 @@ def unserved_read_routes() -> tuple[re.Pattern[str], ...]:
     """
     patterns = []
     for kind, method, path in load_descriptor()["routes"]:
-        if kind != "read" or method != "GET" or path in ROUTE_SCHEMAS:
+        if kind != "read" or method != "GET" or path in ROUTE_SCHEMAS or path in PARAM_ROUTE_SCHEMAS:
             continue
         parts = _TEMPLATE_RE.split(path)
         body = _SEGMENT.join(re.escape(part) for part in parts)
