@@ -44,7 +44,12 @@ class LocalTokenFile:
 
     def __init__(self, path: Path | str, *, expected_uid: int | None = None) -> None:
         self._path = validate_token_path(str(path))
-        self._uid = os.getuid() if expected_uid is None else expected_uid
+        # Su Windows os.getuid non esiste: nessun uid atteso (-1, mai un utente reale) e read()
+        # fallisce col codice dichiarato TOKEN_PLATFORM_UNSUPPORTED, non con un AttributeError qui.
+        if expected_uid is not None:
+            self._uid = expected_uid
+        else:
+            self._uid = os.getuid() if os.name == "posix" else -1
 
     @property
     def path(self) -> Path:

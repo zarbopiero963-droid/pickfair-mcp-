@@ -719,6 +719,18 @@
         "docs/handoff/INTEGRATION_MATRIX_MCP01d-n.md"
       ],
       "max_files": 2
+    },
+    "mcp-win-token": {
+      "issue": "direttiva owner PF-MCP-CONTINUE-01 (compatibilità Windows/Linux)",
+      "scheda": "token MCP su Windows: codice dichiarato invece di AttributeError",
+      "description": "LocalTokenFile non chiama os.getuid fuori da POSIX: read() e la CLI danno TOKEN_PLATFORM_UNSUPPORTED (errore d'uso), mai un traceback. RED 2/2 sul codice vecchio.",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "docs/contract_v1.md",
+        "src/pickfair_mcp/auth/token_file.py",
+        "tests/unit/test_token_file.py"
+      ],
+      "max_files": 4
     }
   }
 }

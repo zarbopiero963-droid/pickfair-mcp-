@@ -110,3 +110,41 @@ def test_error_never_contains_the_token(token_dir: Path) -> None:
     with pytest.raises(TokenFileError) as info:
         LocalTokenFile(path).read()
     assert token not in str(info.value) and token not in repr(info.value)
+
+
+def _as_windows(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Forma di Windows vista dal modulo del token: os.name "nt", nessun os.getuid né flag POSIX.
+    # Solo dentro il modulo: cambiare os.name globale farebbe usare a pathlib i percorsi di Windows.
+    import types
+
+    from pickfair_mcp.auth import token_file
+
+    posix_only = {"getuid", "geteuid", "O_NOFOLLOW", "O_CLOEXEC"}
+    fake = types.SimpleNamespace(**{k: getattr(os, k) for k in dir(os)
+                                    if not k.startswith("__") and k not in posix_only})
+    fake.name = "nt"
+    monkeypatch.setattr(token_file, "os", fake)
+
+
+def test_windows_fails_with_the_declared_code_not_a_crash(
+    token_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = token_dir / "token"
+    _as_windows(monkeypatch)
+    tf = LocalTokenFile(path)  # prima: AttributeError su os.getuid nel costruttore
+    with pytest.raises(TokenFileError) as exc:
+        tf.read()
+    assert exc.value.code == "TOKEN_PLATFORM_UNSUPPORTED"
+
+
+def test_cli_on_windows_is_a_usage_error_not_a_traceback(
+    token_dir: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from pickfair_mcp import cli
+
+    _as_windows(monkeypatch)
+    rc = cli.main(["serve", "--adapter", "http", "--control-api-port", "8765",
+                   "--control-api-token-file", str(token_dir / "token")])
+    assert rc != 0
+    err = capsys.readouterr().err
+    assert "TOKEN_PLATFORM_UNSUPPORTED" in err and "Traceback" not in err
