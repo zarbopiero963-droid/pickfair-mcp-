@@ -391,6 +391,19 @@ for line in sys.stdin:
             trigger, sl_tp_close.STATE_NOT_EXECUTED, bet_ids=["SIMBET-close"], reason="GATE_REJECTED:x",
             at=time.time())})
         reply(event="SL_TP_CLOSE")
+    elif cmd[0] == "TRAILING":
+        # Comando al CORE (con F-03): tavolo con trailing al 20 % e picco persistito con le funzioni del core,
+        # come dopo un riavvio prima che il runtime ricarichi il picco nel meta.
+        from decimal import Decimal
+
+        from core import trailing_stop
+
+        rc.table_manager.activate(table_id=5, event_key="ev-trailing", exposure=6.0, market_id="1.555",
+                                  selection_id="55", meta={"customer_ref": "cref-secret-trail",
+                                                           "bet_type": "BACK", "trailing_stop_pct": 20.0})
+        rc.db.save_settings({trailing_stop.PEAK_KEY_PREFIX + "cref-secret-trail":
+                             trailing_stop.state_record(Decimal("15.00"), Decimal("20"), time.time())})
+        reply(event="TRAILING", threshold=str(trailing_stop.threshold(Decimal("15.00"), Decimal("20"))))
     elif cmd[0] == "DIGEST":
         state["recording"] = False  # la misura stessa non deve contare come chiamata
         current = dict(server.request_counts()) if server is not None else {}

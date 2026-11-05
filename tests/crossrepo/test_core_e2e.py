@@ -591,3 +591,25 @@ async def test_e2e_sl_tp_close_from_the_core_record(core: Core, tmp_path: Path) 
     text = json.dumps(payload)
     assert "cref-secret-close" not in text and "Juventus" not in text
     assert after["db"] == baseline["db"] and after["calls"] == baseline["calls"]
+
+
+async def test_e2e_trailing_from_the_core_trailing_module(core: Core, tmp_path: Path) -> None:
+    """MCP-01m: trailing F-03 con picco persistito, letto dal core reale (fusione locale con F-03)."""
+    errlog = (tmp_path / "mcp.err").open("w+")
+    async with mcp(core, errlog) as s:
+        tools = {t.name: t for t in (await s.list_tools()).tools}
+        expected = core.send("TRAILING")  # comando al CORE
+        baseline = core.send("DIGEST")
+        is_error, payload = await call(s, "get_exposure")
+        st_error, status = await call(s, "get_status")
+        after = core.send("DIGEST")
+    assert is_error is False and st_error is False, payload
+    jsonschema.validate(payload, tools["get_exposure"].outputSchema)
+    table = next(t for t in payload["data"]["exposure"]["tables"] if t["table_id"] == 5)
+    assert table["sl_tp"]["trailing"] == {"state": "ARMED", "pct": "20", "peak": "15", "threshold": "12",
+                                          "peak_source": "PERSISTED"}
+    assert expected["threshold"] == "12.00"  # stessa soglia della funzione del core
+    validity = status["data"]["status"]["protections"]["items"]["config_validity"]
+    assert validity["state"] in ("ACTIVE", "TRIGGERED")
+    assert "cref-secret-trail" not in json.dumps(payload)
+    assert after["db"] == baseline["db"] and after["calls"] == baseline["calls"]
