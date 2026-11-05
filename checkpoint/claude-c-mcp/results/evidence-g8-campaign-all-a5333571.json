@@ -1,0 +1,94 @@
+{
+  "target": "campaign:all",
+  "verdict": "PASS",
+  "provenance": {
+    "code": {
+      "sha": "a5333571d4ac6b9c5063bffc2f2deeee8628ac88",
+      "clean": true
+    },
+    "core": {
+      "sha": "ddc8a4f42e7b35751e057c5bd70f2bde5a70d3de",
+      "clean": true
+    }
+  },
+  "results": [
+    {
+      "suite": "mcp-unit",
+      "verdict": "PASS",
+      "reason": null,
+      "exit_code": 0,
+      "tests": 1323,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1,
+      "unexpected_skips": [],
+      "junit": "mcp-unit.junit.xml",
+      "log": "mcp-unit.log"
+    },
+    {
+      "suite": "mcp-guards",
+      "verdict": "PASS",
+      "reason": null,
+      "exit_code": 0,
+      "tests": 146,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "unexpected_skips": [],
+      "junit": "mcp-guards.junit.xml",
+      "log": "mcp-guards.log"
+    },
+    {
+      "suite": "mcp-control-api",
+      "verdict": "PASS",
+      "reason": null,
+      "exit_code": 0,
+      "tests": 132,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "unexpected_skips": [],
+      "junit": "mcp-control-api.junit.xml",
+      "log": "mcp-control-api.log"
+    },
+    {
+      "suite": "mcp-integration",
+      "verdict": "PASS",
+      "reason": null,
+      "exit_code": 0,
+      "tests": 273,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "unexpected_skips": [],
+      "junit": "mcp-integration.junit.xml",
+      "log": "mcp-integration.log"
+    },
+    {
+      "suite": "mcp-e2e",
+      "verdict": "PASS",
+      "reason": null,
+      "exit_code": 0,
+      "tests": 32,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "unexpected_skips": [],
+      "junit": "mcp-e2e.junit.xml",
+      "log": "mcp-e2e.log"
+    },
+    {
+      "suite": "mcp-crossrepo",
+      "verdict": "PASS",
+      "reason": null,
+      "exit_code": 0,
+      "tests": 17,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "unexpected_skips": [],
+      "junit": "mcp-crossrepo.junit.xml",
+      "log": "mcp-crossrepo.log"
+    }
+  ]
+}

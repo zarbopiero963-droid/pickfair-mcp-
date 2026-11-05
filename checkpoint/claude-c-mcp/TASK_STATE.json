@@ -27,11 +27,16 @@
   "consegna cross-repo opzione A: bundle + 12 patch canoniche, digest riproducibili da clone nuovo 12/12 (f1b4b64)",
   "MCP-LOAD-FLAKE chiuso: rotazioni al passo dei lettori, RED 3/3 -> GREEN 3/3 (4174561)",
   "handoff del core pubblicato da B (handoff/claude-c/mcp-core-20261105 @ f22d6bfb) e verificato da C 12/12",
-  "12 handoff del core DURABLE provati dallo strumento (seq 8)"
+  "12 handoff del core DURABLE provati dallo strumento (seq 8)",
+  "matrice d'integrazione per B con conflitti provati su F-16/F-R06 (fcde366)",
+  "patch 13 f16-compat consegnata (ddc8a4f4, DELIVERED)",
+  "token MCP su Windows: codice dichiarato (0251937)",
+  "G8: provenienza nel rapporto, PASS solo attribuibile (a5333571)",
+  "campagna G8 all PASS 6/6, 1923 test, codice a5333571 + core ddc8a4f4 puliti"
  ],
- "lotto_corrente": "handoff DURABLE; sviluppo MCP: matrice d'integrazione (fcde366), patch 13 f16-compat DELIVERED, token Windows (0251937), campagna G8 sullo SHA completo in corso",
+ "lotto_corrente": "sviluppo MCP/Control API; handoff 12/12 DURABLE; patch 13 in attesa di pubblicazione da B",
  "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02",
- "next_atomic_action": "registrare l'esito della campagna G8 su 0251937; patch 13 f16-compat: DURABLE solo quando B la pubblica e la prova regge",
+ "next_atomic_action": "patch 13: DURABLE quando B la pubblica; sviluppo MCP read-only (nessuna nuova route), CONTROL-API-WIN-TOKEN al prossimo bump",
  "pr_505": "N/A (repository MCP)",
  "schema": "pf-task-state/1",
  "tests_missing": []

@@ -1,15 +1,15 @@
 {
  "schema": "pf-checkpoint/3",
  "repository": "zarbopiero963-droid/pickfair-mcp-",
- "seq": 8,
+ "seq": 9,
  "agent": "claude-c",
  "agent_identity": "Claude C — MCP + Control API (sessione session_013X2mCaF4fE5YMWGVrM8LtR)",
  "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02",
- "previous_checkpoint_sha": "a7a11ac34c3888c85702e00d8d5bfd0770d510c0",
+ "previous_checkpoint_sha": "d6d1cda05308b479fdff259b496258f09451f848",
  "code": {
-  "branch": "ccr-edf04c7d-e7vtj1-mcp-load-flake",
-  "sha": "4174561d73f329477f1638da58f66d336fdfd24c",
-  "tree": "9f6401d2566a548ba963bca6117b6544b221a8fb"
+  "branch": "ccr-edf04c7d-e7vtj1-g8-provenance",
+  "sha": "a5333571d4ac6b9c5063bffc2f2deeee8628ac88",
+  "tree": "c5377e5260b646567bc6cfb80dcb38f248867c4a"
  },
  "published_branches": {
   "ccr-edf04c7d-e7vtj1": "647d5e8d269952af975ec01df7be27abf2ff3c1e",
@@ -27,7 +27,10 @@
   "ccr-edf04c7d-e7vtj1-g8-suites": "e029363e361b311488b09e7253e715fd6fd36e51",
   "ccr-edf04c7d-e7vtj1-k3-specs": "bad873b8262679f7b0f291ac9d508c55ff1fd70b",
   "ccr-edf04c7d-e7vtj1-mcp01n-book-age": "f1b4b6492dcf4637c8cfc1e2b0cd2312e3ed5c79",
-  "ccr-edf04c7d-e7vtj1-mcp-load-flake": "4174561d73f329477f1638da58f66d336fdfd24c"
+  "ccr-edf04c7d-e7vtj1-mcp-load-flake": "4174561d73f329477f1638da58f66d336fdfd24c",
+  "ccr-edf04c7d-e7vtj1-mcp-integration-prep": "fcde366",
+  "ccr-edf04c7d-e7vtj1-mcp-win-token": "0251937",
+  "ccr-edf04c7d-e7vtj1-g8-provenance": "a5333571d4ac6b9c5063bffc2f2deeee8628ac88"
  },
  "integration_chain": [
   "MCP-01d",
@@ -42,9 +45,13 @@
   "MCP-01i r2 (dopo F-04 su main)",
   "MCP-01m (dopo F-03 su main)",
   "MCP-01n (dopo claude/d-market-book-age su main)",
-  "MCP-LOAD-FLAKE (solo test, sopra 01n)"
+  "MCP-LOAD-FLAKE (solo test, sopra 01n)",
+  "g8 fuso nella catena (e0014ef)",
+  "matrice d'integrazione (fcde366)",
+  "token Windows MCP (0251937)",
+  "G8 provenienza (a5333571)"
  ],
- "lotto_corrente": "handoff DURABLE; sviluppo MCP: matrice d'integrazione (fcde366), patch 13 f16-compat DELIVERED, token Windows (0251937), campagna G8 sullo SHA completo in corso",
+ "lotto_corrente": "sviluppo MCP/Control API; handoff 12/12 DURABLE; patch 13 in attesa di pubblicazione da B",
  "lotti_completati": [
   "MCP-01j get_config (305b843)",
   "MCP-01k compatibilità P0/F-16 (4cd3e75)",
@@ -60,9 +67,14 @@
   "consegna cross-repo opzione A: bundle + 12 patch canoniche, digest riproducibili da clone nuovo 12/12 (f1b4b64)",
   "MCP-LOAD-FLAKE chiuso: rotazioni al passo dei lettori, RED 3/3 -> GREEN 3/3 (4174561)",
   "handoff del core pubblicato da B (handoff/claude-c/mcp-core-20261105 @ f22d6bfb) e verificato da C 12/12",
-  "12 handoff del core DURABLE provati dallo strumento (seq 8)"
+  "12 handoff del core DURABLE provati dallo strumento (seq 8)",
+  "matrice d'integrazione per B con conflitti provati su F-16/F-R06 (fcde366)",
+  "patch 13 f16-compat consegnata (ddc8a4f4, DELIVERED)",
+  "token MCP su Windows: codice dichiarato (0251937)",
+  "G8: provenienza nel rapporto, PASS solo attribuibile (a5333571)",
+  "campagna G8 all PASS 6/6, 1923 test, codice a5333571 + core ddc8a4f4 puliti"
  ],
- "next_atomic_action": "registrare l'esito della campagna G8 su 0251937; patch 13 f16-compat: DURABLE solo quando B la pubblica e la prova regge",
+ "next_atomic_action": "patch 13: DURABLE quando B la pubblica; sviluppo MCP read-only (nessuna nuova route), CONTROL-API-WIN-TOKEN al prossimo bump",
  "dependencies": {
   "F-04 su main": "MCP-01i r2",
   "F-03 su main (con F-02, F-04)": "MCP-01m",
@@ -85,6 +97,11 @@
    "id": "CORE-CATALOG-REACHABILITY",
    "owner": "Claude B (integrazione) / Claude D",
    "descrizione": "catalogo canonico #606: tests/control_api coperto dalla voce G8 control-api + campaigns.all (provato); tests/f02, f03, f13b, f18 dello stack D non catalogati"
+  },
+  {
+   "id": "CONTROL-API-WIN-TOKEN",
+   "owner": "Claude C",
+   "descrizione": "pickfair_control_api.tokens su Windows: AttributeError (O_NOFOLLOW) catturato dal launcher del core (fail-closed, CONTROL_API_NOT_STARTED: AttributeError); codice dichiarato al prossimo cambio di versione del package"
   }
  ],
  "github_evidence": [
@@ -187,6 +204,12 @@
    "status": "PASS",
    "sha": "4174561d73f329477f1638da58f66d336fdfd24c",
    "artifact": "results/evidence-load-flake.txt"
+  },
+  {
+   "name": "G8 campagna all PASS 6/6 1923 test, provenienza code a5333571 clean + core ddc8a4f4 clean",
+   "status": "PASS",
+   "sha": "a5333571d4ac6b9c5063bffc2f2deeee8628ac88",
+   "artifact": "results/evidence-g8-campaign-all-a5333571.json"
   }
  ],
  "tests_missing": [],
