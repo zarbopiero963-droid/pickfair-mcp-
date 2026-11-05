@@ -731,6 +731,18 @@
         "tests/unit/test_token_file.py"
       ],
       "max_files": 4
+    },
+    "g8-provenance": {
+      "issue": "direttiva owner PF-MCP-CONTINUE-01, punto 3 (risultati riproducibili sullo SHA corretto)",
+      "scheda": "G8: provenienza nel rapporto, PASS solo su albero attribuibile",
+      "description": "run_suites registra SHA e albero pulito del codice MCP e del core; tutte le suite PASS su albero sporco o SHA ignoto => BLOCKED UNATTRIBUTABLE_TREE. RED 7/7 prima della modifica.",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "docs/g8/G8_MCP_CONTROL_API_SUITES.md",
+        "scripts/run_suites.py",
+        "tests/guards/test_g8_suites.py"
+      ],
+      "max_files": 4
     }
   }
 }

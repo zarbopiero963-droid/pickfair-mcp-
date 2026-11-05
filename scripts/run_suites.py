@@ -4,6 +4,8 @@ Stesse regole del catalogo canonico di Pickfair-nogui (`scripts/pf_test_dispatch
 FISSO dal manifest (solo percorsi `tests/` esistenti, nessun flag, nessuna risalita), evidenze junit + log,
 verdetto PASS / FAIL / BLOCKED. Un test saltato fuori da `allowed_skips` non è mai PASS (BLOCKED); un
 prerequisito mancante (`requires`) è BLOCKED senza eseguire nulla.
+Il rapporto registra la provenienza (SHA e albero pulito del codice MCP e, se usato, del core):
+un esito non attribuibile a uno SHA preciso non è mai PASS (BLOCKED `UNATTRIBUTABLE_TREE`).
 
 Uso: python scripts/run_suites.py <suite:ID | campaign:NOME> --evidence DIR
 """
@@ -31,6 +33,7 @@ RISKS = frozenset({"LOW", "MEDIUM", "HIGH"})
 _ID = re.compile(r"[a-z0-9][a-z0-9-]{0,62}")
 _SAFE_ARG = re.compile(r"[A-Za-z0-9_./-]+")
 _ENV_NAME = re.compile(r"[A-Z][A-Z0-9_]{0,63}")
+_SHA40 = re.compile(r"[0-9a-f]{40}")
 
 
 class Refused(ValueError):
@@ -144,6 +147,23 @@ def run_suite(suite: dict[str, Any], evidence: Path) -> dict[str, Any]:
             "unexpected_skips": unexpected[:20], "junit": junit.name, "log": log.name}
 
 
+def provenance(root: Path) -> dict[str, Any]:
+    """SHA di HEAD e albero pulito (nessuna modifica né file non tracciati) del repo in `root`."""
+    def git(*args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(["git", "-C", str(root), *args],
+                              capture_output=True, text=True, check=False)
+
+    try:
+        head = git("rev-parse", "--verify", "HEAD")
+        status = git("status", "--porcelain", "--untracked-files=all")
+    except OSError:
+        return {"sha": None, "clean": False}
+    sha = head.stdout.strip()
+    if head.returncode != 0 or not _SHA40.fullmatch(sha) or status.returncode != 0:
+        return {"sha": None, "clean": False}
+    return {"sha": sha, "clean": status.stdout == ""}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("target", help="suite:<id> | campaign:<nome>")
@@ -159,7 +179,14 @@ def main(argv: list[str] | None = None) -> int:
     results = [run_suite(s, args.evidence) for s in suites]
     overall = "PASS" if all(r["verdict"] == "PASS" for r in results) else (
         "FAIL" if any(r["verdict"] == "FAIL" for r in results) else "BLOCKED")
-    report = {"target": args.target, "verdict": overall, "results": results}
+    core_path = os.environ.get("PICKFAIR_CORE_PATH")
+    prov = {"code": provenance(ROOT), "core": provenance(Path(core_path)) if core_path else None}
+    attributable = all(p is None or p["clean"] for p in prov.values())
+    report: dict[str, Any] = {"target": args.target, "verdict": overall, "provenance": prov,
+                              "results": results}
+    if overall == "PASS" and not attributable:
+        report.update(verdict="BLOCKED", reason="UNATTRIBUTABLE_TREE")
+        overall = "BLOCKED"
     (args.evidence / "report.json").write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(report))
     return 0 if overall == "PASS" else 1

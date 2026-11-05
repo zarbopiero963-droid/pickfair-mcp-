@@ -115,3 +115,61 @@ def test_core_catalog_proposal_matches_the_canonical_schema() -> None:
         assert set(s) == PF_SUITE_FIELDS
         assert s["runner"] == "pytest" and all(a.startswith("tests/control_api") for a in s["args"])
         assert s["environment"] in run_suites.ENVIRONMENTS and set(s["criteria"]) == {"PASS", "FAIL", "BLOCKED"}
+
+
+# Provenienza (PF-MCP-CONTINUE-01, punto 3): un esito vale solo se attribuibile a uno SHA preciso.
+def _git_repo(path: Path) -> Path:
+    import subprocess
+
+    subprocess.run(["git", "init", "-q", str(path)], check=True)
+    (path / "f.txt").write_text("x\n")
+    commit = ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "c"]
+    for argv in (["add", "f.txt"], commit):
+        subprocess.run(["git", "-C", str(path), *argv], check=True)
+    return path
+
+
+def test_provenance_of_a_clean_tree_is_attributable(tmp_path: Path) -> None:
+    repo = _git_repo(tmp_path / "r")
+    p = run_suites.provenance(repo)
+    assert p["clean"] is True and run_suites._SHA40.fullmatch(p["sha"])
+
+
+def test_provenance_of_a_dirty_or_unknown_tree_is_not(tmp_path: Path) -> None:
+    repo = _git_repo(tmp_path / "r")
+    (repo / "f.txt").write_text("modificato\n")
+    assert run_suites.provenance(repo)["clean"] is False
+    (repo / "f.txt").write_text("x\n")
+    (repo / "nuovo.py").write_text("")  # un file non tracciato cambia ciò che i test eseguono
+    assert run_suites.provenance(repo)["clean"] is False
+    assert run_suites.provenance(tmp_path / "non-git") == {"sha": None, "clean": False}
+
+
+@pytest.mark.parametrize(
+    ("code_clean", "core", "expected"),
+    [
+        (True, None, ("PASS", None)),
+        (False, None, ("BLOCKED", "UNATTRIBUTABLE_TREE")),
+        (True, {"sha": "a" * 40, "clean": True}, ("PASS", None)),
+        (True, {"sha": "a" * 40, "clean": False}, ("BLOCKED", "UNATTRIBUTABLE_TREE")),
+        (True, {"sha": None, "clean": False}, ("BLOCKED", "UNATTRIBUTABLE_TREE")),
+    ],
+)
+def test_a_passing_campaign_on_an_unattributable_tree_is_never_pass(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, code_clean: bool, core: Any,
+    expected: tuple[str, Any],
+) -> None:
+    monkeypatch.setattr(run_suites, "run_suite",
+                        lambda s, ev: {"suite": s["id"], "verdict": "PASS"})
+    code = {"sha": "b" * 40, "clean": code_clean}
+    monkeypatch.setattr(run_suites, "provenance",
+                        lambda root: core if root != run_suites.ROOT else code)
+    if core is None:
+        monkeypatch.delenv("PICKFAIR_CORE_PATH", raising=False)
+    else:
+        monkeypatch.setenv("PICKFAIR_CORE_PATH", str(tmp_path))
+    rc = run_suites.main(["suite:mcp-unit", "--evidence", str(tmp_path / "ev")])
+    report = json.loads((tmp_path / "ev" / "report.json").read_text())
+    assert (report["verdict"], report.get("reason")) == expected
+    assert report["provenance"]["code"] == code and report["provenance"]["core"] == core
+    assert rc == (0 if expected[0] == "PASS" else 1)

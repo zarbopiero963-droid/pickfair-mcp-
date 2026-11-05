@@ -41,6 +41,11 @@ Verdetti:
 
 Una campagna è PASS solo se tutte le suite sono PASS. Una suite non verificabile non è mai PASS.
 
+**Provenienza.** `report.json` registra `provenance.code` (SHA di HEAD del repository MCP e albero pulito, file non
+tracciati compresi) e `provenance.core` (lo stesso per `PICKFAIR_CORE_PATH`, se usato). Una campagna con tutte le
+suite PASS ma su un albero sporco, o con uno SHA non risolvibile, è **BLOCKED** (`UNATTRIBUTABLE_TREE`): un esito che
+non si può attribuire a uno SHA preciso non certifica nulla.
+
 ## 4. Limiti e prossimi passi
 
 - L'esecuzione automatica sulla VPS o nel dispatcher del core richiede un runner cross-repository (G8 resta aperto
