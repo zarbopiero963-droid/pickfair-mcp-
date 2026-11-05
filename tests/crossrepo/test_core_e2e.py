@@ -487,7 +487,10 @@ async def test_e2e_sl_tp_settlement_and_cashout_barriers(core: Core, tmp_path: P
         "stop_loss_pct": "25",
         "take_profit_pct": "50",
         "trailing_stop_pct": None,
+        # MCP-01m: con F-03 nel core il trailing senza percentuale è OFF; senza F-03 NOT_IN_CORE
+        "trailing": tables[3]["sl_tp"]["trailing"],
     }
+    assert tables[3]["sl_tp"]["trailing"]["state"] in ("OFF", "NOT_IN_CORE")
     assert tables[1]["sl_tp"]["state"] == "NOT_ARMED"
     settlement = recon[1]["data"]["reconciliation"]["settlement"]
     assert settlement["effects"]["held"] == 1 and settlement["unavailable"] == []
