@@ -143,7 +143,9 @@ SEMANTICS: Final = {
         "list_markets / get_market_book: the core MarketTracker's last received book per market, "
         "copied in one read; no network call. NOT_TRACKED for a market Pickfair does not hold. "
         "book_status is Betfair book data, never a tradability judgement (protection "
-        "market_tradability). Book age is known only through last_match_time. Prices and sizes "
+        "market_tradability). book_age_s (MCP-01n): seconds since Pickfair received the book, "
+        "from the tracker's monotonic receive instant, read before the book so it is never "
+        "underestimated; null when not provable. Prices and sizes "
         "are exact decimal strings; best three levels per side; market id pattern "
         "^[0-9]{1,4}\\.[0-9]{1,15}$, anything else is 404 on the Control API."
     ),

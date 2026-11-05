@@ -1425,6 +1425,50 @@ MUTANTS: tuple[Mutant, ...] = (
         ),
     ),
     Mutant(
+        "Z01",
+        "età del mercato negativa o non decimale accettata",
+        (
+            (
+                'src/pickfair_mcp/contract/models.py',
+                "    # MCP-01n: età (s) dell'ultimo book ricevuto (istante monotono del tracker, Claude D);\n    # null se ignota.\n    book_age_s: NonNegativeDecimal | None",
+                "    # MCP-01n: età (s) dell'ultimo book ricevuto (istante monotono del tracker, Claude D);\n    # null se ignota.\n    book_age_s: str | None",
+            ),
+        ),
+    ),
+    Mutant(
+        "Z02",
+        "età del book negativa o non decimale accettata",
+        (
+            (
+                'src/pickfair_mcp/contract/models.py',
+                '    omitted_runners: Count\n    book_age_s: NonNegativeDecimal | None',
+                '    omitted_runners: Count\n    book_age_s: str | None',
+            ),
+        ),
+    ),
+    Mutant(
+        "Z03",
+        "età del mercato assente trattata come nota (default)",
+        (
+            (
+                'src/pickfair_mcp/contract/models.py',
+                "    # MCP-01n: età (s) dell'ultimo book ricevuto (istante monotono del tracker, Claude D);\n    # null se ignota.\n    book_age_s: NonNegativeDecimal | None",
+                '    # MCP-01n: età (s) dell\'ultimo book ricevuto (istante monotono del tracker, Claude D);\n    # null se ignota.\n    book_age_s: NonNegativeDecimal | None = "0"',
+            ),
+        ),
+    ),
+    Mutant(
+        "Z04",
+        "età del book assente trattata come nota (default)",
+        (
+            (
+                'src/pickfair_mcp/contract/models.py',
+                '    omitted_runners: Count\n    book_age_s: NonNegativeDecimal | None',
+                '    omitted_runners: Count\n    book_age_s: NonNegativeDecimal | None = "0"',
+            ),
+        ),
+    ),
+    Mutant(
         "O01",
         "ordine AMBIGUOUS accettato come FAILED",
         (

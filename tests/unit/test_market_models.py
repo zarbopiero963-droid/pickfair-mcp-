@@ -72,3 +72,39 @@ def test_markets_rejected(body: dict[str, Any]) -> None:
 def test_book_rejected(body: dict[str, Any]) -> None:
     with pytest.raises(UpstreamInvalidResponse):
         parse_market_book(raw(body))
+
+
+# MCP-01n (contratto 1.12.0): età del book dall'istante monotono del tracker del core.
+def _book_with(**fields: Any) -> dict[str, Any]:
+    b = bodies.market_book()
+    b["book"] = {**b["book"], **fields}
+    return b
+
+
+@pytest.mark.parametrize("age", ["0", "2.5", None])
+def test_book_age_accepted_on_both_sides(age: str | None) -> None:
+    m = bodies.markets(markets=[bodies.market("1.1", book_age_s=age)])
+    server_validate(m, response_schema("markets"))
+    assert (parse_markets(raw(m)).markets or ())[0].book_age_s == age
+    b = _book_with(book_age_s=age)
+    server_validate(b, response_schema("market_book"))
+    assert parse_market_book(raw(b)).book.book_age_s == age  # type: ignore[union-attr]
+
+
+@pytest.mark.parametrize("age", ["-1", 2.5, "abc", "NaN", True])
+def test_book_age_out_of_contract_is_rejected(age: Any) -> None:
+    with pytest.raises(UpstreamInvalidResponse):
+        parse_markets(raw(bodies.markets(markets=[bodies.market("1.1", book_age_s=age)])))
+    with pytest.raises(UpstreamInvalidResponse):
+        parse_market_book(raw(_book_with(book_age_s=age)))
+
+
+def test_book_age_is_required_never_defaulted() -> None:
+    m = bodies.markets(markets=[bodies.market("1.1")])
+    del m["markets"][0]["book_age_s"]
+    with pytest.raises(UpstreamInvalidResponse):
+        parse_markets(raw(m))
+    b = bodies.market_book()
+    del b["book"]["book_age_s"]
+    with pytest.raises(UpstreamInvalidResponse):
+        parse_market_book(raw(b))

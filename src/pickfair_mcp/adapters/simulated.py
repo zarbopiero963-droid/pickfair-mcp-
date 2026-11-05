@@ -208,7 +208,7 @@ class SimulatedControlApiAdapter:
 _SCENARIO_BODIES: dict[Scenario, bytes] = {
     Scenario.COMPATIBLE: _encode(_meta()),
     Scenario.INCOMPATIBLE_MAJOR: _encode(_meta(contract_version="2.0.0")),
-    Scenario.UNSUPPORTED_MINOR: _encode(_meta(contract_version="1.12.0")),
+    Scenario.UNSUPPORTED_MINOR: _encode(_meta(contract_version="1.13.0")),
     Scenario.SCHEMA_HASH_MISMATCH: _encode(_meta(schema_hash="0" * 64)),
     Scenario.MISSING_META_CAPABILITY: _encode(_meta(capabilities=["GET /v1/status"])),
     Scenario.META_ONLY: _encode(_meta(capabilities=["GET /v1/meta"])),
@@ -855,9 +855,9 @@ def _markets_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
     """Mercati fittizi seguiti dal tracker simulato."""
     markets: list[dict[str, Any]] | None = [
         {"market_id": _SIM_MARKET, "book_status": "OPEN", "inplay": False, "runners": 3,
-         "total_matched": "12500.5", "last_match_time": now - 5.0},
+         "total_matched": "12500.5", "last_match_time": now - 5.0, "book_age_s": "2.5"},
         {"market_id": "1.200000002", "book_status": "SUSPENDED", "inplay": True, "runners": 2,
-         "total_matched": None, "last_match_time": None},
+         "total_matched": None, "last_match_time": None, "book_age_s": None},
     ]
     unavailable: list[str] = []
     if scenario is StatusScenario.NOT_STARTED:
@@ -892,6 +892,7 @@ def _market_book_body(scenario: StatusScenario, now: float, market_id: str) -> d
              "lay": [{"price": "2.52", "size": "90"}]},
         ],
         "omitted_runners": 0,
+        "book_age_s": "2.5",
     }
     state = "OK" if market_id == _SIM_MARKET else "NOT_TRACKED"
     if state != "OK":

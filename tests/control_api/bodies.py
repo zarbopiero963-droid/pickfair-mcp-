@@ -388,7 +388,7 @@ def config(**overrides: Any) -> dict[str, Any]:
 def market(market_id: str = "1.200000001", **overrides: Any) -> dict[str, Any]:
     data: dict[str, Any] = {"market_id": market_id, "book_status": "OPEN", "inplay": False,
                             "runners": 2, "total_matched": "1500.25",
-                            "last_match_time": time.time() - 3.0}
+                            "last_match_time": time.time() - 3.0, "book_age_s": "1.5"}
     data.update(overrides)
     return data
 
@@ -415,7 +415,8 @@ def market_book(market_id: str = "1.200000001", **overrides: Any) -> dict[str, A
         "source": "core", "observed_at": time.time(), "consistency": "SINGLE_REFERENCE_READ",
         "market_id": market_id, "state": "OK",
         "book": {"book_status": "OPEN", "inplay": False, "total_matched": "1500.25",
-                 "last_match_time": time.time() - 3.0, "runners": [runner()], "omitted_runners": 0},
+                 "last_match_time": time.time() - 3.0, "runners": [runner()], "omitted_runners": 0,
+                 "book_age_s": "1.5"},
     }
     body.update(overrides)
     return body

@@ -19,6 +19,7 @@ import subprocess
 import sys
 from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -574,6 +575,17 @@ async def test_e2e_markets_and_book_from_the_real_tracker(core: Core, tmp_path: 
     runner = book["data"]["book"]["book"]["runners"][0]
     assert runner["back"] == [{"price": "2.5", "size": "100"}] and runner["lay"] == [{"price": "2.52", "size": "60"}]
     assert missing.structuredContent["data"]["book"]["state"] == "NOT_TRACKED"
+    # MCP-01n: età dall'istante monotono del tracker (core con claude/d-market-book-age);
+    # senza, null dichiarato. PICKFAIR_CORE_BOOK_AGE=1 la esige (core che la fornisce).
+    listed = {m["market_id"]: m for m in payload["data"]["markets"]["markets"]}
+    listed_age = listed["1.987654"]["book_age_s"]
+    book_age = book["data"]["book"]["book"]["book_age_s"]
+    if os.environ.get("PICKFAIR_CORE_BOOK_AGE") == "1":
+        assert listed_age is not None and book_age is not None
+    if listed_age is not None:  # stesso istante di ricezione, book letto dopo la lista
+        assert book_age is not None and Decimal(book_age) >= Decimal(listed_age) >= 0
+    else:
+        assert book_age is None
     assert after["calls"] == baseline["calls"] and after["db"] == baseline["db"]
     assert after["bus"] == baseline["bus"] and after["balance"] == baseline["balance"]
 async def test_e2e_sl_tp_close_from_the_core_record(core: Core, tmp_path: Path) -> None:

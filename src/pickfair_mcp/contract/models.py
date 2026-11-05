@@ -1467,6 +1467,9 @@ class MarketSummary(StrictModel):
     runners: Annotated[int, Field(ge=0, le=1000)]
     total_matched: NonNegativeDecimal | None
     last_match_time: EpochSeconds | None
+    # MCP-01n: età (s) dell'ultimo book ricevuto (istante monotono del tracker, Claude D);
+    # null se ignota.
+    book_age_s: NonNegativeDecimal | None
 
 
 def _unique_markets(values: tuple[MarketSummary, ...]) -> tuple[MarketSummary, ...]:
@@ -1534,6 +1537,7 @@ class MarketBook(StrictModel):
     last_match_time: EpochSeconds | None
     runners: Annotated[tuple[RunnerBook, ...], Field(max_length=MAX_RUNNERS)]
     omitted_runners: Count
+    book_age_s: NonNegativeDecimal | None
 
     @model_validator(mode="after")
     def _unique(self) -> MarketBook:

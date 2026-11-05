@@ -73,3 +73,8 @@ Claude B, da integrare dopo #608 e #606 con una PR indipendente e safety-critica
 | Trailing stop per tavolo | `TESTED` (offline, su fusione locale di F-03) | `get_exposure` (`sl_tp.trailing`) | test core sulla logica reale `core.trailing_stop`; picco in memoria e persistito | non integrabile finché F-03 non è su `main` |
 | Impostazioni non valide (F-18) | `TESTED` (offline) | `get_config` (`invalid_persisted`), `get_status` (`config_validity`) | test core con un valore persistito illeggibile reale | chiude il limite F-18 di MCP-01j |
 
+## Aggiunte MCP-01n (età del book — dipende da `claude/d-market-book-age`)
+
+| Area | Livello | Route / tool | Evidenza | Nota |
+|---|---|---|---|---|
+| Età del book per mercato | `TESTED` (offline, su fusione locale di `ea81e93e`) | `GET /v1/markets`, `GET /v1/markets/{id}/book` · `list_markets`, `get_market_book` (`book_age_s`) | test core sull'istante monotono reale del `MarketTracker` (orologio iniettato), ordine età→book provato; E2E fra processi | non integrabile finché il branch di D non è su `main`; senza, `book_age_s` è `null` |

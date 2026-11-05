@@ -459,3 +459,19 @@ non è su `main`**. Nessuna route nuova.
   impostazioni non valide e nega ogni nuova entrata; UNAVAILABLE `CORE_PENDING_F18` senza F-18.
 - `resolve_git_sha` supporta i git worktree (prima la Control API rifiutava di partire con `GIT_SHA_UNRESOLVABLE`).
 
+
+## MCP-01n — età del book (contratto 1.12.0, dipende da `claude/d-market-book-age`)
+
+Preparato offline sopra MCP-01m: **non integrabile finché `claude/d-market-book-age` (Claude D, `ea81e93e`,
+`MarketTracker.book_age_s`) non è su `main`**. Nessuna route nuova.
+
+- `list_markets.markets[].book_age_s` e `get_market_book.book.book_age_s`: secondi trascorsi da quando Pickfair ha
+  ricevuto l'ultimo book del mercato, presi da `MarketTracker.book_age_s` (istante monotono di ricezione del core; il
+  ponte non ricalcola nulla). Stringa decimale non negativa, campo **obbligatorio** e nullable.
+- L'età si legge **prima** dei book: il tracker scrive book e istante in due passi, quindi un aggiornamento concorrente
+  può solo farla sembrare più vecchia del reale, mai più fresca.
+- `null` quando non è dimostrabile: core senza `book_age_s` (forma attuale di `main`), mercato senza istante di
+  ricezione, orologio monotono all'indietro, errore del tracker o valore non rappresentabile. Mai `0` al posto di
+  un'età ignota, mai dedotta da `last_match_time`.
+
+Chiude il limite dichiarato in MCP-01l («l'età del book è nota solo con `last_match_time`»), solo con il core di D.
