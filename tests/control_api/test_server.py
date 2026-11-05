@@ -205,31 +205,85 @@ def test_token_never_logged(api: Any, caplog: pytest.LogCaptureFixture) -> None:
     assert token not in caplog.text and "wrong-token-value" not in caplog.text
 
 
-def test_rotation_mid_traffic_never_fails_a_reader_using_the_file(api: Any) -> None:
+class _RotationPacer:
+    """Rotazioni legate all'avanzamento dei lettori, non al tempo (MCP-LOAD-FLAKE).
+
+    Ogni tentativo registra la generazione del token in cui parte; la rotazione k+1 avviene solo quando ogni lettore
+    ancora attivo ha completato un tentativo partito nella generazione k. Così nessun tentativo (né il suo unico
+    nuovo tentativo) può attraversare due rotazioni, qualunque sia la durata di un'andata e ritorno: il contratto
+    dichiarato («un solo nuovo tentativo copre una rotazione») è provato senza dipendere dal carico della macchina.
+    """
+
+    def __init__(self, readers: int) -> None:
+        self.cond = threading.Condition()
+        self.generation = 0
+        self.done_in: dict[int, int] = {i: -1 for i in range(readers)}
+        self.active = set(range(readers))
+        self.during_traffic = 0
+
+    def start(self) -> int:
+        with self.cond:
+            return self.generation
+
+    def completed(self, reader: int, started_in: int) -> None:
+        with self.cond:
+            self.done_in[reader] = max(self.done_in[reader], started_in)
+            self.cond.notify_all()
+
+    def finished(self, reader: int) -> None:
+        with self.cond:
+            self.active.discard(reader)
+            self.cond.notify_all()
+
+    def rotate(self, do_rotate: Any, timeout: float = 30.0) -> None:
+        with self.cond:
+            ready = self.cond.wait_for(
+                lambda: all(self.done_in[r] >= self.generation for r in self.active), timeout=timeout)
+            assert ready, "lettori fermi: nessun avanzamento entro il limite"
+            self.during_traffic += bool(self.active)
+            do_rotate()
+            self.generation += 1
+
+
+@pytest.mark.parametrize("gap_s", [0.0, 0.12])
+def test_rotation_mid_traffic_never_fails_a_reader_using_the_file(api: Any, gap_s: float) -> None:
+    # gap_s simula un'andata e ritorno lenta (macchina carica) fra la lettura del file e la richiesta: con le
+    # rotazioni a tempo fisso (50 ms) il vecchio test dava 401 legittimi in questo caso.
     server, store, token_path, _p = api
     results: list[int] = []
     lock = threading.Lock()
+    pacer = _RotationPacer(readers=5)
 
-    def reader() -> None:
-        for _ in range(20):
-            token = token_path.read_text()
-            status = request(server.port, "GET", "/v1/status", token=token)[0]
-            if status == 401:  # lettura del file avvenuta prima della revoca: rilettura una volta
-                status = request(server.port, "GET", "/v1/status", token=token_path.read_text())[0]
-            with lock:
-                results.append(status)
+    def attempt(reader: int) -> int:
+        started_in = pacer.start()
+        token = token_path.read_text()
+        time.sleep(gap_s)
+        status = request(server.port, "GET", "/v1/status", token=token)[0]
+        pacer.completed(reader, started_in)
+        return status
 
-    readers = [threading.Thread(target=reader) for _ in range(5)]
+    def reader(i: int) -> None:
+        try:
+            for _ in range(20):
+                status = attempt(i)
+                if status == 401:  # lettura del file avvenuta prima della revoca: rilettura una volta
+                    status = attempt(i)
+                with lock:
+                    results.append(status)
+        finally:
+            pacer.finished(i)
+
+    readers = [threading.Thread(target=reader, args=(i,)) for i in range(5)]
     for t in readers:
         t.start()
     # Limite dichiarato: un solo nuovo tentativo copre una rotazione per andata e ritorno.
     # Rotazioni a raffica (più di una durante una richiesta) possono dare 401 legittimi.
     for _ in range(10):
-        time.sleep(0.05)
-        store.rotate(token_path)
+        pacer.rotate(lambda: store.rotate(token_path))
     for t in readers:
         t.join()
     assert results == [200] * 100
+    assert (pacer.generation, pacer.during_traffic) == (10, 10)  # tutte avvenute con lettori attivi
 
 
 @pytest.mark.parametrize("host", ["0.0.0.0", "localhost", "::1", "127.0.0.2", ""])

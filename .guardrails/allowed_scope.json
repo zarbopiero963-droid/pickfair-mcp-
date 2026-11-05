@@ -684,6 +684,16 @@
         "tests/unit/test_market_models.py"
       ],
       "max_files": 25
+    },
+    "mcp-load-flake": {
+      "issue": "difetto aperto MCP-LOAD-FLAKE (checkpoint C seq 3-5)",
+      "scheda": "test_rotation_mid_traffic deterministico: rotazioni legate all'avanzamento dei lettori",
+      "description": "Solo test: la rotazione k+1 avviene quando ogni lettore attivo ha completato un tentativo partito nella generazione k; caso lento (0.12 s) parametrizzato. RED 3/3 sul vecchio test con lo stesso ritardo.",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "tests/control_api/test_server.py"
+      ],
+      "max_files": 2
     }
   }
 }
