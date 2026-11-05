@@ -2,12 +2,12 @@
  "certification_verdict": "NOT VERIFIED",
  "checkpoint_commit": null,
  "code": {
-  "branch": "ccr-edf04c7d-e7vtj1-mcp01i-r2",
-  "sha": "953991a6554d46f41b726df3f3261daba3352647"
+  "branch": "ccr-edf04c7d-e7vtj1-mcp01m-trailing",
+  "sha": "ac65cc7399038badb9ee3e8d75d2d6c02530c50d"
  },
- "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO (sviluppo autonomo MCP + Control API, priorit\u00e0 1-6)",
- "next_atomic_action": "chiudere le verifiche di MCP-01i-r2 (mutazioni core, L01-L08, E2E x3, suite, regressione) e registrarlo su #37; poi MCP-01m (trailing F-03) offline sopra 01i-r2",
- "previous_checkpoint_sha": "3b0bae94a28558c128fb5b55d1baa35613ec6d9a",
+ "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS",
+ "next_atomic_action": "prova di ripristino (bootstrap da clone nuovo + checkout del codice a code.sha + test) e registrazione dell'esito READY/BLOCKED; poi campagna G8 con evidenze e MCP-01n (et\u00e0 del book, claude/d-market-book-age)",
+ "previous_checkpoint_sha": "68e2a862f6c6f9a9f322e9431187827b9e39babe",
  "schema": "pf-current/1",
- "seq": 1
+ "seq": 2
 }

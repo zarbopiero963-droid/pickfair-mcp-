@@ -1,96 +1,139 @@
 {
  "schema": "pf-checkpoint/3",
  "repository": "zarbopiero963-droid/pickfair-mcp-",
- "seq": 1,
- "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO (sviluppo autonomo MCP + Control API, priorità 1-6)",
- "previous_checkpoint_sha": "3b0bae94a28558c128fb5b55d1baa35613ec6d9a",
+ "seq": 2,
+ "agent": "claude-c",
+ "agent_identity": "Claude C — MCP + Control API (sessione session_013X2mCaF4fE5YMWGVrM8LtR)",
+ "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS",
+ "previous_checkpoint_sha": "68e2a862f6c6f9a9f322e9431187827b9e39babe",
  "code": {
-  "branch": "ccr-edf04c7d-e7vtj1-mcp01i-r2",
-  "sha": "953991a6554d46f41b726df3f3261daba3352647"
+  "branch": "ccr-edf04c7d-e7vtj1-mcp01m-trailing",
+  "sha": "ac65cc7399038badb9ee3e8d75d2d6c02530c50d"
  },
- "lotto_corrente": "MCP-01i-r2 (01i rifondato su 01l + SEC-01, contratto 1.10.0): verifiche in corso",
+ "published_branches": {
+  "ccr-edf04c7d-e7vtj1": "647d5e8d269952af975ec01df7be27abf2ff3c1e",
+  "ccr-edf04c7d-e7vtj1-mcp01e": "6c75737f3383d23bf7ee6db0094f5ef721d6470e",
+  "ccr-edf04c7d-e7vtj1-mcp01f": "3695da2323bb3bfe748f917e3b52640d8a82c11a",
+  "ccr-edf04c7d-e7vtj1-mcp01g": "181dd0e2cf2e5da4e2a94c00dadc70545126aebc",
+  "ccr-edf04c7d-e7vtj1-mcp01h": "8f112f746ce838fff92cbcbf6e8540484efc57d6",
+  "ccr-edf04c7d-e7vtj1-mcp01j-config": "305b8432851d540166b0c0b7c8a3ec8e376e55f1",
+  "ccr-edf04c7d-e7vtj1-mcp01k-compat": "4cd3e754f0c8b552f6bba511b10131abb3c88ad0",
+  "ccr-edf04c7d-e7vtj1-mcp01l-markets": "00978ef0c4c07f9c9a800871174135ef831c660a",
+  "ccr-edf04c7d-e7vtj1-mcp-sec01": "79490abcfb3083461d277dfebce43fdbf5c75461",
+  "ccr-edf04c7d-e7vtj1-mcp01i-sltp-close": "3b25f96f5682c988b57cb5d6d793e0c3fb6bce30",
+  "ccr-edf04c7d-e7vtj1-mcp01i-r2": "06e9eda4ea60768314d25d2f47846c000df6ee30",
+  "ccr-edf04c7d-e7vtj1-mcp01m-trailing": "ac65cc7399038badb9ee3e8d75d2d6c02530c50d",
+  "ccr-edf04c7d-e7vtj1-g8-suites": "cf8627e66086cfd32084a373e766481fd970cbd2",
+  "ccr-edf04c7d-e7vtj1-k3-specs": "bad873b8262679f7b0f291ac9d508c55ff1fd70b"
+ },
+ "integration_chain": [
+  "MCP-01d",
+  "MCP-01e",
+  "MCP-01f",
+  "MCP-01g",
+  "MCP-01h",
+  "MCP-01j",
+  "MCP-01k",
+  "MCP-01l",
+  "MCP-SEC-01",
+  "MCP-01i r2 (dopo F-04 su main)",
+  "MCP-01m (dopo F-03 su main)"
+ ],
+ "lotto_corrente": "direttiva PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS: catena di Claude C verificata e prova di ripristino da clone pulito",
  "lotti_completati": [
   "MCP-01j get_config (305b843)",
   "MCP-01k compatibilità P0/F-16 (4cd3e75)",
   "MCP-01l mercati e book (00978ef)",
-  "MCP-SEC-01 sicurezza (eda3a95)",
-  "G8 manifest + runner + proposta catalogo (cf8627e)",
+  "MCP-SEC-01 sicurezza (79490ab)",
+  "MCP-01i r2 su 01l+SEC-01 (06e9eda)",
+  "MCP-01m trailing F-03/F-02/F-18 (ac65cc7)",
+  "G8 manifest + runner (cf8627e)",
   "K3 specifiche offline (bad873b)"
  ],
- "next_atomic_action": "chiudere le verifiche di MCP-01i-r2 (mutazioni core, L01-L08, E2E x3, suite, regressione) e registrarlo su #37; poi MCP-01m (trailing F-03) offline sopra 01i-r2",
+ "next_atomic_action": "prova di ripristino (bootstrap da clone nuovo + checkout del codice a code.sha + test) e registrazione dell'esito READY/BLOCKED; poi campagna G8 con evidenze e MCP-01n (età del book, claude/d-market-book-age)",
  "dependencies": {
-  "F-04 su main": "MCP-01i, MCP-01m",
-  "F-03 su main": "MCP-01m",
-  "integrazione patch (Claude B)": "tutti i ponti MCP-01d...SEC-01",
-  "ratifica owner K3": "RC-10/11/12"
+  "F-04 su main": "MCP-01i r2",
+  "F-03 su main (con F-02, F-04)": "MCP-01m",
+  "integrazione patch (Claude B)": "MCP-01d...SEC-01",
+  "ratifica owner K3": "RC-10/11/12",
+  "correzione catalogo F-13b/F-02 (Claude B)": "regressione verde del core con F-03",
+  "hardening pfckpt.py (Claude B)": "protezione squash merge / branch cancellati per questa catena"
  },
  "blocks": [],
+ "open_defects": [
+  {
+   "id": "CORE-F13B-CATALOG",
+   "owner": "Claude B",
+   "descrizione": "mutazioni recovery_live_bets_inverted e f01_tp_ignores_depth non applicabili sullo stack F-02/F-13b (riprodotto su claude/d-f03-trailing-stop b2bf8ab da solo)"
+  },
+  {
+   "id": "MCP-LOAD-FLAKE",
+   "owner": "Claude C",
+   "descrizione": "test_rotation_mid_traffic_never_fails_a_reader_using_the_file (01d) sensibile al carico: fallito 1 volta su più esecuzioni con la CPU occupata, 3/3 da solo; da rendere deterministico"
+  }
+ ],
+ "github_evidence": [
+  "https://github.com/zarbopiero963-droid/pickfair-mcp-/issues/37#issuecomment-6662017266",
+  "https://github.com/zarbopiero963-droid/pickfair-mcp-/issues/37#issuecomment-6659053582",
+  "https://github.com/zarbopiero963-droid/pickfair-mcp-/issues/37#issuecomment-6658513559",
+  "https://github.com/zarbopiero963-droid/pickfair-mcp-/issues/37#issuecomment-6657932150"
+ ],
  "owner_authorizations": {
-  "05/11/2026": "sviluppo autonomo offline; branch separati; nessuna PR concorrente; nessun merge, VPS, LIVE, ordini reali, nuova infrastruttura"
+  "05/11/2026 sviluppo autonomo": "offline; branch separati; nessuna PR concorrente; nessun merge, VPS, LIVE, ordini reali, nuova infrastruttura",
+  "05/11/2026 PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS": "checkpoint obbligatori con pfckpt.py, catena propria, nessuna scrittura su catene di altri agenti, DURABLE solo su commit pubblicati"
  },
  "tests_executed": [
   {
-   "name": "MCP-01l suite MCP",
+   "name": "MCP-01i r2: mutanti MCP L01-L08 8/8",
    "status": "PASS",
-   "sha": "00978ef0c4c07f9c9a800871174135ef831c660a",
-   "artifact": "results/evidence-01l-mcp-suite.txt"
+   "sha": "06e9eda4ea60768314d25d2f47846c000df6ee30",
+   "artifact": "results/evidence-01ir2-mcp-l.txt"
   },
   {
-   "name": "MCP-01l E2E x3",
+   "name": "MCP-01i r2: E2E 16/16 x3",
    "status": "PASS",
-   "sha": "00978ef0c4c07f9c9a800871174135ef831c660a",
-   "artifact": "results/evidence-01l-e2e.txt"
+   "sha": "06e9eda4ea60768314d25d2f47846c000df6ee30",
+   "artifact": "results/evidence-01ir2-e2e.txt"
   },
   {
-   "name": "MCP-01l mutanti MCP N01-N06",
+   "name": "MCP-01i r2: suite MCP 1832 passed",
    "status": "PASS",
-   "sha": "00978ef0c4c07f9c9a800871174135ef831c660a",
-   "artifact": "results/evidence-01l-mcp-n.txt"
+   "sha": "06e9eda4ea60768314d25d2f47846c000df6ee30",
+   "artifact": "results/evidence-01ir2-mcp-suite.txt"
   },
   {
-   "name": "MCP-SEC-01 RED (14/16 falliti prima della correzione)",
+   "name": "MCP-01m: mutanti MCP Y01-Y07 7/7",
    "status": "PASS",
-   "sha": "eda3a95139ac6bd5dba66fb10f685fd57c5a68fd",
-   "artifact": "results/evidence-sec01-red.txt"
+   "sha": "ac65cc7399038badb9ee3e8d75d2d6c02530c50d",
+   "artifact": "results/evidence-01m-mcp-y.txt"
   },
   {
-   "name": "MCP-SEC-01 mutanti X01-X06",
+   "name": "MCP-01m: E2E 17/17 x3 col core con F-03",
    "status": "PASS",
-   "sha": "eda3a95139ac6bd5dba66fb10f685fd57c5a68fd",
-   "artifact": "results/evidence-sec01-mcp-x.txt"
+   "sha": "ac65cc7399038badb9ee3e8d75d2d6c02530c50d",
+   "artifact": "results/evidence-01m-e2e.txt"
   },
   {
-   "name": "MCP-SEC-01 suite MCP (head 0e36f99, prima del solo cambio del test slowloris)",
+   "name": "MCP-01m: suite MCP 1860 passed",
    "status": "PASS",
-   "sha": "0e36f99101b6140a8a3663d86d32efc3d39f8ae3",
-   "artifact": "results/evidence-sec01-mcp-suite.txt"
+   "sha": "ac65cc7399038badb9ee3e8d75d2d6c02530c50d",
+   "artifact": "results/evidence-01m-mcp-suite.txt"
   },
   {
-   "name": "MCP-SEC-01 E2E x3 (head 0e36f99, prima del solo cambio del test slowloris)",
+   "name": "Checkpoint seq 1: bootstrap da clone pulito READY",
    "status": "PASS",
-   "sha": "0e36f99101b6140a8a3663d86d32efc3d39f8ae3",
-   "artifact": "results/evidence-sec01-e2e.txt"
-  },
-  {
-   "name": "G8 proposta control-api validata col validatore reale del core",
-   "status": "PASS",
-   "sha": "cf8627e66086cfd32084a373e766481fd970cbd2",
-   "artifact": "results/evidence-g8-core-catalog.txt"
+   "sha": "953991a6554d46f41b726df3f3261daba3352647",
+   "artifact": "results/evidence-ckpt-verify-seq1.txt"
   }
  ],
  "tests_missing": [
-  "MCP-01i-r2: catena di verifiche in corso",
   "G8: campagna all con evidenze junit",
-  "MCP-01m non iniziato"
+  "prova di ripristino del checkpoint seq 2 (in corso)"
  ],
  "missing_historical_evidence": [
-  "regressioni e mutazioni del core: eseguite su clone locale mai spinto (core-clone), esiti nei file results/ e nei commenti di #37; i commit del core non sono risolvibili in questo repository"
+  "mutazioni e regressioni del core: eseguite su clone locale mai spinto; esiti nei file results/ e nei commenti di #37; i commit del core non sono risolvibili in questo repository (nessun SHA del core dichiarato come PASS qui)"
  ],
  "gate_a": "N/A (repository MCP)",
  "pr_505": "N/A (repository MCP)",
- "certification_verdict": "NOT VERIFIED",
- "agent": {
-  "last_writer": "claude-c",
-  "lease_status_at_write": "FREE"
- }
+ "certification_verdict": "NOT VERIFIED"
 }

@@ -1,0 +1,8 @@
+Y01 KILLED   (fail   ) picco senza fonte (o fonte senza picco) accettato
+Y02 KILLED   (fail   ) trailing attivo senza percentuale accettato
+Y03 KILLED   (fail   ) trailing OFF con percentuale valida accettato
+Y04 KILLED   (fail   ) trailing ARMED senza picco o soglia accettato
+Y05 KILLED   (fail   ) soglia sopra il picco accettata
+Y06 KILLED   (fail   ) nome sensibile accettato fra le impostazioni non valide
+Y07 KILLED   (fail   ) SHA del codice non risolto nei git worktree
+critical mutation score: 7/7 = 100%

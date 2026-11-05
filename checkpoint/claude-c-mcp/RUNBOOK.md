@@ -2,7 +2,7 @@
 
 ```bash
 git clone https://github.com/zarbopiero963-droid/pickfair-mcp- && cd pickfair-mcp-
-git checkout ccr-edf04c7d-e7vtj1-mcp01i-r2          # codice del checkpoint (code.sha in STATE.json)
+git checkout <code.sha di STATE.json>              # oggi ccr-edf04c7d-e7vtj1-mcp01m-trailing
 python3 -m pytest -q tests                          # suite MCP (crossrepo richiede il core)
 python3 scripts/run_suites.py campaign:all-offline --evidence /tmp/ev   # G8 (branch ccr-edf04c7d-e7vtj1-g8-suites)
 python3 scripts/critical_mutations.py               # mutanti critici MCP

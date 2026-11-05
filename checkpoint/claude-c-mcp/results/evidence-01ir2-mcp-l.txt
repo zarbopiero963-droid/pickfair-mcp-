@@ -1,0 +1,9 @@
+L01 KILLED   (fail   ) esposizione residua senza il tavolo che porta la posizione accettata
+L02 KILLED   (fail   ) chiusura non NOT_EXECUTED dichiarata ritentabile accettata
+L03 KILLED   (fail   ) chiusura rivendicata senza betId della posizione accettata
+L04 KILLED   (fail   ) betId duplicati nella chiusura accettati
+L05 KILLED   (fail   ) contatori della posizione oltre gli ordini letti accettati
+L06 KILLED   (fail   ) elenco delle chiusure OK con omissioni accettato
+L07 KILLED   (fail   ) più righe d'hedge mancanti che richieste accettate
+L08 KILLED   (fail   ) righe d'hedge senza richiesta registrata accettate
+critical mutation score: 8/8 = 100%

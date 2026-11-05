@@ -1,0 +1,45 @@
+........................................................................ [  3%]
+...........................................................sssssssssssss [  7%]
+sss..................................................................... [ 11%]
+........................................................................ [ 15%]
+........................................................................ [ 19%]
+........................................................................ [ 23%]
+........................................................................ [ 27%]
+........................................................................ [ 31%]
+........................................................................ [ 35%]
+........................................................................ [ 38%]
+........................................................................ [ 42%]
+........................................................................ [ 46%]
+........................................................................ [ 50%]
+........................................................................ [ 54%]
+.......................................................... [ 58%]
+...................................................................... [ 62%]
+........................................................................ [ 66%]
+........................................................................ [ 70%]
+........................................................................ [ 73%]
+........................................................................ [ 77%]
+.................................................s...................... [ 81%]
+........................................................................ [ 85%]
+........................................................................ [ 89%]
+........................................................................ [ 93%]
+........................................................................ [ 97%]
+.................................................                        [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/crossrepo/test_core_e2e.py:174: NOT_RUN: core non configurato
+SKIPPED [1] tests/crossrepo/test_core_e2e.py:218: NOT_RUN: core non configurato
+SKIPPED [1] tests/crossrepo/test_core_e2e.py:242: NOT_RUN: core non configurato
+SKIPPED [1] tests/crossrepo/test_core_e2e.py:255: NOT_RUN: core non configurato
+SKIPPED [1] tests/crossrepo/test_core_e2e.py:274: NOT_RUN: core non configurato
+SKIPPED [1] tests/crossrepo/test_core_e2e.py:302: NOT_RUN: core non configurato
+SKIPPED [1] tests/crossrepo/test_core_e2e.py:312: NOT_RUN: core non configurato
+SKIPPED [1] tests/crossrepo/test_core_e2e.py:327: NOT_RUN: core non configurato
+SKIPPED [1] tests/crossrepo/test_core_e2e.py:373: NOT_RUN: core non configurato
+SKIPPED [1] tests/crossrepo/test_core_e2e.py:394: NOT_RUN: core non configurato
+SKIPPED [1] tests/crossrepo/test_core_e2e.py:433: NOT_RUN: core non configurato
+SKIPPED [1] tests/crossrepo/test_core_e2e.py:466: NOT_RUN: core non configurato
+SKIPPED [1] tests/crossrepo/test_core_e2e.py:500: NOT_RUN: core non configurato
+SKIPPED [1] tests/crossrepo/test_core_e2e.py:532: NOT_RUN: core non configurato
+SKIPPED [1] tests/crossrepo/test_core_e2e.py:550: NOT_RUN: core non configurato
+SKIPPED [1] tests/crossrepo/test_core_e2e.py:573: NOT_RUN: core non configurato
+SKIPPED [1] tests/unit/test_journal.py:343: root ignora i permessi
+1832 passed, 17 skipped in 308.95s (0:05:08)
