@@ -46,3 +46,17 @@ Una campagna è PASS solo se tutte le suite sono PASS. Una suite non verificabil
 - L'esecuzione automatica sulla VPS o nel dispatcher del core richiede un runner cross-repository (G8 resta aperto
   lato infrastruttura: non introdotto qui, per mandato).
 - La voce `control-api` va proposta nel catalogo del core da Claude B insieme alla prima patch del ponte integrata.
+  Insieme alla voce va aggiunto l'id `control-api` a `campaigns.all`: lo richiede
+  `test_campaign_all_reaches_every_test_except_the_redundant_full_regression`. Provato il 05/11/2026 sul core con
+  ponte e `claude/d-market-book-age` (contiene `main` `911562ad`). Senza la voce, `tests/control_api` risulta non
+  raggiungibile dal catalogo. Con voce e campagna, `tests/scripts` (dispatch e catalogo) dà 661 passed. Restano 2
+  failed, preesistenti e indipendenti dal ponte, entrambi dello stack di Claude D: le directory `tests/f02`,
+  `tests/f03`, `tests/f13b` e `tests/f18` non sono nel catalogo, e mancano gli originali di mutazione
+  `recovery_live_bets_inverted`.
+
+## 5. Esito della campagna `all` (05/11/2026)
+
+PASS: 6/6 suite e 1845 test. Dettaglio: mcp-unit 1260 (1 skip ammesso, permessi da root), mcp-guards 139,
+mcp-control-api 131, mcp-integration 268, mcp-e2e 32, mcp-crossrepo 15. Eseguita su questo branch (`c37b938`) con il
+core del ponte fino a SEC-01; il JUnit di ogni suite resta nello scratchpad della sessione. Rapporto:
+`docs/g8/evidence/campaign_all_20261105.json`.
