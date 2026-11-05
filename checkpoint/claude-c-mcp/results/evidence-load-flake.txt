@@ -1,0 +1,4 @@
+MCP-LOAD-FLAKE (4174561)
+RED: vecchio test con 0.12 s fra lettura del file e richiesta su entrambi i tentativi: 3/3 FAIL (assert [401,...] == [200,...])
+GREEN: nuovo test (pacer per generazione), stesso ritardo: 3/3 PASS; test_server.py 71 passed x3
+Suite unit/control_api/integration/guards: 1838 passed, 1 skipped

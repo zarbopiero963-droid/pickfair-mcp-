@@ -30,11 +30,12 @@
   "G8 campagna all PASS 6/6, 1845 test (e029363)",
   "MCP-01n et\u00e0 del book, contratto 1.12.0 (bfcd39c, evidenze 2494e3e)",
   "handoff 01i riallineato alla r2 sui branch 01m/01n (5ec7961)",
-  "consegna cross-repo opzione A: bundle + 12 patch canoniche, digest riproducibili da clone nuovo 12/12 (f1b4b64)"
+  "consegna cross-repo opzione A: bundle + 12 patch canoniche, digest riproducibili da clone nuovo 12/12 (f1b4b64)",
+  "MCP-LOAD-FLAKE chiuso: rotazioni al passo dei lettori, RED 3/3 -> GREEN 3/3 (4174561)"
  ],
- "lotto_corrente": "consegna cross-repo DELIVERED; attesa pubblicazione del branch di handoff (B) e hardening multi-repo di pfckpt",
+ "lotto_corrente": "consegna cross-repo DELIVERED (attesa branch di handoff di B); MCP-LOAD-FLAKE chiuso",
  "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A)",
- "next_atomic_action": "quando B pubblica il branch di handoff: verificare SHA/tree nel repo destinatario, spostare i record in `handoffs` (DURABLE); intanto rendere deterministico test_rotation_mid_traffic (MCP-LOAD-FLAKE)",
+ "next_atomic_action": "quando B pubblica handoff/claude-c/*: verificare SHA/tree nel repo destinatario e spostare i record in `handoffs` (DURABLE); intanto letture read-only restanti senza nuove route",
  "pr_505": "N/A (repository MCP)",
  "schema": "pf-task-state/1",
  "tests_missing": []

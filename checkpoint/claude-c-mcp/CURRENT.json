@@ -2,12 +2,12 @@
  "certification_verdict": "NOT VERIFIED",
  "checkpoint_commit": null,
  "code": {
-  "branch": "ccr-edf04c7d-e7vtj1-mcp01n-book-age",
-  "sha": "f1b4b6492dcf4637c8cfc1e2b0cd2312e3ed5c79"
+  "branch": "ccr-edf04c7d-e7vtj1-mcp-load-flake",
+  "sha": "4174561d73f329477f1638da58f66d336fdfd24c"
  },
  "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A)",
- "next_atomic_action": "quando B pubblica il branch di handoff: verificare SHA/tree nel repo destinatario, spostare i record in `handoffs` (DURABLE); intanto rendere deterministico test_rotation_mid_traffic (MCP-LOAD-FLAKE)",
- "previous_checkpoint_sha": "a71bc44e26bdb58bd2db865222ce9475a3254405",
+ "next_atomic_action": "quando B pubblica handoff/claude-c/*: verificare SHA/tree nel repo destinatario e spostare i record in `handoffs` (DURABLE); intanto letture read-only restanti senza nuove route",
+ "previous_checkpoint_sha": "3c83a4cb32155cbea03ea6b0ee7b82c16355d931",
  "schema": "pf-current/1",
- "seq": 5
+ "seq": 6
 }
