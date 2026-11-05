@@ -30,7 +30,8 @@ dichiarato in MCP-01l.
 | Mutanti critici MCP Z01–Z04 | 4/4 KILLED |
 | Test MCP unit/control_api/integration/guards | 1828 passed, 1 skipped (permessi da root) |
 | E2E fra processi col core 01n (`PICKFAIR_CORE_BOOK_AGE=1`) | 17/17, su 3 esecuzioni |
-| Suite MCP completa e regressione completa del core | in corso al momento del commit: esiti registrati su #37 |
+| Suite MCP completa (con E2E sul core 01n) | 1886 passed, 1 skipped |
+| Regressione completa del core (fusione 01m + `ea81e93e` + 01n) | 12908 passed, **2 failed, entrambi preesistenti e indipendenti dalla patch**: (a) `test_il_catalogo_reale_e_applicabile_e_copre_le_aree_critiche` (stack F-13b/F-02 di D, già noto in 01m); (b) `test_every_test_directory_and_module_is_reachable_from_the_catalog`, che arriva col catalogo canonico di `main` (#606) incluso nel branch di D: lì mancano `tests/f02`, `tests/f03`, `tests/f13b` e `tests/f18` (di D) e anche `tests/control_api` (il ponte). Per `tests/control_api` la soluzione è la voce G8 `control-api` più l'id in `campaigns.all` (provato: sparisce dall'elenco; vedi `docs/g8/G8_MCP_CONTROL_API_SUITES.md` sul branch g8, `e029363`) |
 | Lint | nessun errore ruff nuovo rispetto a 9958c75; mypy invariato (10 errori preesistenti) |
 
 ## 4. Stato della consegna
