@@ -655,11 +655,13 @@
     "mcp01n-book-age": {
       "issue": "mandato owner 05/11/2026 (priorità 1-2: letture read-only mancanti, rispettando le dipendenze dal codice di D)",
       "scheda": "MCP-01n — età del book (book_age_s) in list_markets e get_market_book (contratto 1.12.0), offline",
-      "description": "book_age_s da MarketTracker.book_age_s di claude/d-market-book-age, letta prima dei book, null quando non dimostrabile; non integrabile finché il branch di D non è su main.",
+      "description": "book_age_s da MarketTracker.book_age_s di claude/d-market-book-age, letta prima dei book, null quando non dimostrabile; non integrabile finché il branch di D non è su main. Esteso (dichiarato): riallinea i due documenti di handoff di MCP-01i alla revisione r2 (06e9eda), rimasti alla r1 sui branch 01m/01n.",
       "files": [
         ".guardrails/allowed_scope.json",
         "docs/contract_v1.md",
+        "docs/handoff/core_bridge_mcp01i.patch.sha256",
         "docs/handoff/core_bridge_mcp01n.patch.sha256",
+        "docs/handoff/mcp01i_sl_tp_close.md",
         "docs/handoff/mcp01n_book_age.md",
         "docs/roadmap/INTEGRATION_INVENTORY.md",
         "scripts/critical_mutations.py",
@@ -680,7 +682,7 @@
         "tests/unit/test_handshake.py",
         "tests/unit/test_market_models.py"
       ],
-      "max_files": 22
+      "max_files": 24
     }
   }
 }
