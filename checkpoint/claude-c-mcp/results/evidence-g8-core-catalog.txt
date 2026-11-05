@@ -1,0 +1,3 @@
+main 911562ad catalog suites 45 + control-api
+main tree + bridge tests: VALID, 46 suites; suite:control-api -> ['control-api']
+main tree WITHOUT bridge: REFUSED PYTEST_PATH:control-api (atteso: la voce entra solo dopo l'integrazione)

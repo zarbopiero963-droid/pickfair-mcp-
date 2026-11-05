@@ -1,0 +1,96 @@
+{
+ "schema": "pf-checkpoint/3",
+ "repository": "zarbopiero963-droid/pickfair-mcp-",
+ "seq": 1,
+ "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO (sviluppo autonomo MCP + Control API, priorità 1-6)",
+ "previous_checkpoint_sha": "3b0bae94a28558c128fb5b55d1baa35613ec6d9a",
+ "code": {
+  "branch": "ccr-edf04c7d-e7vtj1-mcp01i-r2",
+  "sha": "953991a6554d46f41b726df3f3261daba3352647"
+ },
+ "lotto_corrente": "MCP-01i-r2 (01i rifondato su 01l + SEC-01, contratto 1.10.0): verifiche in corso",
+ "lotti_completati": [
+  "MCP-01j get_config (305b843)",
+  "MCP-01k compatibilità P0/F-16 (4cd3e75)",
+  "MCP-01l mercati e book (00978ef)",
+  "MCP-SEC-01 sicurezza (eda3a95)",
+  "G8 manifest + runner + proposta catalogo (cf8627e)",
+  "K3 specifiche offline (bad873b)"
+ ],
+ "next_atomic_action": "chiudere le verifiche di MCP-01i-r2 (mutazioni core, L01-L08, E2E x3, suite, regressione) e registrarlo su #37; poi MCP-01m (trailing F-03) offline sopra 01i-r2",
+ "dependencies": {
+  "F-04 su main": "MCP-01i, MCP-01m",
+  "F-03 su main": "MCP-01m",
+  "integrazione patch (Claude B)": "tutti i ponti MCP-01d...SEC-01",
+  "ratifica owner K3": "RC-10/11/12"
+ },
+ "blocks": [],
+ "owner_authorizations": {
+  "05/11/2026": "sviluppo autonomo offline; branch separati; nessuna PR concorrente; nessun merge, VPS, LIVE, ordini reali, nuova infrastruttura"
+ },
+ "tests_executed": [
+  {
+   "name": "MCP-01l suite MCP",
+   "status": "PASS",
+   "sha": "00978ef0c4c07f9c9a800871174135ef831c660a",
+   "artifact": "results/evidence-01l-mcp-suite.txt"
+  },
+  {
+   "name": "MCP-01l E2E x3",
+   "status": "PASS",
+   "sha": "00978ef0c4c07f9c9a800871174135ef831c660a",
+   "artifact": "results/evidence-01l-e2e.txt"
+  },
+  {
+   "name": "MCP-01l mutanti MCP N01-N06",
+   "status": "PASS",
+   "sha": "00978ef0c4c07f9c9a800871174135ef831c660a",
+   "artifact": "results/evidence-01l-mcp-n.txt"
+  },
+  {
+   "name": "MCP-SEC-01 RED (14/16 falliti prima della correzione)",
+   "status": "PASS",
+   "sha": "eda3a95139ac6bd5dba66fb10f685fd57c5a68fd",
+   "artifact": "results/evidence-sec01-red.txt"
+  },
+  {
+   "name": "MCP-SEC-01 mutanti X01-X06",
+   "status": "PASS",
+   "sha": "eda3a95139ac6bd5dba66fb10f685fd57c5a68fd",
+   "artifact": "results/evidence-sec01-mcp-x.txt"
+  },
+  {
+   "name": "MCP-SEC-01 suite MCP (head 0e36f99, prima del solo cambio del test slowloris)",
+   "status": "PASS",
+   "sha": "0e36f99101b6140a8a3663d86d32efc3d39f8ae3",
+   "artifact": "results/evidence-sec01-mcp-suite.txt"
+  },
+  {
+   "name": "MCP-SEC-01 E2E x3 (head 0e36f99, prima del solo cambio del test slowloris)",
+   "status": "PASS",
+   "sha": "0e36f99101b6140a8a3663d86d32efc3d39f8ae3",
+   "artifact": "results/evidence-sec01-e2e.txt"
+  },
+  {
+   "name": "G8 proposta control-api validata col validatore reale del core",
+   "status": "PASS",
+   "sha": "cf8627e66086cfd32084a373e766481fd970cbd2",
+   "artifact": "results/evidence-g8-core-catalog.txt"
+  }
+ ],
+ "tests_missing": [
+  "MCP-01i-r2: catena di verifiche in corso",
+  "G8: campagna all con evidenze junit",
+  "MCP-01m non iniziato"
+ ],
+ "missing_historical_evidence": [
+  "regressioni e mutazioni del core: eseguite su clone locale mai spinto (core-clone), esiti nei file results/ e nei commenti di #37; i commit del core non sono risolvibili in questo repository"
+ ],
+ "gate_a": "N/A (repository MCP)",
+ "pr_505": "N/A (repository MCP)",
+ "certification_verdict": "NOT VERIFIED",
+ "agent": {
+  "last_writer": "claude-c",
+  "lease_status_at_write": "FREE"
+ }
+}

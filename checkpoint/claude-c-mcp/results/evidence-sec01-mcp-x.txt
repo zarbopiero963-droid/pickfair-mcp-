@@ -1,0 +1,7 @@
+X01 KILLED   (fail   ) token corto o fuori alfabeto accettato
+X02 KILLED   (fail   ) rotazioni concorrenti non serializzate
+X03 KILLED   (fail   ) connessioni oltre il tetto servite
+X04 KILLED   (fail   ) connessione senza scadenza complessiva
+X05 KILLED   (fail   ) errore di protocollo con il testo ricevuto
+X06 KILLED   (fail   ) traceback per richiesta su stderr
+critical mutation score: 6/6 = 100%

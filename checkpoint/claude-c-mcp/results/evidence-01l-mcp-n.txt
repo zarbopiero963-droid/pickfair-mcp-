@@ -1,0 +1,9 @@
+N01 KILLED   (fail   ) book di un altro mercato accettato per il mercato richiesto
+N02 KILLED   (fail   ) scala dei prezzi fuori ordine accettata
+N03 KILLED   (fail   ) book presente con stato diverso da OK accettato
+N04 KILLED   (fail   ) mercati non ordinati o duplicati accettati
+N05 SURVIVED (pass   ) percorso del book costruito da un id non validato
+N06 KILLED   (fail   ) id del mercato non validato dalla Control API
+critical mutation score: 5/6 = 83%
+N05 KILLED   (fail   ) percorso del book costruito da un id non validato
+critical mutation score: 1/1 = 100%

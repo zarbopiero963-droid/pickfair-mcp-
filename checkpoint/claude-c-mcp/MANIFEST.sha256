@@ -1,0 +1,17 @@
+dca13266ac3ff2813a03404de2d159710fa3055fb5bf84aeba5368edae081f40  ./AGENT_LEASE.json
+a4843e07d13bfdf7b4993ca66e80d4b3cc80534d612a95ed4f7a9d313397a59d  ./CURRENT.json
+e9c968d4617c0953577fb2058c265852f4b59565607428e4a33b9c7b2ce0347c  ./HANDOFF.md
+55313f75ca0ad3b75b1aad54605490e2113942b3fbcc771829651c391c454cca  ./RUNBOOK.md
+62bd594b7be593e17c0a54a3360ff58d9675e03cd647fb6551d4450b0d828c29  ./STATE.json
+d903baa003ed7e02a320f77c206327c0ab42acbdbec39469af3ca944b3bdbe29  ./TASK_STATE.json
+719c9372a04ef9b513036a4f45b6bb31bddfa4e945a0bf37dd9b1ee32c1e75f6  ./results/evidence-01l-e2e.txt
+28e5c0e1de10e1403b6f3acf44afb71bf2c985cc6db6cbb97cfee44f2d208e51  ./results/evidence-01l-mcp-n.txt
+04a87cccc9e997278874661454aa0940a8a5bc2afd77de3e203a82167cae89ab  ./results/evidence-01l-mcp-suite.txt
+cae247078098b4814fa3f956be0fdc313afbbfe9347401567289b089d2b779bd  ./results/evidence-01l-mutations.txt
+512ff0b9b9224d66daac4ef9c6c3c3d0856e7652e713d43f6d9426edfe5aacb4  ./results/evidence-01l-regression.txt
+6d185e6477feb3f1dd8e853f7f2dd7733ce775f18a180afe52084b572df8b104  ./results/evidence-g8-core-catalog.txt
+f50cb71cf379c4129438104f53f09697343cf34d69c907bae74fa90e18fe5e92  ./results/evidence-sec01-e2e.txt
+7bd032126986f4dc2cde7b0481183e12112de69fa2b1e9c823602ac02435a08b  ./results/evidence-sec01-mcp-suite.txt
+8b3dd49f8f0be2b624538e7c4074118c2099905ac67708973fe1ccb5ccd0f9c2  ./results/evidence-sec01-mcp-x.txt
+11244756655e00dcb096bb7d31948280acd033b7463b6b7308646f055c21f154  ./results/evidence-sec01-red.txt
+d92b62843b1c4b1294517ad4777a8da23ca136a591e5841ebe3fbf1080b64dcd  ./results/evidence-sec01-regression.txt
