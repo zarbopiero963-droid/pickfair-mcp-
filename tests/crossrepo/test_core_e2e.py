@@ -73,6 +73,9 @@ class Core:
         work.mkdir()
         env = {
             "PATH": os.environ.get("PATH", ""),
+            # Il core usa il package pickfair_control_api dello STESSO albero sotto test (non l'installazione
+            # editabile di un altro checkout): il pin del ponte confronta versione e schema hash.
+            "PYTHONPATH": str(REPO_ROOT / "src"),
             "HOME": str(tmp_path),
             "HTTP_PROXY": "http://127.0.0.1:9",
             "ALL_PROXY": "http://127.0.0.1:9",
