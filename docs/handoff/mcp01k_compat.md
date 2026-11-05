@@ -10,9 +10,10 @@ righe AMBIGUOUS senza report) e prima di F-16 (sul `main` il limite resta 120 s)
 
 | Artefatto | Valore |
 |---|---|
-| Patch incrementale | `core_bridge_mcp01k.patch` (vedi `core_bridge_mcp01k.patch.sha256`) |
+| Patch incrementale | `core_bridge_mcp01k.patch`, 7 file, +212/−4, SHA-256 `7e29ca8b7f1b33547a9f6274f304c6d6dda550eef2430f22ab27298c01562bdc` |
 | Base della patch | `main` `ada40765` + patch MCP-01d … 01h e 01j |
-| Contratto | 1.7.0 (vedi sezione 3) |
+| Package | `pickfair_control_api` **1.7.0** dal branch `ccr-edf04c7d-e7vtj1-mcp01k-compat` |
+| Contratto | 1.7.0, schema hash `94982a9c9de0c62360d98c018190b4fad8ae71006fc93bcd339b85258fd6a6fd` |
 | Scope del core | `pf_api7_control_api_compat` (7 file = diff) |
 
 ## 2. Cosa cambia nel core
@@ -27,7 +28,23 @@ righe AMBIGUOUS senza report) e prima di F-16 (sul `main` il limite resta 120 s)
 
 ## 3. Evidenze
 
-Compilate in fondo alla consegna (sezione «Esiti»).
+| Prova | Esito |
+|---|---|
+| RED sul ponte 01j (test nuovi) | 10 falliti su 25: importi non confermati esposti su AMBIGUOUS/HEDGE_AMBIGUOUS/INFLIGHT/HEDGE_PENDING; limite 120 con la soglia F-16 |
+| Sonda sulla catena reale del branch P0 di D (fusione locale) | RED `('5', None, None)` col ponte 01j → GREEN 4/4 col ponte 01k |
+| Sonda sul codice reale di F-16 (fusione locale) | RED `'120' is None` col ponte 01j → GREEN col ponte 01k |
+| `tests/control_api/test_compat_views.py` | 25 passed |
+| Mutazioni `control_api` (`--fail-under 100`) | 79/79 KILLED, GATE PASS |
+| E2E fra processi | 14/14, su 3 esecuzioni (nuovo: riga AMBIGUOUS nella forma P0 sul core reale) |
+| Suite MCP | 1733 passed, 15 skipped; mutante critico O12 KILLED |
+| Regressione completa del core (`pytest -n 4 tests`) | 11986 passed, 0 failed, 16 skipped, 56 xfailed |
+
+## 3-bis. Vincolo per la PR F-14 (richiesta di Claude B, 05/11)
+
+Il fix P0 conserva sulla riga AMBIGUOUS la risposta senza esito, che può contenere `sizeMatched`. Vincolo
+per chi legge il ledger (Control API, F-14 e ogni consumatore): per AMBIGUOUS, HEDGE_AMBIGUOUS, INFLIGHT e
+HEDGE_PENDING gli importi del report **non sono dati confermati** e non vanno esposti né usati come
+abbinato/residuo; il betId resta l'identità della riconciliazione.
 
 ## 4. Rapporto di compatibilità
 
