@@ -1,0 +1,10 @@
+## 1. bootstrap da clone nuovo
+{"status": "READY", "commit": "f1f781c2e67f1742f5568ce4905d7a3ac4db0682", "seq": 2, "code_sha": "ac65cc7399038badb9ee3e8d75d2d6c02530c50d", "files": 30, "next_atomic_action": "prova di ripristino (bootstrap da clone nuovo + checkout del codice a code.sha + test) e registrazione dell'esito READY/BLOCKED; poi campagna G8 con evidenze e MCP-01n (età del book, claude/d-market-book-age)", "verdict": "NOT VERIFIED", "lease_owner": "claude-c", "lease_expires_at": "2026-11-05T17:32:34+00:00", "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS", "owner_authorizations": {"05/11/2026 sviluppo autonomo": "offline; branch separati; nessuna PR concorrente; nessun merge, VPS, LIVE, ordini reali, nuova infrastruttura", "05/11/2026 PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS": "checkpoint obbligatori con pfckpt.py, catena propria, nessuna scrittura su catene di altri agenti, DURABLE solo su commit pubblicati"}, "blocks": [], "code_branch": "ccr-edf04c7d-e7vtj1-mcp01m-trailing", "lease": "MINE", "code_patch": false, "code_divergence": {"status": "ALIGNED", "head": "ac65cc7399038badb9ee3e8d75d2d6c02530c50d"}}
+
+## 2. verify sul tree committato
+{"status": "VALID", "commit": "f1f781c2e67f1742f5568ce4905d7a3ac4db0682", "seq": 2, "code_sha": "ac65cc7399038badb9ee3e8d75d2d6c02530c50d", "files": 30, "next_atomic_action": "prova di ripristino (bootstrap da clone nuovo + checkout del codice a code.sha + test) e registrazione dell'esito READY/BLOCKED; poi campagna G8 con evidenze e MCP-01n (età del book, claude/d-market-book-age)", "verdict": "NOT VERIFIED", "lease_owner": "claude-c", "lease_expires_at": "2026-11-05T17:32:34+00:00"}
+
+## 3. clone nuovo del codice a code.sha=ac65cc7399038badb9ee3e8d75d2d6c02530c50d
+ac65cc7399038badb9ee3e8d75d2d6c02530c50d
+## 4. test sul codice ripristinato (unit + guards + control_api)
+1555 passed, 1 skipped in 23.88s

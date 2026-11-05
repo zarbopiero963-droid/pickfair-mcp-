@@ -19,13 +19,12 @@
   "G8 manifest + runner (cf8627e)",
   "K3 specifiche offline (bad873b)"
  ],
- "lotto_corrente": "direttiva PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS: catena di Claude C verificata e prova di ripristino da clone pulito",
+ "lotto_corrente": "ripristino verificato (READY); prossimo: campagna G8 con evidenze e MCP-01n (et\u00e0 del book)",
  "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS",
- "next_atomic_action": "prova di ripristino (bootstrap da clone nuovo + checkout del codice a code.sha + test) e registrazione dell'esito READY/BLOCKED; poi campagna G8 con evidenze e MCP-01n (et\u00e0 del book, claude/d-market-book-age)",
+ "next_atomic_action": "campagna G8 (scripts/run_suites.py campaign:all) con evidenze junit sul branch ccr-edf04c7d-e7vtj1-g8-suites, poi MCP-01n sopra 01l con MarketTracker.received_at/book_age_s di claude/d-market-book-age (offline)",
  "pr_505": "N/A (repository MCP)",
  "schema": "pf-task-state/1",
  "tests_missing": [
-  "G8: campagna all con evidenze junit",
-  "prova di ripristino del checkpoint seq 2 (in corso)"
+  "G8: campagna all con evidenze junit"
  ]
 }

@@ -1,11 +1,11 @@
 {
  "schema": "pf-checkpoint/3",
  "repository": "zarbopiero963-droid/pickfair-mcp-",
- "seq": 2,
+ "seq": 3,
  "agent": "claude-c",
  "agent_identity": "Claude C — MCP + Control API (sessione session_013X2mCaF4fE5YMWGVrM8LtR)",
  "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS",
- "previous_checkpoint_sha": "68e2a862f6c6f9a9f322e9431187827b9e39babe",
+ "previous_checkpoint_sha": "f1f781c2e67f1742f5568ce4905d7a3ac4db0682",
  "code": {
   "branch": "ccr-edf04c7d-e7vtj1-mcp01m-trailing",
   "sha": "ac65cc7399038badb9ee3e8d75d2d6c02530c50d"
@@ -39,7 +39,7 @@
   "MCP-01i r2 (dopo F-04 su main)",
   "MCP-01m (dopo F-03 su main)"
  ],
- "lotto_corrente": "direttiva PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS: catena di Claude C verificata e prova di ripristino da clone pulito",
+ "lotto_corrente": "ripristino verificato (READY); prossimo: campagna G8 con evidenze e MCP-01n (età del book)",
  "lotti_completati": [
   "MCP-01j get_config (305b843)",
   "MCP-01k compatibilità P0/F-16 (4cd3e75)",
@@ -50,7 +50,7 @@
   "G8 manifest + runner (cf8627e)",
   "K3 specifiche offline (bad873b)"
  ],
- "next_atomic_action": "prova di ripristino (bootstrap da clone nuovo + checkout del codice a code.sha + test) e registrazione dell'esito READY/BLOCKED; poi campagna G8 con evidenze e MCP-01n (età del book, claude/d-market-book-age)",
+ "next_atomic_action": "campagna G8 (scripts/run_suites.py campaign:all) con evidenze junit sul branch ccr-edf04c7d-e7vtj1-g8-suites, poi MCP-01n sopra 01l con MarketTracker.received_at/book_age_s di claude/d-market-book-age (offline)",
  "dependencies": {
   "F-04 su main": "MCP-01i r2",
   "F-03 su main (con F-02, F-04)": "MCP-01m",
@@ -124,16 +124,30 @@
    "status": "PASS",
    "sha": "953991a6554d46f41b726df3f3261daba3352647",
    "artifact": "results/evidence-ckpt-verify-seq1.txt"
+  },
+  {
+   "name": "Prova di ripristino del checkpoint seq 2 da clone nuovo: READY, codice ALIGNED, 1555 test passati sul codice ripristinato",
+   "status": "PASS",
+   "sha": "ac65cc7399038badb9ee3e8d75d2d6c02530c50d",
+   "artifact": "results/evidence-ckpt-restore-seq2.txt"
   }
  ],
  "tests_missing": [
-  "G8: campagna all con evidenze junit",
-  "prova di ripristino del checkpoint seq 2 (in corso)"
+  "G8: campagna all con evidenze junit"
  ],
  "missing_historical_evidence": [
   "mutazioni e regressioni del core: eseguite su clone locale mai spinto; esiti nei file results/ e nei commenti di #37; i commit del core non sono risolvibili in questo repository (nessun SHA del core dichiarato come PASS qui)"
  ],
  "gate_a": "N/A (repository MCP)",
  "pr_505": "N/A (repository MCP)",
- "certification_verdict": "NOT VERIFIED"
+ "certification_verdict": "NOT VERIFIED",
+ "restore_proof": {
+  "status": "READY",
+  "checkpoint_commit": "f1f781c2e67f1742f5568ce4905d7a3ac4db0682",
+  "method": "pfckpt bootstrap da clone nuovo + verify + clone nuovo del codice a code.sha + pytest unit/guards/control_api",
+  "code_divergence": "ALIGNED",
+  "tests": "1555 passed, 1 skipped",
+  "artifact": "results/evidence-ckpt-restore-seq2.txt",
+  "limite": "i code.sha restano raggiungibili finché esistono i branch ccr-edf04c7d-e7vtj1-* (mai mergiati: consegna via patch); protezione contro cancellazione/squash dipende dall'hardening di pfckpt.py coordinato con Claude B"
+ }
 }

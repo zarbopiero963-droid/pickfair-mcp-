@@ -6,8 +6,8 @@
   "sha": "ac65cc7399038badb9ee3e8d75d2d6c02530c50d"
  },
  "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS",
- "next_atomic_action": "prova di ripristino (bootstrap da clone nuovo + checkout del codice a code.sha + test) e registrazione dell'esito READY/BLOCKED; poi campagna G8 con evidenze e MCP-01n (et\u00e0 del book, claude/d-market-book-age)",
- "previous_checkpoint_sha": "68e2a862f6c6f9a9f322e9431187827b9e39babe",
+ "next_atomic_action": "campagna G8 (scripts/run_suites.py campaign:all) con evidenze junit sul branch ccr-edf04c7d-e7vtj1-g8-suites, poi MCP-01n sopra 01l con MarketTracker.received_at/book_age_s di claude/d-market-book-age (offline)",
+ "previous_checkpoint_sha": "f1f781c2e67f1742f5568ce4905d7a3ac4db0682",
  "schema": "pf-current/1",
- "seq": 2
+ "seq": 3
 }
