@@ -21,7 +21,7 @@ from typing import Any, Final
 from pickfair_mcp.contract.routes import APPROVED_ROUTES, route_key
 
 CONTRACT_NAME: Final = "pickfair-control-api"
-SUPPORTED_CONTRACT_VERSION: Final = "1.9.0"
+SUPPORTED_CONTRACT_VERSION: Final = "1.10.0"
 DESCRIPTOR_PATH: Final = Path(__file__).with_name("descriptor_v1.json")
 
 SEMVER_PATTERN: Final = r"^(0|[1-9][0-9]{0,3})\.(0|[1-9][0-9]{0,3})\.(0|[1-9][0-9]{0,3})$"

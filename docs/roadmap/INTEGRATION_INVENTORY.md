@@ -1,6 +1,7 @@
 # INTEGRATION INVENTORY — copertura MCP + Control API per area funzionale
 
 Aggiornato 05/11/2026 · MCP-01l · base core `ada40765` (Pickfair-nogui `main`) · Claude C.
+Aggiornato 05/11/2026 · MCP-01i · base core `ada40765` (Pickfair-nogui `main`) · Claude C.
 
 Livelli (cumulativi, ognuno richiede un'evidenza; senza evidenza il livello NON è raggiunto):
 
@@ -58,4 +59,10 @@ Claude B, da integrare dopo #608 e #606 con una PR indipendente e safety-critica
 |---|---|---|---|---|
 | Ordini AMBIGUOUS dopo il fix P0 | `TESTED` | `GET /v1/orders` · `list_orders` | sonda sulla catena reale del branch P0 RED → GREEN; test core e E2E | importi del report non confermato mai esposti; betId mantenuto. Rapporto: `docs/handoff/compat_claude_d_20261105.md` |
 | Freschezza dei fondi dopo F-16 | `TESTED` | `GET /v1/status` (`protections.funds_freshness`) | sonda sul codice reale di F-16 RED → GREEN | limite null finché il core non espone `funds_max_age_s()` |
+
+## Aggiunte MCP-01i (stato della chiusura SL/TP, dipende da F-04)
+
+| Area | Livello | Route / tool | Evidenza | Nota |
+|---|---|---|---|---|
+| Chiusura SL/TP per tavolo | `TESTED` (offline, su `main` + F-04 locale) | `GET /v1/exposure` (`sl_tp_closes`) · `get_exposure` | test core sulla catena reale di F-04 (scenari di D: tre tavoli, SL instradato, SL non eseguito); E2E fra processi | **non integrabile** finché F-04 (`claude/d-f04-sl-tp-close`) non è su `main`; hedge per selezione (lacuna di contratto segnalata a D); su un core senza F-04 la sezione è UNAVAILABLE `CORE_PENDING_F04` |
 

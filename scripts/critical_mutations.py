@@ -1222,6 +1222,12 @@ MUTANTS: tuple[Mutant, ...] = (
             (
                 'src/pickfair_control_api/server.py',
                 '        if not self._slots.acquire(blocking=False):',
+        "L01",
+        "esposizione residua senza il tavolo che porta la posizione accettata",
+        (
+            (
+                MO,
+                '        if (self.residual_exposure is not None) != (self.residual_source == "TABLE"):',
                 '        if False:',
             ),
         ),
@@ -1233,6 +1239,34 @@ MUTANTS: tuple[Mutant, ...] = (
             (
                 'src/pickfair_control_api/server.py',
                 '        self._deadline.start()',
+        "L02",
+        "chiusura non NOT_EXECUTED dichiarata ritentabile accettata",
+        (
+            (
+                MO,
+                '        if self.retryable and self.close_state != "NOT_EXECUTED":',
+                '        if False:',
+            ),
+        ),
+    ),
+    Mutant(
+        "L03",
+        "chiusura rivendicata senza betId della posizione accettata",
+        (
+            (
+                MO,
+                '        if self.close_state in ("ROUTED", "CLAIMED", "UNCERTAIN") and not self.bet_ids:',
+                '        if False:',
+            ),
+        ),
+    ),
+    Mutant(
+        "L04",
+        "betId duplicati nella chiusura accettati",
+        (
+            (
+                MO,
+                '        if len(set(self.bet_ids)) != len(self.bet_ids):\n            raise ValueError("duplicate bet ids")',
                 '        pass',
             ),
         ),
@@ -1245,6 +1279,13 @@ MUTANTS: tuple[Mutant, ...] = (
                 'src/pickfair_control_api/server.py',
                 '        status, error = _PROTOCOL_ERRORS.get(code, (400, "BAD_REQUEST"))\n        try:\n            self._error(status, error)\n        except OSError:\n            self.close_connection = True',
                 '        super().send_error(code, message, explain)',
+        "L05",
+        "contatori della posizione oltre gli ordini letti accettati",
+        (
+            (
+                MO,
+                '        if max(self.partially_matched, self.in_reconciliation, self.ambiguous) > self.orders:',
+                '        if False:',
             ),
         ),
     ),
@@ -1256,6 +1297,13 @@ MUTANTS: tuple[Mutant, ...] = (
                 'src/pickfair_control_api/server.py',
                 '        logger.debug("control_api: connessione chiusa con errore")',
                 '        super().handle_error(request, client_address)',
+        "L06",
+        "elenco delle chiusure OK con omissioni accettato",
+        (
+            (
+                MO,
+                '        if self.state == "OK" and (self.reason or self.omitted or self.truncated):\n            raise ValueError("OK closes with omissions or a reason")',
+                '        pass',
             ),
         ),
     ),

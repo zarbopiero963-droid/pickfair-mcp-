@@ -14,7 +14,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Final
 
-CONTRACT_VERSION: Final = "1.9.0"
+CONTRACT_VERSION: Final = "1.10.0"
 DESCRIPTOR_PATH: Final = Path(__file__).with_name("contract_v1.json")
 
 # Route servite in sola lettura. Nessuna route di comando.

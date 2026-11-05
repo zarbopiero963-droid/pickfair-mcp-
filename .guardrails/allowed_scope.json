@@ -582,6 +582,39 @@
         "tests/unit/test_handshake.py"
       ],
       "max_files": 20
+    },
+    "mcp01i-sltp-close": {
+      "issue": "mandato owner 05/11/2026 (ORDINE OWNER, punto 2: preparazione MCP-01i)",
+      "scheda": "MCP-01i — stato della chiusura SL/TP persistito da F-04 (contratto 1.8.0), offline",
+      "description": "Sezione sl_tp_closes di get_exposure dai record persistiti da F-04; non integrabile finché F-04 non è su main; handoff della patch incrementale del core.",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "README.md",
+        "docs/contract_v1.md",
+        "docs/handoff/core_bridge_mcp01i.patch.sha256",
+        "docs/handoff/mcp01i_sl_tp_close.md",
+        "docs/roadmap/INTEGRATION_INVENTORY.md",
+        "scripts/critical_mutations.py",
+        "src/pickfair_control_api/__init__.py",
+        "src/pickfair_control_api/contract.py",
+        "src/pickfair_control_api/contract_v1.json",
+        "src/pickfair_mcp/adapters/simulated.py",
+        "src/pickfair_mcp/contract/descriptor.py",
+        "src/pickfair_mcp/contract/descriptor_v1.json",
+        "src/pickfair_mcp/contract/models.py",
+        "src/pickfair_mcp/contract/version.py",
+        "tests/control_api/bodies.py",
+        "tests/crossrepo/core_runtime_server.py",
+        "tests/crossrepo/test_core_e2e.py",
+        "tests/e2e/test_stdio_subprocess.py",
+        "tests/integration/test_sl_tp_close_tools.py",
+        "tests/unit/test_contract_descriptor.py",
+        "tests/unit/test_contract_version.py",
+        "tests/unit/test_control_api_distribution.py",
+        "tests/unit/test_handshake.py",
+        "tests/unit/test_sl_tp_close_models.py"
+      ],
+      "max_files": 25
     }
   }
 }

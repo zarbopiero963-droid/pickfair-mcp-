@@ -570,3 +570,24 @@ async def test_e2e_markets_and_book_from_the_real_tracker(core: Core, tmp_path: 
     assert missing.structuredContent["data"]["book"]["state"] == "NOT_TRACKED"
     assert after["calls"] == baseline["calls"] and after["db"] == baseline["db"]
     assert after["bus"] == baseline["bus"] and after["balance"] == baseline["balance"]
+async def test_e2e_sl_tp_close_from_the_core_record(core: Core, tmp_path: Path) -> None:
+    """MCP-01i: chiusura SL/TP persistita con le funzioni di F-04 nel core reale (SIM), letta da get_exposure."""
+    errlog = (tmp_path / "mcp.err").open("w+")
+    async with mcp(core, errlog) as s:
+        tools = {t.name: t for t in (await s.list_tools()).tools}
+        core.send("SL_TP_CLOSE")  # comando al CORE
+        baseline = core.send("DIGEST")
+        is_error, payload = await call(s, "get_exposure")
+        after = core.send("DIGEST")
+    assert is_error is False, payload
+    jsonschema.validate(payload, tools["get_exposure"].outputSchema)
+    section = payload["data"]["exposure"]["sl_tp_closes"]
+    assert section["state"] == "OK"
+    close = next(c for c in section["closes"] if c["table_id"] == 4)
+    assert (close["trigger"], close["close_state"], close["retryable"]) == ("STOP_LOSS", "NOT_EXECUTED", True)
+    assert close["detail"] == "GATE_REJECTED" and close["bet_ids"] == ["SIMBET-close"]
+    assert close["position"]["orders"] == 1 and close["position"]["partially_matched"] == 1
+    assert (close["residual_source"], close["residual_exposure"]) == ("TABLE", "8")
+    text = json.dumps(payload)
+    assert "cref-secret-close" not in text and "Juventus" not in text
+    assert after["db"] == baseline["db"] and after["calls"] == baseline["calls"]

@@ -208,7 +208,7 @@ class SimulatedControlApiAdapter:
 _SCENARIO_BODIES: dict[Scenario, bytes] = {
     Scenario.COMPATIBLE: _encode(_meta()),
     Scenario.INCOMPATIBLE_MAJOR: _encode(_meta(contract_version="2.0.0")),
-    Scenario.UNSUPPORTED_MINOR: _encode(_meta(contract_version="1.10.0")),
+    Scenario.UNSUPPORTED_MINOR: _encode(_meta(contract_version="1.11.0")),
     Scenario.SCHEMA_HASH_MISMATCH: _encode(_meta(schema_hash="0" * 64)),
     Scenario.MISSING_META_CAPABILITY: _encode(_meta(capabilities=["GET /v1/status"])),
     Scenario.META_ONLY: _encode(_meta(capabilities=["GET /v1/meta"])),
@@ -439,6 +439,30 @@ def _table(table_id: int, **overrides: Any) -> dict[str, Any]:
     return data
 
 
+def _sl_tp_close(**overrides: Any) -> dict[str, Any]:
+    """Chiusura SL/TP fittizia (F-04): stop loss instradato, hedge pubblicato sulla selezione."""
+    data: dict[str, Any] = {
+        "table_id": 3,
+        "market_id": "1.200000003",
+        "selection_id": "58805",
+        "side": "BACK",
+        "trigger": "STOP_LOSS",
+        "close_state": "ROUTED",
+        "retryable": False,
+        "detail": None,
+        "recorded_at": 1_700_000_100.0,
+        "bet_ids": ["SIMBET-3"],
+        "position": {"orders": 1, "partially_matched": 0, "in_reconciliation": 1, "ambiguous": 0,
+                     "unreadable": 0},
+        "residual_exposure": None,
+        "residual_source": "TABLE_RELEASED",
+        "selection_hedges": {"scope": "SELECTION", "pending": 0, "placed": 1, "unmatched": 0,
+                             "ambiguous": 0, "failed": 0},
+    }
+    data.update(overrides)
+    return data
+
+
 def _exposure_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
     body: dict[str, Any] = {
         **_sectioned(scenario, now),
@@ -465,6 +489,13 @@ def _exposure_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
         "total_exposure": 40.0,
         "recovery": {"active_count": 0, "max_recovery_tables": 0, "allow_recovery": False},
         "unavailable": [],
+        "sl_tp_closes": {
+            "state": "OK",
+            "reason": None,
+            "closes": [_sl_tp_close()],
+            "omitted": 0,
+            "truncated": False,
+        },
     }
     if scenario is StatusScenario.RECONCILIATION_REQUIRED:
         body["tables"][1] = _table(2, status="RECOVERY", in_recovery=True, loss_amount=12.0)

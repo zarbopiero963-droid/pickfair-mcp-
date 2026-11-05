@@ -370,6 +370,27 @@ for line in sys.stdin:
                                 "availableToLay": [{"price": 2.52, "size": 60.0}]}}],
         })
         reply(event="MARKET")
+    elif cmd[0] == "SL_TP_CLOSE":
+        # Comando al CORE: chiusura SL/TP persistita con le funzioni di F-04 (`core.sl_tp_close`) per un tavolo
+        # attivo con il suo ordine nel ledger. Richiede un core con F-04.
+        from core import sl_tp_close
+
+        ref = "cref-secret-close"
+        rc.table_manager.activate(table_id=4, event_key="Juventus v Inter", exposure=8.0,
+                                  market_id="1.234567", selection_id="47972",
+                                  meta={"customer_ref": ref, "bet_type": "BACK", "event_name": "Juventus v Inter"})
+        rc.db.insert_order({"customer_ref": ref, "correlation_id": "corr", "status": "SUBMITTED",
+                            "payload": {"market_id": "1.234567", "selection_id": 47972, "side": "BACK",
+                                        "bet_type": "BACK", "price": 2.0, "stake": 4.0},
+                            "response": {"instructionReports": [{"betId": "SIMBET-close", "sizeMatched": 2.0,
+                                                                 "sizeRemaining": 2.0}]}})
+        trigger, _why = sl_tp_close.parse_trigger(sl_tp_close.SL_TRIGGERED, {
+            "table_id": 4, "market_id": "1.234567", "selection_id": "47972", "side": "BACK", "pnl": -1.5,
+            "reason": "STOP_LOSS_REACHED", "customer_ref": ref, "source": "AUTO_MONITOR"})
+        rc.db.save_settings({trigger.close_key: sl_tp_close.state_record(
+            trigger, sl_tp_close.STATE_NOT_EXECUTED, bet_ids=["SIMBET-close"], reason="GATE_REJECTED:x",
+            at=time.time())})
+        reply(event="SL_TP_CLOSE")
     elif cmd[0] == "DIGEST":
         state["recording"] = False  # la misura stessa non deve contare come chiamata
         current = dict(server.request_counts()) if server is not None else {}
