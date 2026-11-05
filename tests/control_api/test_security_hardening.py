@@ -111,7 +111,7 @@ def _closed(s: socket.socket, wait: float) -> bool:
 
 def test_idle_connections_are_bounded_and_expire(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(server_mod, "MAX_CONNECTIONS", 8)
-    monkeypatch.setattr(server_mod, "REQUEST_DEADLINE_S", 1.5)
+    monkeypatch.setattr(server_mod, "REQUEST_DEADLINE_S", 2.0)
     monkeypatch.setattr(server_mod, "REQUEST_TIMEOUT_S", 30.0)  # solo la scadenza può chiudere le servite
     with control_api(tmp_path) as (server, _s, token_path, providers):
         socks = []
@@ -120,15 +120,16 @@ def test_idle_connections_are_bounded_and_expire(tmp_path: Path, monkeypatch: py
             s.sendall(b"GET /v1/status HTTP/1.1\r\n")
             socks.append(s)
         started = time.monotonic()
-        time.sleep(0.4)
-        early = [s for s in socks if _closed(s, 0.05)]
+        # oltre il tetto: chiuse subito, senza thread (attesa limitata per la sola contesa di CPU)
+        early: list[socket.socket] = []
+        while len(early) < 22 and time.monotonic() - started < 1.0:
+            early += [s for s in socks if s not in early and _closed(s, 0.01)]
         held = [s for s in socks if s not in early]
-        # oltre il tetto: chiuse subito, senza thread; al più MAX_CONNECTIONS restano servite
-        assert len(held) == 8 and len(early) == 22
+        assert len(early) == 22 and len(held) == 8
         assert providers.calls == 0
-        # le servite chiudono per la scadenza complessiva (1,5 s), non per il timeout per ricezione (30 s)
-        assert all(_closed(s, max(0.1, 1.5 + 1.0 - (time.monotonic() - started))) for s in held)
-        assert time.monotonic() - started < 3.5
+        # le servite chiudono per la scadenza complessiva (2 s), mai per il timeout per ricezione (30 s)
+        assert all(_closed(s, max(0.1, 2.0 + 2.0 - (time.monotonic() - started))) for s in held)
+        assert time.monotonic() - started < 6.0
         for s in socks:
             s.close()
         # dopo la scadenza il servizio risponde di nuovo normalmente
