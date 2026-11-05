@@ -41,7 +41,7 @@ la vista legge solo l'oggetto `RoserpinaConfig` già in memoria. Nessun lock, ne
 | E2E fra processi (`tests/crossrepo`, core reale in SIM, credenziali reali salvate nel DB) | 13/13, su 3 esecuzioni; nessun segreto nella risposta, DB/bus/stato/saldo invariati |
 | Suite MCP | 1720 passed, 14 skipped; un fallimento sotto carico di `test_journal_kill` (stress SIGKILL, non toccato) rieseguito 4/4 PASS con e senza la modifica |
 | Mutanti critici MCP, serie K (`get_config`) | 8/8 KILLED |
-| Regressione completa del core | in corso al momento della consegna; esito nel commento su #37 |
+| Regressione completa del core (`pytest -n 4 tests`) | 11961 passed, 0 failed, 16 skipped, 56 xfailed |
 
 ## 4. Verifica e rollback
 
@@ -59,3 +59,9 @@ Rollback: `git apply -R core_bridge_mcp01j.patch` riporta esattamente a MCP-01h 
 delle chiavi GUI/runtime/persistite, CAP-CFG-08, resta fuori); un campo nuovo del core (es. F-02 se
 aggiunge impostazioni SL/TP) compare solo per nome finché il contratto non lo aggiunge all'allowlist.
 La scrittura (`patch_config`) resta solo design e non è esposta.
+
+Limite del core che la vista non può superare: finché F-18 (NF-16) non è corretto, il loader sostituisce in
+silenzio alcuni valori persistiti illeggibili con il default (xfail esistenti in
+`tests/fullscope/config/test_l1_settings_roundtrip.py`, es. `roserpina.profit_epsilon='abc'` → 0.5). In quei
+casi `get_config` riporta fedelmente il valore **in memoria** (SET 0.5), non quello persistito: l'INVALID della
+vista copre solo ciò che è illeggibile nell'oggetto `RoserpinaConfig`.
