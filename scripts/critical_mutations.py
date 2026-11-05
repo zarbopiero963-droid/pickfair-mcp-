@@ -1222,12 +1222,6 @@ MUTANTS: tuple[Mutant, ...] = (
             (
                 'src/pickfair_control_api/server.py',
                 '        if not self._slots.acquire(blocking=False):',
-        "L01",
-        "esposizione residua senza il tavolo che porta la posizione accettata",
-        (
-            (
-                MO,
-                '        if (self.residual_exposure is not None) != (self.residual_source == "TABLE"):',
                 '        if False:',
             ),
         ),
@@ -1239,6 +1233,44 @@ MUTANTS: tuple[Mutant, ...] = (
             (
                 'src/pickfair_control_api/server.py',
                 '        self._deadline.start()',
+                '        pass',
+            ),
+        ),
+    ),
+    Mutant(
+        "X05",
+        "errore di protocollo con il testo ricevuto",
+        (
+            (
+                'src/pickfair_control_api/server.py',
+                '        status, error = _PROTOCOL_ERRORS.get(code, (400, "BAD_REQUEST"))\n        try:\n            self._error(status, error)\n        except OSError:\n            self.close_connection = True',
+                '        super().send_error(code, message, explain)',
+            ),
+        ),
+    ),
+    Mutant(
+        "X06",
+        "traceback per richiesta su stderr",
+        (
+            (
+                'src/pickfair_control_api/server.py',
+                '        logger.debug("control_api: connessione chiusa con errore")',
+                '        super().handle_error(request, client_address)',
+            ),
+        ),
+    ),
+    Mutant(
+        "L01",
+        "esposizione residua senza il tavolo che porta la posizione accettata",
+        (
+            (
+                MO,
+                '        if (self.residual_exposure is not None) != (self.residual_source == "TABLE"):',
+                '        if False:',
+            ),
+        ),
+    ),
+    Mutant(
         "L02",
         "chiusura non NOT_EXECUTED dichiarata ritentabile accettata",
         (
@@ -1272,13 +1304,6 @@ MUTANTS: tuple[Mutant, ...] = (
         ),
     ),
     Mutant(
-        "X05",
-        "errore di protocollo con il testo ricevuto",
-        (
-            (
-                'src/pickfair_control_api/server.py',
-                '        status, error = _PROTOCOL_ERRORS.get(code, (400, "BAD_REQUEST"))\n        try:\n            self._error(status, error)\n        except OSError:\n            self.close_connection = True',
-                '        super().send_error(code, message, explain)',
         "L05",
         "contatori della posizione oltre gli ordini letti accettati",
         (
@@ -1290,13 +1315,6 @@ MUTANTS: tuple[Mutant, ...] = (
         ),
     ),
     Mutant(
-        "X06",
-        "traceback per richiesta su stderr",
-        (
-            (
-                'src/pickfair_control_api/server.py',
-                '        logger.debug("control_api: connessione chiusa con errore")',
-                '        super().handle_error(request, client_address)',
         "L06",
         "elenco delle chiusure OK con omissioni accettato",
         (
