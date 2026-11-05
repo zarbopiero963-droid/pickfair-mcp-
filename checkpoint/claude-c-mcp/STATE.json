@@ -1,11 +1,11 @@
 {
  "schema": "pf-checkpoint/3",
  "repository": "zarbopiero963-droid/pickfair-mcp-",
- "seq": 7,
+ "seq": 8,
  "agent": "claude-c",
  "agent_identity": "Claude C — MCP + Control API (sessione session_013X2mCaF4fE5YMWGVrM8LtR)",
- "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A)",
- "previous_checkpoint_sha": "359b1b5a4e6c72c6ee54e1b5df4485d11df49144",
+ "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02",
+ "previous_checkpoint_sha": "a7a11ac34c3888c85702e00d8d5bfd0770d510c0",
  "code": {
   "branch": "ccr-edf04c7d-e7vtj1-mcp-load-flake",
   "sha": "4174561d73f329477f1638da58f66d336fdfd24c",
@@ -44,7 +44,7 @@
   "MCP-01n (dopo claude/d-market-book-age su main)",
   "MCP-LOAD-FLAKE (solo test, sopra 01n)"
  ],
- "lotto_corrente": "12 handoff del core recuperabili (pubblicati e verificati); DURABLE in attesa della prova senza artefatto nello strumento",
+ "lotto_corrente": "handoff DURABLE; sviluppo MCP: matrice d'integrazione (fcde366), patch 13 f16-compat DELIVERED, token Windows (0251937), campagna G8 sullo SHA completo in corso",
  "lotti_completati": [
   "MCP-01j get_config (305b843)",
   "MCP-01k compatibilità P0/F-16 (4cd3e75)",
@@ -59,9 +59,10 @@
   "handoff 01i riallineato alla r2 sui branch 01m/01n (5ec7961)",
   "consegna cross-repo opzione A: bundle + 12 patch canoniche, digest riproducibili da clone nuovo 12/12 (f1b4b64)",
   "MCP-LOAD-FLAKE chiuso: rotazioni al passo dei lettori, RED 3/3 -> GREEN 3/3 (4174561)",
-  "handoff del core pubblicato da B (handoff/claude-c/mcp-core-20261105 @ f22d6bfb) e verificato da C 12/12"
+  "handoff del core pubblicato da B (handoff/claude-c/mcp-core-20261105 @ f22d6bfb) e verificato da C 12/12",
+  "12 handoff del core DURABLE provati dallo strumento (seq 8)"
  ],
- "next_atomic_action": "quando pfckpt accetta la prova DURABLE senza artefatto: nuovo seq con status DURABLE; intanto sviluppo MCP read-only senza nuove route",
+ "next_atomic_action": "registrare l'esito della campagna G8 su 0251937; patch 13 f16-compat: DURABLE solo quando B la pubblica e la prova regge",
  "dependencies": {
   "F-04 su main": "MCP-01i r2",
   "F-03 su main (con F-02, F-04)": "MCP-01m",
@@ -71,7 +72,7 @@
   "hardening pfckpt.py (Claude B)": "protezione squash merge / branch cancellati per questa catena",
   "claude/d-market-book-age su main": "MCP-01n",
   "hardening pfckpt.py cross-repo (Claude B)": "prova INTEGRATED_VERIFIED degli handoff del core nella catena C",
-  "prova DURABLE senza artefatto in pfckpt (Claude B)": "stato DURABLE registrato dallo strumento per i 12 handoff"
+  "integrazione su main tramite PR e gate (Claude B)": "INTEGRATED_VERIFIED dei 12 handoff"
  },
  "blocks": [],
  "open_defects": [
@@ -204,8 +205,8 @@
   "artifact": "results/evidence-ckpt-restore-seq2.txt",
   "limite": "i code.sha restano raggiungibili finché esistono i branch ccr-edf04c7d-e7vtj1-* (mai mergiati: consegna via patch); protezione contro cancellazione/squash dipende dall'hardening di pfckpt.py coordinato con Claude B"
  },
- "core_handoffs_verdict": "Sorgenti RECUPERABILI: pubblicate da Claude B su Pickfair-nogui handoff/claude-c/mcp-core-20261105 @ f22d6bfb (SHA identici, dai ref del bundle). Verifica indipendente di C nel repo destinatario (clone da GitHub): 12/12 commit antenati del branch, 12/12 digest canonici ricalcolati, 12/12 tree uguali al manifest (results/evidence-handoff-durable-verify.txt). Stato registrato DELIVERED: lo strumento (cf432c58) prova DURABLE solo con la patch inclusa nel checkpoint, vietato dalla regola owner (niente codice del motore nel repo MCP); proposta a B la prova senza artefatto (digest ricalcolato nel target). Nessuna integrazione su main: mai INTEGRATED_VERIFIED senza PR e gate.",
- "checkpoint_tool": "pfckpt.py di Pickfair-nogui pfckpt-squash-durable @ cf432c58 (multi-repo, non ancora su main)",
+ "core_handoffs_verdict": "DURABLE 12/12, provato dallo strumento (pfckpt-squash-durable @ de40d0cd): digest canonico ricalcolato nel target == patch_sha256, tree(handoff_sha) == handoff_tree, base e handoff raggiungibili da handoff/claude-c/mcp-core-20261105 (Pickfair-nogui). Nessun artefatto: niente codice del motore nel repo MCP. Prova negativa di C su check_handoff: 5/5 alterazioni rifiutate (results/evidence-durable-proof.txt). Nessuna integrazione su main: INTEGRATED_VERIFIED solo dopo PR e gate.",
+ "checkpoint_tool": "pfckpt.py di Pickfair-nogui pfckpt-squash-durable @ de40d0cde4a07a3e7cd07e0c563837b6f5465f85 (non ancora su main)",
  "handoffs": [
   {
    "checkpoint_repo": "zarbopiero963-droid/pickfair-mcp-",
@@ -216,7 +217,7 @@
    "patch_sha256": "96d54331feab9d47eaefa3db3f16ccab6253f35f93e6fd31ed9d8e84864d1d7f",
    "target_repo": "zarbopiero963-droid/Pickfair-nogui",
    "handoff_ref": "pickfair-mcp- #37 c.6663115366; Pickfair-nogui #586; PF-AGENT-BRIDGE pfab-b-20261105-handoff-durable-001",
-   "status": "DELIVERED",
+   "status": "DURABLE",
    "base_sha": "ada40765e7949b8deb7661b3b5e9ddc8484adba3",
    "handoff_branch": "handoff/claude-c/mcp-core-20261105",
    "handoff_sha": "ae17bb8e03498d3941831de98291a252332a3483",
@@ -231,7 +232,7 @@
    "patch_sha256": "7e241cc4eeda36ef09fd169135164b404aeef547a02270e9021c31f46e83d266",
    "target_repo": "zarbopiero963-droid/Pickfair-nogui",
    "handoff_ref": "pickfair-mcp- #37 c.6663115366; Pickfair-nogui #586; PF-AGENT-BRIDGE pfab-b-20261105-handoff-durable-001",
-   "status": "DELIVERED",
+   "status": "DURABLE",
    "base_sha": "ae17bb8e03498d3941831de98291a252332a3483",
    "handoff_branch": "handoff/claude-c/mcp-core-20261105",
    "handoff_sha": "b8b26434c37a03a9e5a165ebe9849ca995ab3a28",
@@ -246,7 +247,7 @@
    "patch_sha256": "1cadea449582c28801c918920d5320c1158297559d2422e54b8955fc20704afd",
    "target_repo": "zarbopiero963-droid/Pickfair-nogui",
    "handoff_ref": "pickfair-mcp- #37 c.6663115366; Pickfair-nogui #586; PF-AGENT-BRIDGE pfab-b-20261105-handoff-durable-001",
-   "status": "DELIVERED",
+   "status": "DURABLE",
    "base_sha": "b8b26434c37a03a9e5a165ebe9849ca995ab3a28",
    "handoff_branch": "handoff/claude-c/mcp-core-20261105",
    "handoff_sha": "211374dca220bd6d8b5a2d43f17fa97a9874f234",
@@ -261,7 +262,7 @@
    "patch_sha256": "f32f89fad534e44535b10ce9f66e956383e76bdda30d4ae828419874cd3999fd",
    "target_repo": "zarbopiero963-droid/Pickfair-nogui",
    "handoff_ref": "pickfair-mcp- #37 c.6663115366; Pickfair-nogui #586; PF-AGENT-BRIDGE pfab-b-20261105-handoff-durable-001",
-   "status": "DELIVERED",
+   "status": "DURABLE",
    "base_sha": "211374dca220bd6d8b5a2d43f17fa97a9874f234",
    "handoff_branch": "handoff/claude-c/mcp-core-20261105",
    "handoff_sha": "1bcfd7e1f597ffba893969e5459bdf5ec4700f7e",
@@ -276,7 +277,7 @@
    "patch_sha256": "3bbce12ebc4dd3d27a6d1dae576edbd5aa7f6bdaedb3f00683a6ed3dec94a808",
    "target_repo": "zarbopiero963-droid/Pickfair-nogui",
    "handoff_ref": "pickfair-mcp- #37 c.6663115366; Pickfair-nogui #586; PF-AGENT-BRIDGE pfab-b-20261105-handoff-durable-001",
-   "status": "DELIVERED",
+   "status": "DURABLE",
    "base_sha": "1bcfd7e1f597ffba893969e5459bdf5ec4700f7e",
    "handoff_branch": "handoff/claude-c/mcp-core-20261105",
    "handoff_sha": "0a894c4d4b43f21862e7346c4ebccb32d6631e12",
@@ -291,7 +292,7 @@
    "patch_sha256": "f7662028db3b300df7923222b492d2298239ca37e5dee2b4040d71b4a99713c3",
    "target_repo": "zarbopiero963-droid/Pickfair-nogui",
    "handoff_ref": "pickfair-mcp- #37 c.6663115366; Pickfair-nogui #586; PF-AGENT-BRIDGE pfab-b-20261105-handoff-durable-001",
-   "status": "DELIVERED",
+   "status": "DURABLE",
    "base_sha": "0a894c4d4b43f21862e7346c4ebccb32d6631e12",
    "handoff_branch": "handoff/claude-c/mcp-core-20261105",
    "handoff_sha": "05372f4e4939181a0b446d22a0482855f5aaaa4c",
@@ -306,7 +307,7 @@
    "patch_sha256": "4d05830a118898d652e104b6a3b55b4461b4f1c40387a1b27104040eeec9e54f",
    "target_repo": "zarbopiero963-droid/Pickfair-nogui",
    "handoff_ref": "pickfair-mcp- #37 c.6663115366; Pickfair-nogui #586; PF-AGENT-BRIDGE pfab-b-20261105-handoff-durable-001",
-   "status": "DELIVERED",
+   "status": "DURABLE",
    "base_sha": "05372f4e4939181a0b446d22a0482855f5aaaa4c",
    "handoff_branch": "handoff/claude-c/mcp-core-20261105",
    "handoff_sha": "190789d5a5e55ad32a6c11ff2a4f4c350669943b",
@@ -321,7 +322,7 @@
    "patch_sha256": "f34cde8cedd038dca39d41edbf1fd89cfa2690a7cea482bc222decd0f5f531aa",
    "target_repo": "zarbopiero963-droid/Pickfair-nogui",
    "handoff_ref": "pickfair-mcp- #37 c.6663115366; Pickfair-nogui #586; PF-AGENT-BRIDGE pfab-b-20261105-handoff-durable-001",
-   "status": "DELIVERED",
+   "status": "DURABLE",
    "base_sha": "190789d5a5e55ad32a6c11ff2a4f4c350669943b",
    "handoff_branch": "handoff/claude-c/mcp-core-20261105",
    "handoff_sha": "210ac9ad954db94a5c3636a1a0903eef6a6d1a63",
@@ -336,7 +337,7 @@
    "patch_sha256": "7f6286d967555a10c337266b3ef01291ce8a0372580e71bda66b4c3bb5356d92",
    "target_repo": "zarbopiero963-droid/Pickfair-nogui",
    "handoff_ref": "pickfair-mcp- #37 c.6663115366; Pickfair-nogui #586; PF-AGENT-BRIDGE pfab-b-20261105-handoff-durable-001",
-   "status": "DELIVERED",
+   "status": "DURABLE",
    "base_sha": "210ac9ad954db94a5c3636a1a0903eef6a6d1a63",
    "handoff_branch": "handoff/claude-c/mcp-core-20261105",
    "handoff_sha": "4525b28cbb057319d11db6d5b449b2c0205b47d9",
@@ -351,7 +352,7 @@
    "patch_sha256": "ab38b7d5bc6d700cd61d19bcf59f976f426e89e549562b20a7012b2080df134f",
    "target_repo": "zarbopiero963-droid/Pickfair-nogui",
    "handoff_ref": "pickfair-mcp- #37 c.6663115366; Pickfair-nogui #586; PF-AGENT-BRIDGE pfab-b-20261105-handoff-durable-001",
-   "status": "DELIVERED",
+   "status": "DURABLE",
    "base_sha": "772ab58152b9bde7ce4a6ca88a4face72bd25b0c",
    "handoff_branch": "handoff/claude-c/mcp-core-20261105",
    "handoff_sha": "044af41d78d78053b9ab1249b22cc6ff29a5c52c",
@@ -366,7 +367,7 @@
    "patch_sha256": "9d2de2d9574beef2637a97d2bb659908cfa6813c1595931dd4df55092e6e7532",
    "target_repo": "zarbopiero963-droid/Pickfair-nogui",
    "handoff_ref": "pickfair-mcp- #37 c.6663115366; Pickfair-nogui #586; PF-AGENT-BRIDGE pfab-b-20261105-handoff-durable-001",
-   "status": "DELIVERED",
+   "status": "DURABLE",
    "base_sha": "a0a6013738aaee7b4c281e524eb014c02246dded",
    "handoff_branch": "handoff/claude-c/mcp-core-20261105",
    "handoff_sha": "0dca9d58a28b8a4e9b85449928906a6b08f35f1b",
@@ -381,11 +382,21 @@
    "patch_sha256": "c2029073346920532cd054bf74b4e27f48fe1386cf9e7ae366502fbfd0ed9a53",
    "target_repo": "zarbopiero963-droid/Pickfair-nogui",
    "handoff_ref": "pickfair-mcp- #37 c.6663115366; Pickfair-nogui #586; PF-AGENT-BRIDGE pfab-b-20261105-handoff-durable-001",
-   "status": "DELIVERED",
+   "status": "DURABLE",
    "base_sha": "2ea5187a9fad9a1b9cacfa310269bda45f89b3ba",
    "handoff_branch": "handoff/claude-c/mcp-core-20261105",
    "handoff_sha": "f22d6bfb521c742cbf08bbfc9895dd635b885e09",
    "handoff_tree": "dd759ec1f3e42f41341b948b3d27e47b54586118"
+  }
+ ],
+ "handoffs_extra_delivered": [
+  {
+   "id": "f16-compat",
+   "source_sha": "ddc8a4f42e7b35751e057c5bd70f2bde5a70d3de",
+   "base_sha": "f22d6bfb521c742cbf08bbfc9895dd635b885e09",
+   "tree": "cd917d8f4667496410f1e6c43ff367cff3100a60",
+   "patch_sha256": "be5c095b802687ee981c57139c8b4bacf10c642adb08f5b7b19b5f6a61105cf7",
+   "stato": "DELIVERED (bundle all'owner, id 50a7896c-bc4a-4471-9812-97ca01dbc252); non ancora pubblicato: non dichiarato recuperabile"
   }
  ]
 }

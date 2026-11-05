@@ -8,7 +8,7 @@
   "hardening pfckpt.py (Claude B)": "protezione squash merge / branch cancellati per questa catena",
   "hardening pfckpt.py cross-repo (Claude B)": "prova INTEGRATED_VERIFIED degli handoff del core nella catena C",
   "integrazione patch (Claude B)": "MCP-01d...SEC-01",
-  "prova DURABLE senza artefatto in pfckpt (Claude B)": "stato DURABLE registrato dallo strumento per i 12 handoff",
+  "integrazione su main tramite PR e gate (Claude B)": "INTEGRATED_VERIFIED dei 12 handoff",
   "ratifica owner K3": "RC-10/11/12"
  },
  "gate_a": "N/A (repository MCP)",
@@ -26,11 +26,12 @@
   "handoff 01i riallineato alla r2 sui branch 01m/01n (5ec7961)",
   "consegna cross-repo opzione A: bundle + 12 patch canoniche, digest riproducibili da clone nuovo 12/12 (f1b4b64)",
   "MCP-LOAD-FLAKE chiuso: rotazioni al passo dei lettori, RED 3/3 -> GREEN 3/3 (4174561)",
-  "handoff del core pubblicato da B (handoff/claude-c/mcp-core-20261105 @ f22d6bfb) e verificato da C 12/12"
+  "handoff del core pubblicato da B (handoff/claude-c/mcp-core-20261105 @ f22d6bfb) e verificato da C 12/12",
+  "12 handoff del core DURABLE provati dallo strumento (seq 8)"
  ],
- "lotto_corrente": "12 handoff del core recuperabili (pubblicati e verificati); DURABLE in attesa della prova senza artefatto nello strumento",
- "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A)",
- "next_atomic_action": "quando pfckpt accetta la prova DURABLE senza artefatto: nuovo seq con status DURABLE; intanto sviluppo MCP read-only senza nuove route",
+ "lotto_corrente": "handoff DURABLE; sviluppo MCP: matrice d'integrazione (fcde366), patch 13 f16-compat DELIVERED, token Windows (0251937), campagna G8 sullo SHA completo in corso",
+ "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02",
+ "next_atomic_action": "registrare l'esito della campagna G8 su 0251937; patch 13 f16-compat: DURABLE solo quando B la pubblica e la prova regge",
  "pr_505": "N/A (repository MCP)",
  "schema": "pf-task-state/1",
  "tests_missing": []

@@ -1,0 +1,7 @@
+Prova DURABLE senza artefatto (pfckpt @ de40d0cd, da GitHub), check_handoff sui 12 record reali, target = clone GitHub di Pickfair-nogui:
+intatti: 12/12 provati
+digest alterato: rifiutato
+base fuori dal branch: rifiutato
+tree alterato: rifiutato
+artefatto dichiarato assente: rifiutato (nessun ripiego sul digest)
+handoff_sha fuori dal branch: rifiutato

@@ -5,9 +5,9 @@
   "branch": "ccr-edf04c7d-e7vtj1-mcp-load-flake",
   "sha": "4174561d73f329477f1638da58f66d336fdfd24c"
  },
- "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A)",
- "next_atomic_action": "quando pfckpt accetta la prova DURABLE senza artefatto: nuovo seq con status DURABLE; intanto sviluppo MCP read-only senza nuove route",
- "previous_checkpoint_sha": "359b1b5a4e6c72c6ee54e1b5df4485d11df49144",
+ "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02",
+ "next_atomic_action": "registrare l'esito della campagna G8 su 0251937; patch 13 f16-compat: DURABLE solo quando B la pubblica e la prova regge",
+ "previous_checkpoint_sha": "a7a11ac34c3888c85702e00d8d5bfd0770d510c0",
  "schema": "pf-current/1",
- "seq": 7
+ "seq": 8
 }
