@@ -98,30 +98,39 @@ def test_concurrent_rotation_with_a_failed_write_never_revives_the_old_token(
 # ------------------------------------------------------------------ 3. connessioni senza token
 
 
+def _closed(s: socket.socket, wait: float) -> bool:
+    """True se il server ha chiuso la connessione entro `wait` secondi."""
+    s.settimeout(wait)
+    try:
+        return s.recv(1) == b""
+    except socket.timeout:
+        return False
+    except OSError:
+        return True
+
+
 def test_idle_connections_are_bounded_and_expire(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(server_mod, "MAX_CONNECTIONS", 8)
-    monkeypatch.setattr(server_mod, "REQUEST_DEADLINE_S", 1.0)
+    monkeypatch.setattr(server_mod, "REQUEST_DEADLINE_S", 1.5)
+    monkeypatch.setattr(server_mod, "REQUEST_TIMEOUT_S", 30.0)  # solo la scadenza può chiudere le servite
     with control_api(tmp_path) as (server, _s, token_path, providers):
-        threads_before = threading.active_count()
         socks = []
         for _ in range(30):  # slowloris: connessione aperta, mai una richiesta completa
             s = connect(server.port)
             s.sendall(b"GET /v1/status HTTP/1.1\r\n")
             socks.append(s)
-        time.sleep(0.3)
-        # thread limitati: per ogni connessione servita il thread del gestore e il timer della scadenza
-        assert threading.active_count() - threads_before <= 2 * 8 + 2
         started = time.monotonic()
-        closed = 0
+        time.sleep(0.4)
+        early = [s for s in socks if _closed(s, 0.05)]
+        held = [s for s in socks if s not in early]
+        # oltre il tetto: chiuse subito, senza thread; al più MAX_CONNECTIONS restano servite
+        assert len(held) == 8 and len(early) == 22
+        assert providers.calls == 0
+        # le servite chiudono per la scadenza complessiva (1,5 s), non per il timeout per ricezione (30 s)
+        assert all(_closed(s, max(0.1, 1.5 + 1.0 - (time.monotonic() - started))) for s in held)
+        assert time.monotonic() - started < 3.5
         for s in socks:
-            s.settimeout(5)
-            try:
-                if s.recv(1) == b"":
-                    closed += 1
-            except OSError:
-                closed += 1
             s.close()
-        assert closed == 30 and time.monotonic() - started < 4.0  # nessuna connessione oltre la scadenza
         # dopo la scadenza il servizio risponde di nuovo normalmente
         assert request(server.port, "GET", "/v1/status", token=token_path.read_text())[0] == 200
 
