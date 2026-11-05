@@ -1,11 +1,5 @@
 {
- "blocks": [
-  {
-   "descrizione": "sorgenti delle 12 patch del core consegnate come git bundle (stessi SHA) e patch canoniche; DURABLE solo dopo la pubblicazione del branch di handoff da parte di Claude B (opzione A). Fino ad allora NEEDS_RECONCILIATION",
-   "id": "CORE-HANDOFF-SOURCES-UNPUBLISHED",
-   "stato": "NEEDS_RECONCILIATION"
-  }
- ],
+ "blocks": [],
  "dependencies": {
   "F-03 su main (con F-02, F-04)": "MCP-01m",
   "F-04 su main": "MCP-01i r2",
@@ -14,7 +8,7 @@
   "hardening pfckpt.py (Claude B)": "protezione squash merge / branch cancellati per questa catena",
   "hardening pfckpt.py cross-repo (Claude B)": "prova INTEGRATED_VERIFIED degli handoff del core nella catena C",
   "integrazione patch (Claude B)": "MCP-01d...SEC-01",
-  "pubblicazione branch di handoff (Claude B, opzione A)": "DURABLE degli handoff del core",
+  "prova DURABLE senza artefatto in pfckpt (Claude B)": "stato DURABLE registrato dallo strumento per i 12 handoff",
   "ratifica owner K3": "RC-10/11/12"
  },
  "gate_a": "N/A (repository MCP)",
@@ -31,11 +25,12 @@
   "MCP-01n et\u00e0 del book, contratto 1.12.0 (bfcd39c, evidenze 2494e3e)",
   "handoff 01i riallineato alla r2 sui branch 01m/01n (5ec7961)",
   "consegna cross-repo opzione A: bundle + 12 patch canoniche, digest riproducibili da clone nuovo 12/12 (f1b4b64)",
-  "MCP-LOAD-FLAKE chiuso: rotazioni al passo dei lettori, RED 3/3 -> GREEN 3/3 (4174561)"
+  "MCP-LOAD-FLAKE chiuso: rotazioni al passo dei lettori, RED 3/3 -> GREEN 3/3 (4174561)",
+  "handoff del core pubblicato da B (handoff/claude-c/mcp-core-20261105 @ f22d6bfb) e verificato da C 12/12"
  ],
- "lotto_corrente": "consegna cross-repo DELIVERED (attesa branch di handoff di B); MCP-LOAD-FLAKE chiuso",
+ "lotto_corrente": "12 handoff del core recuperabili (pubblicati e verificati); DURABLE in attesa della prova senza artefatto nello strumento",
  "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A)",
- "next_atomic_action": "quando B pubblica handoff/claude-c/*: verificare SHA/tree nel repo destinatario e spostare i record in `handoffs` (DURABLE); intanto letture read-only restanti senza nuove route",
+ "next_atomic_action": "quando pfckpt accetta la prova DURABLE senza artefatto: nuovo seq con status DURABLE; intanto sviluppo MCP read-only senza nuove route",
  "pr_505": "N/A (repository MCP)",
  "schema": "pf-task-state/1",
  "tests_missing": []
