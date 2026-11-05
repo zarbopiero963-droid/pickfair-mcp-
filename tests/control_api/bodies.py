@@ -265,6 +265,8 @@ def exposure(**overrides: Any) -> dict[str, Any]:
         "total_exposure": 40.0,
         "recovery": {"active_count": 0, "max_recovery_tables": 0, "allow_recovery": False},
         "unavailable": [],
+        "sl_tp_closes": {"state": "OK", "reason": None, "closes": [], "omitted": 0,
+                         "truncated": False},
     }
     body.update(overrides)
     return body
@@ -377,3 +379,33 @@ def config(**overrides: Any) -> dict[str, Any]:
     }
     body.update(overrides)
     return body
+
+
+def sl_tp_close(**overrides: Any) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "table_id": 1,
+        "market_id": "1.200000001",
+        "selection_id": "47972",
+        "side": "BACK",
+        "trigger": "STOP_LOSS",
+        "close_state": "ROUTED",
+        "retryable": False,
+        "detail": None,
+        "recorded_at": 1_700_000_100.0,
+        "bet_ids": ["1000000000001"],
+        "position": {"orders": 1, "partially_matched": 0, "in_reconciliation": 1, "ambiguous": 0,
+                     "unreadable": 0},
+        "residual_exposure": "40",
+        "residual_source": "TABLE",
+        "selection_hedges": {"scope": "SELECTION", "pending": 1, "placed": 0, "unmatched": 0,
+                             "ambiguous": 0, "failed": 0},
+    }
+    data.update(overrides)
+    return data
+
+
+def sl_tp_closes(*closes: dict[str, Any], **overrides: Any) -> dict[str, Any]:
+    data: dict[str, Any] = {"state": "OK", "reason": None, "closes": list(closes), "omitted": 0,
+                            "truncated": False}
+    data.update(overrides)
+    return data

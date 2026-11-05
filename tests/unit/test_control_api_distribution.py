@@ -39,7 +39,7 @@ def test_wheel_is_byte_for_byte_reproducible(tmp_path: Path) -> None:
     a = builder.build_wheel(tmp_path / "a")
     b = builder.build_wheel(tmp_path / "b")
     assert a.read_bytes() == b.read_bytes()
-    assert a.name == "pickfair_control_api-1.7.0-py3-none-any.whl"
+    assert a.name == "pickfair_control_api-1.8.0-py3-none-any.whl"
 
 
 def test_wheel_contains_only_the_package_and_valid_record(tmp_path: Path) -> None:
@@ -47,11 +47,11 @@ def test_wheel_contains_only_the_package_and_valid_record(tmp_path: Path) -> Non
     with zipfile.ZipFile(wheel) as zf:
         names = zf.namelist()
         assert all(
-            n.startswith(("pickfair_control_api/", "pickfair_control_api-1.7.0.dist-info/"))
+            n.startswith(("pickfair_control_api/", "pickfair_control_api-1.8.0.dist-info/"))
             for n in names
         )
         assert not any("pickfair_mcp" in n or n.endswith(".pyc") for n in names)
-        record = zf.read("pickfair_control_api-1.7.0.dist-info/RECORD").decode().splitlines()
+        record = zf.read("pickfair_control_api-1.8.0.dist-info/RECORD").decode().splitlines()
         for row in record:
             name, digest, size = row.split(",")
             if name.endswith("RECORD"):
@@ -59,15 +59,15 @@ def test_wheel_contains_only_the_package_and_valid_record(tmp_path: Path) -> Non
             data = zf.read(name)
             expected = base64.urlsafe_b64encode(hashlib.sha256(data).digest()).rstrip(b"=").decode()
             assert digest == f"sha256={expected}" and int(size) == len(data)
-        metadata = zf.read("pickfair_control_api-1.7.0.dist-info/METADATA").decode()
+        metadata = zf.read("pickfair_control_api-1.8.0.dist-info/METADATA").decode()
     assert "Requires-Dist" not in metadata  # solo libreria standard: nulla da risolvere
-    assert "Version: 1.7.0" in metadata
+    assert "Version: 1.8.0" in metadata
 
 
 def test_contract_version_and_package_version_are_pinned_together() -> None:
     import pickfair_control_api
 
-    assert pickfair_control_api.__version__ == pickfair_control_api.CONTRACT_VERSION == "1.7.0"
+    assert pickfair_control_api.__version__ == pickfair_control_api.CONTRACT_VERSION == "1.8.0"
 
 
 def _pip(*args: str) -> subprocess.CompletedProcess[str]:

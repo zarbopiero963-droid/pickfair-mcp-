@@ -380,3 +380,24 @@ regola è applicata dal MCP (`UNCONFIRMED_ORDER_STATUSES`) e dal ponte del core 
 `protections.funds_freshness.limit`: il ponte non ricalcola la soglia del core. Con F-16 (soglia owner 30 s)
 il limite è `null` finché il core non espone un accessore unico; sul `main` attuale resta 120 s.
 
+## MCP-01i — stato della chiusura SL/TP (contratto 1.8.0, dipende da F-04)
+
+Estensione di una route già approvata (`GET /v1/exposure` · `get_exposure`), nessuna route nuova. La sezione
+`sl_tp_closes` è sempre presente:
+
+- `OK`/`PARTIAL` (record illeggibili contati in `omitted`, elenco oltre 64 `truncated`) con `closes`;
+- `UNAVAILABLE` `CORE_PENDING_F04` (core senza F-04) o `DB_UNREADABLE`; `UNKNOWN` `DB_BUSY`.
+
+Ogni chiusura riporta solo dati **persistiti** dal core (record F-04 `risk.sl_tp_close.<customer_ref>`, ordini
+della posizione, righe d'hedge del ledger, una transazione di sola lettura): tavolo, mercato, selezione, lato,
+`trigger` (STOP_LOSS/TAKE_PROFIT/UNKNOWN), `close_state` (CLAIMED/ROUTED/NOT_EXECUTED/UNCERTAIN/UNKNOWN),
+`retryable` (dal core: solo NOT_EXECUTED, e solo con un nuovo scatto), `detail` (codice), `recorded_at`,
+`bet_ids` della posizione, `position` (ordini, parzialmente abbinati, in riconciliazione, ambigui, illeggibili:
+stessa mappa di `list_orders`), `residual_exposure` solo se il tavolo porta ancora la posizione
+(`residual_source` TABLE / TABLE_RELEASED / UNAVAILABLE), `selection_hedges` con `scope = SELECTION`.
+
+Limiti dichiarati: il core non lega l'hedge al tavolo, quindi gli hedge sono contati per selezione e possono
+includere quelli di altri tavoli sulla stessa selezione; le chiusure respinte prima della rivendicazione
+(es. `ORDER_STATE_UNCERTAIN`) non sono persistite dal core e non compaiono; il `customer_ref` non esce mai.
+**Non integrabile finché F-04 non è su `main`.**
+

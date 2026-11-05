@@ -787,6 +787,97 @@ class RecoveryCapacity(StrictModel):
 
 
 ExposureField = Literal["tables", "total_exposure", "recovery"]
+# ------------------------------------------------------------------ MCP-01i: chiusura SL/TP (F-04)
+
+CloseState = Literal["CLAIMED", "ROUTED", "NOT_EXECUTED", "UNCERTAIN", "UNKNOWN"]
+MAX_CLOSES = 64
+MAX_CLOSE_BETS = 32
+
+
+class ClosePosition(StrictModel):
+    """Ordini della posizione nel ledger, con la stessa mappa degli stati di `list_orders`."""
+
+    orders: Count
+    partially_matched: Count
+    in_reconciliation: Count
+    ambiguous: Count
+    unreadable: Count
+
+    @model_validator(mode="after")
+    def _bounded(self) -> ClosePosition:
+        if max(self.partially_matched, self.in_reconciliation, self.ambiguous) > self.orders:
+            raise ValueError("position counters exceed the orders read")
+        return self
+
+
+class SelectionHedges(StrictModel):
+    """Righe d'hedge del ledger sulla STESSA selezione: il core non lega l'hedge al tavolo, quindi
+    questo conteggio può includere hedge di altri tavoli sulla stessa selezione."""
+
+    scope: Literal["SELECTION"]
+    pending: Count
+    placed: Count
+    unmatched: Count
+    ambiguous: Count
+    failed: Count
+
+
+class SlTpClose(StrictModel):
+    """Chiusura SL/TP persistita da F-04 (`risk.sl_tp_close.<customer_ref>`; il riferimento non esce)."""
+
+    table_id: Annotated[int, Field(ge=1, le=10_000)]
+    market_id: Identifier
+    selection_id: Identifier
+    side: Literal["BACK", "LAY"]
+    trigger: Literal["STOP_LOSS", "TAKE_PROFIT", "UNKNOWN"]
+    close_state: CloseState
+    # Dal core (`REROUTABLE_STATES`): solo NOT_EXECUTED si ritenta, e solo con un nuovo scatto.
+    retryable: bool
+    detail: Code | None
+    recorded_at: EpochSeconds | None
+    bet_ids: Annotated[tuple[Identifier, ...], Field(max_length=MAX_CLOSE_BETS)]
+    position: ClosePosition
+    # Esposizione del tavolo se il tavolo porta ancora questa posizione; altrimenti null.
+    residual_exposure: NonNegativeDecimal | None
+    residual_source: Literal["TABLE", "TABLE_RELEASED", "UNAVAILABLE"]
+    selection_hedges: SelectionHedges
+
+    @model_validator(mode="after")
+    def _coherent(self) -> SlTpClose:
+        if (self.residual_exposure is not None) != (self.residual_source == "TABLE"):
+            raise ValueError("residual exposure only from the table that holds the position")
+        if self.retryable and self.close_state != "NOT_EXECUTED":
+            raise ValueError("only NOT_EXECUTED closes are retryable")
+        if self.close_state in ("ROUTED", "CLAIMED", "UNCERTAIN") and not self.bet_ids:
+            raise ValueError("a claimed close always has the position bet ids")
+        if len(set(self.bet_ids)) != len(self.bet_ids):
+            raise ValueError("duplicate bet ids")
+        return self
+
+
+class SlTpClosesRead(StrictModel):
+    state: Literal["OK", "PARTIAL"]
+    reason: Code | None
+    closes: Annotated[tuple[SlTpClose, ...], Field(max_length=MAX_CLOSES)]
+    omitted: Count
+    truncated: bool
+
+    @model_validator(mode="after")
+    def _coherent(self) -> SlTpClosesRead:
+        if self.state == "OK" and (self.reason or self.omitted or self.truncated):
+            raise ValueError("OK closes with omissions or a reason")
+        if self.state == "PARTIAL" and not (self.reason and (self.omitted or self.truncated)):
+            raise ValueError("PARTIAL closes must say what is missing")
+        return self
+
+
+class SlTpClosesMissing(StrictModel):
+    """UNAVAILABLE (core senza F-04: CORE_PENDING_F04, o DB non leggibile) o UNKNOWN (DB occupato)."""
+
+    state: Literal["UNKNOWN", "UNAVAILABLE"]
+    reason: Code
+
+
 EXPOSURE_OPTIONAL_FIELDS: tuple[str, ...] = ("tables", "total_exposure", "recovery")
 
 
@@ -809,6 +900,8 @@ class ExposureResponse(StrictModel):
         tuple[ExposureField, ...],
         Field(max_length=len(EXPOSURE_OPTIONAL_FIELDS), json_schema_extra={"uniqueItems": True}),
     ]
+    # MCP-01i: chiusure SL/TP persistite dal core (F-04), lette in una transazione di sola lettura.
+    sl_tp_closes: SlTpClosesRead | SlTpClosesMissing
 
     @model_validator(mode="after")
     def _declared(self) -> ExposureResponse:

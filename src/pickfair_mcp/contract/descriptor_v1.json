@@ -1,6 +1,6 @@
 {
   "contract_name": "pickfair-control-api",
-  "contract_version": "1.7.0",
+  "contract_version": "1.8.0",
   "error_codes": {
     "control_api": [
       "BAD_HOST",
@@ -292,6 +292,7 @@
     "protections": "Each protection is ACTIVE, INACTIVE, TRIGGERED, UNKNOWN or UNAVAILABLE; only ACTIVE has no reason. A protection that cannot be verified is UNKNOWN (core has it, value not readable) or UNAVAILABLE (core does not expose it yet), never ACTIVE or INACTIVE; the derived lists `disabled` and `unverifiable` must match the items.",
     "settlement": "Counts only (no payload, reference or event name): unrecorded settlements, held Dutching batches, settlement_effects by outcome, cycle checkpoints by stage, SIM broker settlements (null in LIVE).",
     "sl_tp": "Per Roserpina table, read from the table meta as the core writes it: NOT_ARMED (no SL/TP amount), ARMED, TRIGGERED (core marked the trigger) or UNKNOWN (unreadable). Trailing appears only as a configured percentage: the core has no trailing logic and the contract never reports it as active.",
+    "sl_tp_closes": "get_exposure.sl_tp_closes: closes persisted by the core's SL/TP close (F-04, settings `risk.sl_tp_close.*`), read in one read-only transaction with the position's orders and the ledger hedge rows: table, position, trigger, close state (CLAIMED/ROUTED/NOT_EXECUTED/UNCERTAIN, unreadable UNKNOWN), retryable as the core decides, detail code, residual exposure only from the table that still holds the position. Hedges are counted per SELECTION: the core does not link an hedge to its table. Closes rejected before the claim are not persisted by the core and never appear. Without F-04: UNAVAILABLE CORE_PENDING_F04.",
     "source": "Responses declare source=core; the simulated adapter declares source=simulated.",
     "transport": "HTTP/1.1 GET only on 127.0.0.1, Authorization Bearer token required, Host must be 127.0.0.1:<port>, no redirects, Content-Type application/json; charset=utf-8, body at most 65536 bytes.",
     "unavailable": "A field is null if and only if its name is listed in `unavailable`; a value the core does not hold is never replaced by a default."
@@ -1429,6 +1430,51 @@
       },
       "output_schema": {
         "$defs": {
+          "ClosePosition": {
+            "additionalProperties": false,
+            "description": "Ordini della posizione nel ledger, con la stessa mappa degli stati di `list_orders`.",
+            "properties": {
+              "ambiguous": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Ambiguous",
+                "type": "integer"
+              },
+              "in_reconciliation": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "In Reconciliation",
+                "type": "integer"
+              },
+              "orders": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Orders",
+                "type": "integer"
+              },
+              "partially_matched": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Partially Matched",
+                "type": "integer"
+              },
+              "unreadable": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Unreadable",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "orders",
+              "partially_matched",
+              "in_reconciliation",
+              "ambiguous",
+              "unreadable"
+            ],
+            "title": "ClosePosition",
+            "type": "object"
+          },
           "ErrorBody": {
             "additionalProperties": false,
             "properties": {
@@ -1531,6 +1577,17 @@
                   }
                 ]
               },
+              "sl_tp_closes": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/SlTpClosesRead"
+                  },
+                  {
+                    "$ref": "#/$defs/SlTpClosesMissing"
+                  }
+                ],
+                "title": "Sl Tp Closes"
+              },
               "source": {
                 "enum": [
                   "core",
@@ -1589,7 +1646,8 @@
               "tables",
               "total_exposure",
               "recovery",
-              "unavailable"
+              "unavailable",
+              "sl_tp_closes"
             ],
             "title": "ExposureResponse",
             "type": "object"
@@ -1729,6 +1787,57 @@
             "title": "RoserpinaTable",
             "type": "object"
           },
+          "SelectionHedges": {
+            "additionalProperties": false,
+            "description": "Righe d'hedge del ledger sulla STESSA selezione: il core non lega l'hedge al tavolo, quindi\nquesto conteggio pu\u00f2 includere hedge di altri tavoli sulla stessa selezione.",
+            "properties": {
+              "ambiguous": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Ambiguous",
+                "type": "integer"
+              },
+              "failed": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Failed",
+                "type": "integer"
+              },
+              "pending": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Pending",
+                "type": "integer"
+              },
+              "placed": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Placed",
+                "type": "integer"
+              },
+              "scope": {
+                "const": "SELECTION",
+                "title": "Scope",
+                "type": "string"
+              },
+              "unmatched": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Unmatched",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "scope",
+              "pending",
+              "placed",
+              "unmatched",
+              "ambiguous",
+              "failed"
+            ],
+            "title": "SelectionHedges",
+            "type": "object"
+          },
           "SlTp": {
             "additionalProperties": false,
             "description": "SL/TP del tavolo (MCP-01h, contratto 1.5.0), letto dal `meta` del tavolo del core.\n\nNOT_ARMED: nessun importo SL/TP sul tavolo (oggi sempre, sul `main` del core: nessun percorso\nli arma prima di F-02 di Claude D). ARMED: almeno un importo. TRIGGERED: il core ha segnato lo\nscatto (`sl_tp_triggered`). UNKNOWN: valori presenti ma illeggibili. Il trailing compare solo\ncome percentuale configurata: il core non ha logica di trailing, mai dichiarata attiva.",
@@ -1818,6 +1927,223 @@
               "trailing_stop_pct"
             ],
             "title": "SlTp",
+            "type": "object"
+          },
+          "SlTpClose": {
+            "additionalProperties": false,
+            "description": "Chiusura SL/TP persistita da F-04 (`risk.sl_tp_close.<customer_ref>`; il riferimento non esce).",
+            "properties": {
+              "bet_ids": {
+                "items": {
+                  "maxLength": 32,
+                  "pattern": "^[0-9A-Za-z._-]{1,32}$",
+                  "type": "string"
+                },
+                "maxItems": 32,
+                "title": "Bet Ids",
+                "type": "array"
+              },
+              "close_state": {
+                "enum": [
+                  "CLAIMED",
+                  "ROUTED",
+                  "NOT_EXECUTED",
+                  "UNCERTAIN",
+                  "UNKNOWN"
+                ],
+                "title": "Close State",
+                "type": "string"
+              },
+              "detail": {
+                "anyOf": [
+                  {
+                    "maxLength": 64,
+                    "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Detail"
+              },
+              "market_id": {
+                "maxLength": 32,
+                "pattern": "^[0-9A-Za-z._-]{1,32}$",
+                "title": "Market Id",
+                "type": "string"
+              },
+              "position": {
+                "$ref": "#/$defs/ClosePosition"
+              },
+              "recorded_at": {
+                "anyOf": [
+                  {
+                    "exclusiveMaximum": 100000000000.0,
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Recorded At"
+              },
+              "residual_exposure": {
+                "anyOf": [
+                  {
+                    "maxLength": 48,
+                    "pattern": "^(?:[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?)$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Residual Exposure"
+              },
+              "residual_source": {
+                "enum": [
+                  "TABLE",
+                  "TABLE_RELEASED",
+                  "UNAVAILABLE"
+                ],
+                "title": "Residual Source",
+                "type": "string"
+              },
+              "retryable": {
+                "title": "Retryable",
+                "type": "boolean"
+              },
+              "selection_hedges": {
+                "$ref": "#/$defs/SelectionHedges"
+              },
+              "selection_id": {
+                "maxLength": 32,
+                "pattern": "^[0-9A-Za-z._-]{1,32}$",
+                "title": "Selection Id",
+                "type": "string"
+              },
+              "side": {
+                "enum": [
+                  "BACK",
+                  "LAY"
+                ],
+                "title": "Side",
+                "type": "string"
+              },
+              "table_id": {
+                "maximum": 10000,
+                "minimum": 1,
+                "title": "Table Id",
+                "type": "integer"
+              },
+              "trigger": {
+                "enum": [
+                  "STOP_LOSS",
+                  "TAKE_PROFIT",
+                  "UNKNOWN"
+                ],
+                "title": "Trigger",
+                "type": "string"
+              }
+            },
+            "required": [
+              "table_id",
+              "market_id",
+              "selection_id",
+              "side",
+              "trigger",
+              "close_state",
+              "retryable",
+              "detail",
+              "recorded_at",
+              "bet_ids",
+              "position",
+              "residual_exposure",
+              "residual_source",
+              "selection_hedges"
+            ],
+            "title": "SlTpClose",
+            "type": "object"
+          },
+          "SlTpClosesMissing": {
+            "additionalProperties": false,
+            "description": "UNAVAILABLE (core senza F-04: CORE_PENDING_F04, o DB non leggibile) o UNKNOWN (DB occupato).",
+            "properties": {
+              "reason": {
+                "maxLength": 64,
+                "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                "title": "Reason",
+                "type": "string"
+              },
+              "state": {
+                "enum": [
+                  "UNKNOWN",
+                  "UNAVAILABLE"
+                ],
+                "title": "State",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "title": "SlTpClosesMissing",
+            "type": "object"
+          },
+          "SlTpClosesRead": {
+            "additionalProperties": false,
+            "properties": {
+              "closes": {
+                "items": {
+                  "$ref": "#/$defs/SlTpClose"
+                },
+                "maxItems": 64,
+                "title": "Closes",
+                "type": "array"
+              },
+              "omitted": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Omitted",
+                "type": "integer"
+              },
+              "reason": {
+                "anyOf": [
+                  {
+                    "maxLength": 64,
+                    "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Reason"
+              },
+              "state": {
+                "enum": [
+                  "OK",
+                  "PARTIAL"
+                ],
+                "title": "State",
+                "type": "string"
+              },
+              "truncated": {
+                "title": "Truncated",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "state",
+              "reason",
+              "closes",
+              "omitted",
+              "truncated"
+            ],
+            "title": "SlTpClosesRead",
             "type": "object"
           },
           "UpstreamInfo": {
@@ -5980,6 +6306,51 @@
     },
     "exposure": {
       "$defs": {
+        "ClosePosition": {
+          "additionalProperties": false,
+          "description": "Ordini della posizione nel ledger, con la stessa mappa degli stati di `list_orders`.",
+          "properties": {
+            "ambiguous": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Ambiguous",
+              "type": "integer"
+            },
+            "in_reconciliation": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "In Reconciliation",
+              "type": "integer"
+            },
+            "orders": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Orders",
+              "type": "integer"
+            },
+            "partially_matched": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Partially Matched",
+              "type": "integer"
+            },
+            "unreadable": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Unreadable",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "orders",
+            "partially_matched",
+            "in_reconciliation",
+            "ambiguous",
+            "unreadable"
+          ],
+          "title": "ClosePosition",
+          "type": "object"
+        },
         "RecoveryCapacity": {
           "additionalProperties": false,
           "properties": {
@@ -6091,6 +6462,57 @@
           "title": "RoserpinaTable",
           "type": "object"
         },
+        "SelectionHedges": {
+          "additionalProperties": false,
+          "description": "Righe d'hedge del ledger sulla STESSA selezione: il core non lega l'hedge al tavolo, quindi\nquesto conteggio pu\u00f2 includere hedge di altri tavoli sulla stessa selezione.",
+          "properties": {
+            "ambiguous": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Ambiguous",
+              "type": "integer"
+            },
+            "failed": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Failed",
+              "type": "integer"
+            },
+            "pending": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Pending",
+              "type": "integer"
+            },
+            "placed": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Placed",
+              "type": "integer"
+            },
+            "scope": {
+              "const": "SELECTION",
+              "title": "Scope",
+              "type": "string"
+            },
+            "unmatched": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Unmatched",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "scope",
+            "pending",
+            "placed",
+            "unmatched",
+            "ambiguous",
+            "failed"
+          ],
+          "title": "SelectionHedges",
+          "type": "object"
+        },
         "SlTp": {
           "additionalProperties": false,
           "description": "SL/TP del tavolo (MCP-01h, contratto 1.5.0), letto dal `meta` del tavolo del core.\n\nNOT_ARMED: nessun importo SL/TP sul tavolo (oggi sempre, sul `main` del core: nessun percorso\nli arma prima di F-02 di Claude D). ARMED: almeno un importo. TRIGGERED: il core ha segnato lo\nscatto (`sl_tp_triggered`). UNKNOWN: valori presenti ma illeggibili. Il trailing compare solo\ncome percentuale configurata: il core non ha logica di trailing, mai dichiarata attiva.",
@@ -6181,6 +6603,223 @@
           ],
           "title": "SlTp",
           "type": "object"
+        },
+        "SlTpClose": {
+          "additionalProperties": false,
+          "description": "Chiusura SL/TP persistita da F-04 (`risk.sl_tp_close.<customer_ref>`; il riferimento non esce).",
+          "properties": {
+            "bet_ids": {
+              "items": {
+                "maxLength": 32,
+                "pattern": "^[0-9A-Za-z._-]{1,32}$",
+                "type": "string"
+              },
+              "maxItems": 32,
+              "title": "Bet Ids",
+              "type": "array"
+            },
+            "close_state": {
+              "enum": [
+                "CLAIMED",
+                "ROUTED",
+                "NOT_EXECUTED",
+                "UNCERTAIN",
+                "UNKNOWN"
+              ],
+              "title": "Close State",
+              "type": "string"
+            },
+            "detail": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Detail"
+            },
+            "market_id": {
+              "maxLength": 32,
+              "pattern": "^[0-9A-Za-z._-]{1,32}$",
+              "title": "Market Id",
+              "type": "string"
+            },
+            "position": {
+              "$ref": "#/$defs/ClosePosition"
+            },
+            "recorded_at": {
+              "anyOf": [
+                {
+                  "exclusiveMaximum": 100000000000.0,
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Recorded At"
+            },
+            "residual_exposure": {
+              "anyOf": [
+                {
+                  "maxLength": 48,
+                  "pattern": "^(?:[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Residual Exposure"
+            },
+            "residual_source": {
+              "enum": [
+                "TABLE",
+                "TABLE_RELEASED",
+                "UNAVAILABLE"
+              ],
+              "title": "Residual Source",
+              "type": "string"
+            },
+            "retryable": {
+              "title": "Retryable",
+              "type": "boolean"
+            },
+            "selection_hedges": {
+              "$ref": "#/$defs/SelectionHedges"
+            },
+            "selection_id": {
+              "maxLength": 32,
+              "pattern": "^[0-9A-Za-z._-]{1,32}$",
+              "title": "Selection Id",
+              "type": "string"
+            },
+            "side": {
+              "enum": [
+                "BACK",
+                "LAY"
+              ],
+              "title": "Side",
+              "type": "string"
+            },
+            "table_id": {
+              "maximum": 10000,
+              "minimum": 1,
+              "title": "Table Id",
+              "type": "integer"
+            },
+            "trigger": {
+              "enum": [
+                "STOP_LOSS",
+                "TAKE_PROFIT",
+                "UNKNOWN"
+              ],
+              "title": "Trigger",
+              "type": "string"
+            }
+          },
+          "required": [
+            "table_id",
+            "market_id",
+            "selection_id",
+            "side",
+            "trigger",
+            "close_state",
+            "retryable",
+            "detail",
+            "recorded_at",
+            "bet_ids",
+            "position",
+            "residual_exposure",
+            "residual_source",
+            "selection_hedges"
+          ],
+          "title": "SlTpClose",
+          "type": "object"
+        },
+        "SlTpClosesMissing": {
+          "additionalProperties": false,
+          "description": "UNAVAILABLE (core senza F-04: CORE_PENDING_F04, o DB non leggibile) o UNKNOWN (DB occupato).",
+          "properties": {
+            "reason": {
+              "maxLength": 64,
+              "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+              "title": "Reason",
+              "type": "string"
+            },
+            "state": {
+              "enum": [
+                "UNKNOWN",
+                "UNAVAILABLE"
+              ],
+              "title": "State",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state",
+            "reason"
+          ],
+          "title": "SlTpClosesMissing",
+          "type": "object"
+        },
+        "SlTpClosesRead": {
+          "additionalProperties": false,
+          "properties": {
+            "closes": {
+              "items": {
+                "$ref": "#/$defs/SlTpClose"
+              },
+              "maxItems": 64,
+              "title": "Closes",
+              "type": "array"
+            },
+            "omitted": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Omitted",
+              "type": "integer"
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Reason"
+            },
+            "state": {
+              "enum": [
+                "OK",
+                "PARTIAL"
+              ],
+              "title": "State",
+              "type": "string"
+            },
+            "truncated": {
+              "title": "Truncated",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "state",
+            "reason",
+            "closes",
+            "omitted",
+            "truncated"
+          ],
+          "title": "SlTpClosesRead",
+          "type": "object"
         }
       },
       "additionalProperties": false,
@@ -6205,6 +6844,17 @@
               "type": "null"
             }
           ]
+        },
+        "sl_tp_closes": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SlTpClosesRead"
+            },
+            {
+              "$ref": "#/$defs/SlTpClosesMissing"
+            }
+          ],
+          "title": "Sl Tp Closes"
         },
         "source": {
           "enum": [
@@ -6264,7 +6914,8 @@
         "tables",
         "total_exposure",
         "recovery",
-        "unavailable"
+        "unavailable",
+        "sl_tp_closes"
       ],
       "title": "ExposureResponse",
       "type": "object"

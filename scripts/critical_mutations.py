@@ -1128,6 +1128,72 @@ MUTANTS: tuple[Mutant, ...] = (
         ),
     ),
     Mutant(
+        "L01",
+        "esposizione residua senza il tavolo che porta la posizione accettata",
+        (
+            (
+                MO,
+                '        if (self.residual_exposure is not None) != (self.residual_source == "TABLE"):',
+                '        if False:',
+            ),
+        ),
+    ),
+    Mutant(
+        "L02",
+        "chiusura non NOT_EXECUTED dichiarata ritentabile accettata",
+        (
+            (
+                MO,
+                '        if self.retryable and self.close_state != "NOT_EXECUTED":',
+                '        if False:',
+            ),
+        ),
+    ),
+    Mutant(
+        "L03",
+        "chiusura rivendicata senza betId della posizione accettata",
+        (
+            (
+                MO,
+                '        if self.close_state in ("ROUTED", "CLAIMED", "UNCERTAIN") and not self.bet_ids:',
+                '        if False:',
+            ),
+        ),
+    ),
+    Mutant(
+        "L04",
+        "betId duplicati nella chiusura accettati",
+        (
+            (
+                MO,
+                '        if len(set(self.bet_ids)) != len(self.bet_ids):\n            raise ValueError("duplicate bet ids")',
+                '        pass',
+            ),
+        ),
+    ),
+    Mutant(
+        "L05",
+        "contatori della posizione oltre gli ordini letti accettati",
+        (
+            (
+                MO,
+                '        if max(self.partially_matched, self.in_reconciliation, self.ambiguous) > self.orders:',
+                '        if False:',
+            ),
+        ),
+    ),
+    Mutant(
+        "L06",
+        "elenco delle chiusure OK con omissioni accettato",
+        (
+            (
+                MO,
+                '        if self.state == "OK" and (self.reason or self.omitted or self.truncated):\n            raise ValueError("OK closes with omissions or a reason")',
+                '        pass',
+            ),
+        ),
+    ),
+    Mutant(
         "O01",
         "ordine AMBIGUOUS accettato come FAILED",
         (
