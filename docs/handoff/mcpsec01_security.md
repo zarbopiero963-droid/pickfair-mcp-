@@ -21,7 +21,15 @@ documentazione e scope (`pf_api10_control_api_security`): patch `core_bridge_mcp
 
 ## 3. Evidenze
 
-Vedi il commento di consegna su pickfair-mcp- #37 (RED, GREEN, mutanti X01–X06, suite, E2E, regressione).
+| Prova | Esito |
+|---|---|
+| RED: `tests/control_api/test_security_hardening.py` sul codice di MCP-01l | 14 falliti su 16 |
+| GREEN | 16 passed; test slowloris 3/3 stabile |
+| Mutanti critici X01–X06 (token, rotazione, tetto, scadenza, errori fissi, traceback) | 6/6 KILLED. Primo giro 4/6: X03/X04 sopravvissuti per un test fragile (contava i thread di tutto il processo; scadenza confondibile col timeout per ricezione); test reso deterministico, riprodotto a mano che uccide X03, campagna rieseguita |
+| Suite MCP (package 1.9.0) | 1803 passed, 16 skipped |
+| E2E fra processi col core pinnato a 1.9.0 | 15/15, su 3 esecuzioni |
+| Regressione completa del core con il package 1.9.0 (`pytest -n 4 tests`) | 11994 passed, 0 failed, 16 skipped, 56 xfailed |
+| Patch del core | `core_bridge_mcpsec01.patch`, 4 file, +24/−2, SHA-256 `a0f6d249a57e124666cd1763ced6a8957cb4c765b483bbcf163f432c4f47d254` |
 
 ## 4. Effetto sull'integrazione
 
