@@ -582,6 +582,20 @@
         "tests/unit/test_handshake.py"
       ],
       "max_files": 20
+    },
+    "g8-suites": {
+      "issue": "mandato owner 05/11/2026 (priorità 4: suite automatiche MCP/Control API per il catalogo universale G8)",
+      "scheda": "G8 — manifest delle suite MCP/Control API, runner a argv fisso, proposta di voce per il catalogo canonico del core",
+      "description": "Suite del repository MCP dichiarate UNSUPPORTED nel catalogo canonico con motivo ed eseguibili con scripts/run_suites.py (evidenze junit/log, PASS/FAIL/BLOCKED); proposta control-api validata col validatore reale del core.",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "catalog/g8/pf-mcp-suites.json",
+        "catalog/g8/pf-test-catalog.control-api.json",
+        "docs/g8/G8_MCP_CONTROL_API_SUITES.md",
+        "scripts/run_suites.py",
+        "tests/guards/test_g8_suites.py"
+      ],
+      "max_files": 6
     }
   }
 }
