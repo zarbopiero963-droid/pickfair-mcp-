@@ -456,8 +456,8 @@ def _sl_tp_close(**overrides: Any) -> dict[str, Any]:
                      "unreadable": 0},
         "residual_exposure": None,
         "residual_source": "TABLE_RELEASED",
-        "selection_hedges": {"scope": "SELECTION", "pending": 0, "placed": 1, "unmatched": 0,
-                             "ambiguous": 0, "failed": 0},
+        "hedges": {"requests": 1, "pending": 0, "placed": 1, "unmatched": 0, "ambiguous": 0,
+                   "failed": 0, "not_in_ledger": 0},
     }
     data.update(overrides)
     return data

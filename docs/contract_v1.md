@@ -433,10 +433,11 @@ della posizione, righe d'hedge del ledger, una transazione di sola lettura): tav
 `retryable` (dal core: solo NOT_EXECUTED, e solo con un nuovo scatto), `detail` (codice), `recorded_at`,
 `bet_ids` della posizione, `position` (ordini, parzialmente abbinati, in riconciliazione, ambigui, illeggibili:
 stessa mappa di `list_orders`), `residual_exposure` solo se il tavolo porta ancora la posizione
-(`residual_source` TABLE / TABLE_RELEASED / UNAVAILABLE), `selection_hedges` con `scope = SELECTION`.
+(`residual_source` TABLE / TABLE_RELEASED / UNAVAILABLE), `hedges`: le righe d'hedge legate alla chiusura dal
+record di F-04 (`cashout_request_ids` → `cashout_request_id` della riga), con `requests` e `not_in_ledger`
+(richieste senza riga nel ledger); `null` se il record non porta il legame.
 
-Limiti dichiarati: il core non lega l'hedge al tavolo, quindi gli hedge sono contati per selezione e possono
-includere quelli di altri tavoli sulla stessa selezione; le chiusure respinte prima della rivendicazione
+Limiti dichiarati: le chiusure respinte prima della rivendicazione
 (es. `ORDER_STATE_UNCERTAIN`) non sono persistite dal core e non compaiono; il `customer_ref` non esce mai.
 **Non integrabile finché F-04 non è su `main`.**
 

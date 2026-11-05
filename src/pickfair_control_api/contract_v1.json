@@ -295,7 +295,7 @@
     "security": "Control API: token of at least 43 URL-safe characters (shorter or malformed tokens are refused at construction), rotations serialized end to end; at most 16 connections served at once (others closed without a thread), each closed within 10 s; protocol errors answer 400 BAD_REQUEST or 405 METHOD_NOT_ALLOWED with a fixed JSON body, never echoing the input; no per-request log or traceback.",
     "settlement": "Counts only (no payload, reference or event name): unrecorded settlements, held Dutching batches, settlement_effects by outcome, cycle checkpoints by stage, SIM broker settlements (null in LIVE).",
     "sl_tp": "Per Roserpina table, read from the table meta as the core writes it: NOT_ARMED (no SL/TP amount), ARMED, TRIGGERED (core marked the trigger) or UNKNOWN (unreadable). Trailing appears only as a configured percentage: the core has no trailing logic and the contract never reports it as active.",
-    "sl_tp_closes": "get_exposure.sl_tp_closes: closes persisted by the core's SL/TP close (F-04, settings `risk.sl_tp_close.*`), read in one read-only transaction with the position's orders and the ledger hedge rows: table, position, trigger, close state (CLAIMED/ROUTED/NOT_EXECUTED/UNCERTAIN, unreadable UNKNOWN), retryable as the core decides, detail code, residual exposure only from the table that still holds the position. Hedges are counted per SELECTION: the core does not link an hedge to its table. Closes rejected before the claim are not persisted by the core and never appear. Without F-04: UNAVAILABLE CORE_PENDING_F04.",
+    "sl_tp_closes": "get_exposure.sl_tp_closes: closes persisted by the core's SL/TP close (F-04, settings `risk.sl_tp_close.*`), read in one read-only transaction with the position's orders and the ledger hedge rows: table, position, trigger, close state (CLAIMED/ROUTED/NOT_EXECUTED/UNCERTAIN, unreadable UNKNOWN), retryable as the core decides, detail code, residual exposure only from the table that still holds the position. Hedges of the close are the ledger rows whose cashout_request_id is recorded in the close (cashout_request_ids); null when the record does not carry them. Closes rejected before the claim are not persisted by the core and never appear. Without F-04: UNAVAILABLE CORE_PENDING_F04.",
     "source": "Responses declare source=core; the simulated adapter declares source=simulated.",
     "transport": "HTTP/1.1 GET only on 127.0.0.1, Authorization Bearer token required, Host must be 127.0.0.1:<port>, no redirects, Content-Type application/json; charset=utf-8, body at most 65536 bytes.",
     "unavailable": "A field is null if and only if its name is listed in `unavailable`; a value the core does not hold is never replaced by a default."
@@ -1433,6 +1433,65 @@
       },
       "output_schema": {
         "$defs": {
+          "CloseHedges": {
+            "additionalProperties": false,
+            "description": "Righe d'hedge della chiusura: legate dal record F-04 (`cashout_request_ids`) alla riga del ledger\n(`cashout_request_id`). `not_in_ledger`: richieste pubblicate senza riga d'hedge nel ledger.",
+            "properties": {
+              "ambiguous": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Ambiguous",
+                "type": "integer"
+              },
+              "failed": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Failed",
+                "type": "integer"
+              },
+              "not_in_ledger": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Not In Ledger",
+                "type": "integer"
+              },
+              "pending": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Pending",
+                "type": "integer"
+              },
+              "placed": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Placed",
+                "type": "integer"
+              },
+              "requests": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Requests",
+                "type": "integer"
+              },
+              "unmatched": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Unmatched",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "requests",
+              "pending",
+              "placed",
+              "unmatched",
+              "ambiguous",
+              "failed",
+              "not_in_ledger"
+            ],
+            "title": "CloseHedges",
+            "type": "object"
+          },
           "ClosePosition": {
             "additionalProperties": false,
             "description": "Ordini della posizione nel ledger, con la stessa mappa degli stati di `list_orders`.",
@@ -1790,57 +1849,6 @@
             "title": "RoserpinaTable",
             "type": "object"
           },
-          "SelectionHedges": {
-            "additionalProperties": false,
-            "description": "Righe d'hedge del ledger sulla STESSA selezione: il core non lega l'hedge al tavolo, quindi\nquesto conteggio pu\u00f2 includere hedge di altri tavoli sulla stessa selezione.",
-            "properties": {
-              "ambiguous": {
-                "maximum": 1000000,
-                "minimum": 0,
-                "title": "Ambiguous",
-                "type": "integer"
-              },
-              "failed": {
-                "maximum": 1000000,
-                "minimum": 0,
-                "title": "Failed",
-                "type": "integer"
-              },
-              "pending": {
-                "maximum": 1000000,
-                "minimum": 0,
-                "title": "Pending",
-                "type": "integer"
-              },
-              "placed": {
-                "maximum": 1000000,
-                "minimum": 0,
-                "title": "Placed",
-                "type": "integer"
-              },
-              "scope": {
-                "const": "SELECTION",
-                "title": "Scope",
-                "type": "string"
-              },
-              "unmatched": {
-                "maximum": 1000000,
-                "minimum": 0,
-                "title": "Unmatched",
-                "type": "integer"
-              }
-            },
-            "required": [
-              "scope",
-              "pending",
-              "placed",
-              "unmatched",
-              "ambiguous",
-              "failed"
-            ],
-            "title": "SelectionHedges",
-            "type": "object"
-          },
           "SlTp": {
             "additionalProperties": false,
             "description": "SL/TP del tavolo (MCP-01h, contratto 1.5.0), letto dal `meta` del tavolo del core.\n\nNOT_ARMED: nessun importo SL/TP sul tavolo (oggi sempre, sul `main` del core: nessun percorso\nli arma prima di F-02 di Claude D). ARMED: almeno un importo. TRIGGERED: il core ha segnato lo\nscatto (`sl_tp_triggered`). UNKNOWN: valori presenti ma illeggibili. Il trailing compare solo\ncome percentuale configurata: il core non ha logica di trailing, mai dichiarata attiva.",
@@ -1970,6 +1978,16 @@
                 ],
                 "title": "Detail"
               },
+              "hedges": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/CloseHedges"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "market_id": {
                 "maxLength": 32,
                 "pattern": "^[0-9A-Za-z._-]{1,32}$",
@@ -2018,9 +2036,6 @@
                 "title": "Retryable",
                 "type": "boolean"
               },
-              "selection_hedges": {
-                "$ref": "#/$defs/SelectionHedges"
-              },
               "selection_id": {
                 "maxLength": 32,
                 "pattern": "^[0-9A-Za-z._-]{1,32}$",
@@ -2065,7 +2080,7 @@
               "position",
               "residual_exposure",
               "residual_source",
-              "selection_hedges"
+              "hedges"
             ],
             "title": "SlTpClose",
             "type": "object"
@@ -7085,6 +7100,65 @@
     },
     "exposure": {
       "$defs": {
+        "CloseHedges": {
+          "additionalProperties": false,
+          "description": "Righe d'hedge della chiusura: legate dal record F-04 (`cashout_request_ids`) alla riga del ledger\n(`cashout_request_id`). `not_in_ledger`: richieste pubblicate senza riga d'hedge nel ledger.",
+          "properties": {
+            "ambiguous": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Ambiguous",
+              "type": "integer"
+            },
+            "failed": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Failed",
+              "type": "integer"
+            },
+            "not_in_ledger": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Not In Ledger",
+              "type": "integer"
+            },
+            "pending": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Pending",
+              "type": "integer"
+            },
+            "placed": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Placed",
+              "type": "integer"
+            },
+            "requests": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Requests",
+              "type": "integer"
+            },
+            "unmatched": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Unmatched",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "requests",
+            "pending",
+            "placed",
+            "unmatched",
+            "ambiguous",
+            "failed",
+            "not_in_ledger"
+          ],
+          "title": "CloseHedges",
+          "type": "object"
+        },
         "ClosePosition": {
           "additionalProperties": false,
           "description": "Ordini della posizione nel ledger, con la stessa mappa degli stati di `list_orders`.",
@@ -7241,57 +7315,6 @@
           "title": "RoserpinaTable",
           "type": "object"
         },
-        "SelectionHedges": {
-          "additionalProperties": false,
-          "description": "Righe d'hedge del ledger sulla STESSA selezione: il core non lega l'hedge al tavolo, quindi\nquesto conteggio pu\u00f2 includere hedge di altri tavoli sulla stessa selezione.",
-          "properties": {
-            "ambiguous": {
-              "maximum": 1000000,
-              "minimum": 0,
-              "title": "Ambiguous",
-              "type": "integer"
-            },
-            "failed": {
-              "maximum": 1000000,
-              "minimum": 0,
-              "title": "Failed",
-              "type": "integer"
-            },
-            "pending": {
-              "maximum": 1000000,
-              "minimum": 0,
-              "title": "Pending",
-              "type": "integer"
-            },
-            "placed": {
-              "maximum": 1000000,
-              "minimum": 0,
-              "title": "Placed",
-              "type": "integer"
-            },
-            "scope": {
-              "const": "SELECTION",
-              "title": "Scope",
-              "type": "string"
-            },
-            "unmatched": {
-              "maximum": 1000000,
-              "minimum": 0,
-              "title": "Unmatched",
-              "type": "integer"
-            }
-          },
-          "required": [
-            "scope",
-            "pending",
-            "placed",
-            "unmatched",
-            "ambiguous",
-            "failed"
-          ],
-          "title": "SelectionHedges",
-          "type": "object"
-        },
         "SlTp": {
           "additionalProperties": false,
           "description": "SL/TP del tavolo (MCP-01h, contratto 1.5.0), letto dal `meta` del tavolo del core.\n\nNOT_ARMED: nessun importo SL/TP sul tavolo (oggi sempre, sul `main` del core: nessun percorso\nli arma prima di F-02 di Claude D). ARMED: almeno un importo. TRIGGERED: il core ha segnato lo\nscatto (`sl_tp_triggered`). UNKNOWN: valori presenti ma illeggibili. Il trailing compare solo\ncome percentuale configurata: il core non ha logica di trailing, mai dichiarata attiva.",
@@ -7421,6 +7444,16 @@
               ],
               "title": "Detail"
             },
+            "hedges": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/CloseHedges"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "market_id": {
               "maxLength": 32,
               "pattern": "^[0-9A-Za-z._-]{1,32}$",
@@ -7469,9 +7502,6 @@
               "title": "Retryable",
               "type": "boolean"
             },
-            "selection_hedges": {
-              "$ref": "#/$defs/SelectionHedges"
-            },
             "selection_id": {
               "maxLength": 32,
               "pattern": "^[0-9A-Za-z._-]{1,32}$",
@@ -7516,7 +7546,7 @@
             "position",
             "residual_exposure",
             "residual_source",
-            "selection_hedges"
+            "hedges"
           ],
           "title": "SlTpClose",
           "type": "object"

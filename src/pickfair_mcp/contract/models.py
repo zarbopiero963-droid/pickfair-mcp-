@@ -810,16 +810,26 @@ class ClosePosition(StrictModel):
         return self
 
 
-class SelectionHedges(StrictModel):
-    """Righe d'hedge del ledger sulla STESSA selezione: il core non lega l'hedge al tavolo, quindi
-    questo conteggio può includere hedge di altri tavoli sulla stessa selezione."""
+class CloseHedges(StrictModel):
+    """Righe d'hedge della chiusura: legate dal record F-04 (`cashout_request_ids`) alla riga del ledger
+    (`cashout_request_id`). `not_in_ledger`: richieste pubblicate senza riga d'hedge nel ledger."""
 
-    scope: Literal["SELECTION"]
+    requests: Count
     pending: Count
     placed: Count
     unmatched: Count
     ambiguous: Count
     failed: Count
+    not_in_ledger: Count
+
+    @model_validator(mode="after")
+    def _bounded(self) -> CloseHedges:
+        if self.not_in_ledger > self.requests:
+            raise ValueError("more missing hedge rows than requests")
+        if self.requests == 0 and (self.pending or self.placed or self.unmatched or self.ambiguous
+                                   or self.failed):
+            raise ValueError("hedge rows without a recorded request")
+        return self
 
 
 class SlTpClose(StrictModel):
@@ -840,7 +850,8 @@ class SlTpClose(StrictModel):
     # Esposizione del tavolo se il tavolo porta ancora questa posizione; altrimenti null.
     residual_exposure: NonNegativeDecimal | None
     residual_source: Literal["TABLE", "TABLE_RELEASED", "UNAVAILABLE"]
-    selection_hedges: SelectionHedges
+    # null: record senza `cashout_request_ids` (forma precedente di F-04), legame non dimostrabile.
+    hedges: CloseHedges | None
 
     @model_validator(mode="after")
     def _coherent(self) -> SlTpClose:

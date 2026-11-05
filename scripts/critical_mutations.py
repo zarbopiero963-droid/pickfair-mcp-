@@ -1308,6 +1308,28 @@ MUTANTS: tuple[Mutant, ...] = (
         ),
     ),
     Mutant(
+        "L07",
+        "più righe d'hedge mancanti che richieste accettate",
+        (
+            (
+                MO,
+                "        if self.not_in_ledger > self.requests:",
+                "        if False:",
+            ),
+        ),
+    ),
+    Mutant(
+        "L08",
+        "righe d'hedge senza richiesta registrata accettate",
+        (
+            (
+                MO,
+                "        if self.requests == 0 and (self.pending or self.placed or self.unmatched or self.ambiguous",
+                "        if False and (self.pending or self.placed or self.unmatched or self.ambiguous",
+            ),
+        ),
+    ),
+    Mutant(
         "O01",
         "ordine AMBIGUOUS accettato come FAILED",
         (
