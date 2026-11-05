@@ -1,9 +1,10 @@
 {
   "contract_name": "pickfair-control-api",
-  "contract_version": "1.8.0",
+  "contract_version": "1.9.0",
   "error_codes": {
     "control_api": [
       "BAD_HOST",
+      "BAD_REQUEST",
       "BODY_NOT_ALLOWED",
       "CONTRACT_SELF_CHECK",
       "INTERNAL",
@@ -291,6 +292,7 @@
       "status_map_rule": "A core status outside the map is UNKNOWN. UNMATCHED / PARTIALLY_MATCHED / MATCHED for an accepted order only with explicit size_matched and size_remaining. AMBIGUOUS stays AMBIGUOUS, never FAILED or absent. AMBIGUOUS and PENDING orders never carry size_matched, avg_price_matched or size_remaining: an unconfirmed report is not data; their bet_id stays (the core's reconciliation identity)."
     },
     "protections": "Each protection is ACTIVE, INACTIVE, TRIGGERED, UNKNOWN or UNAVAILABLE; only ACTIVE has no reason. A protection that cannot be verified is UNKNOWN (core has it, value not readable) or UNAVAILABLE (core does not expose it yet), never ACTIVE or INACTIVE; the derived lists `disabled` and `unverifiable` must match the items.",
+    "security": "Control API: token of at least 43 URL-safe characters (shorter or malformed tokens are refused at construction), rotations serialized end to end; at most 16 connections served at once (others closed without a thread), each closed within 10 s; protocol errors answer 400 BAD_REQUEST or 405 METHOD_NOT_ALLOWED with a fixed JSON body, never echoing the input; no per-request log or traceback.",
     "settlement": "Counts only (no payload, reference or event name): unrecorded settlements, held Dutching batches, settlement_effects by outcome, cycle checkpoints by stage, SIM broker settlements (null in LIVE).",
     "sl_tp": "Per Roserpina table, read from the table meta as the core writes it: NOT_ARMED (no SL/TP amount), ARMED, TRIGGERED (core marked the trigger) or UNKNOWN (unreadable). Trailing appears only as a configured percentage: the core has no trailing logic and the contract never reports it as active.",
     "source": "Responses declare source=core; the simulated adapter declares source=simulated.",
@@ -6733,6 +6735,7 @@
             "code": {
               "enum": [
                 "BAD_HOST",
+                "BAD_REQUEST",
                 "BODY_NOT_ALLOWED",
                 "CONTRACT_SELF_CHECK",
                 "INTERNAL",

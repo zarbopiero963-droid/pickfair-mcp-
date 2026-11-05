@@ -15,7 +15,10 @@ Regole:
   un percorso fuori contratto ``404 NOT_FOUND``; ogni metodo diverso da GET ``405``;
 - ogni risposta è validata contro lo schema del contratto PRIMA dell'invio: una risposta fuori
   contratto diventa ``500 CONTRACT_SELF_CHECK``, mai un dato apparentemente valido;
-- corpi d'errore fissi; nessun log per richiesta; token mai nei log.
+- corpi d'errore fissi, anche per gli errori di protocollo della libreria standard (mai l'eco dell'input);
+  nessun log né traceback per richiesta; token mai nei log;
+- risorse limitate per chiunque, anche senza token: al più ``MAX_CONNECTIONS`` connessioni servite insieme,
+  ognuna chiusa entro ``REQUEST_DEADLINE_S`` (MCP-SEC-01).
 """
 
 from __future__ import annotations
@@ -23,6 +26,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import socket
 import socketserver
 import threading
 from collections.abc import Callable, Mapping
@@ -49,6 +53,14 @@ logger = logging.getLogger(__name__)
 LOOPBACK_HOST: Final = "127.0.0.1"
 MIN_TOKEN_CHARS: Final = 43
 REQUEST_TIMEOUT_S: Final = 5.0
+# MCP-SEC-01: risorse limitate anche per client senza token (slowloris). Al più MAX_CONNECTIONS connessioni
+# servite insieme (le altre chiuse subito, nessun thread); ogni connessione chiusa entro REQUEST_DEADLINE_S
+# dall'accettazione, qualunque sia il ritmo con cui il client invia i byte.
+MAX_CONNECTIONS = 16  # ogni connessione servita usa due thread (gestore + timer della scadenza)
+REQUEST_DEADLINE_S = 10.0
+# Errori di protocollo della libreria standard (riga di richiesta, versione, URI o header troppo lunghi):
+# corpo JSON fisso, mai l'eco dell'input. Un metodo sconosciuto è METHOD_NOT_ALLOWED come gli altri.
+_PROTOCOL_ERRORS: Final = {501: (405, "METHOD_NOT_ALLOWED")}
 MAX_RESPONSE_BYTES: Final = 64 * 1024
 SHUTDOWN_POLL_S: Final = 0.1  # arresto rapido: stop() attende al più un ciclo
 Provider = Callable[[], dict[str, Any]]
@@ -68,6 +80,32 @@ class _Handler(BaseHTTPRequestHandler):
     def setup(self) -> None:
         super().setup()
         self.connection.settimeout(REQUEST_TIMEOUT_S)
+        # Scadenza complessiva della connessione: il timeout del socket vale per ogni singola ricezione,
+        # un client lento lo rinnoverebbe all'infinito.
+        self._deadline = threading.Timer(REQUEST_DEADLINE_S, self._expire)
+        self._deadline.daemon = True
+        self._deadline.start()
+
+    def _expire(self) -> None:
+        try:
+            self.connection.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+
+    def finish(self) -> None:
+        self._deadline.cancel()
+        try:
+            super().finish()
+        except OSError:
+            pass  # client già disconnesso: nessun traceback
+
+    def send_error(self, code: int, message: str | None = None, explain: str | None = None) -> None:
+        """Errori di protocollo della libreria standard: JSON fisso, mai il testo ricevuto."""
+        status, error = _PROTOCOL_ERRORS.get(code, (400, "BAD_REQUEST"))
+        try:
+            self._error(status, error)
+        except OSError:
+            self.close_connection = True
 
     def log_message(self, format: str, *args: Any) -> None:
         """Nessun log per richiesta: percorso e header non escono."""
@@ -172,6 +210,29 @@ class _App:
 
 class _Server(ThreadingHTTPServer):
     daemon_threads = True
+    _slots: threading.BoundedSemaphore
+
+    def process_request(self, request: Any, client_address: Any) -> None:
+        """Connessione oltre MAX_CONNECTIONS: chiusa subito, nessun thread (MCP-SEC-01)."""
+        if not self._slots.acquire(blocking=False):
+            self.app.count("BUSY")
+            self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._slots.release()
+            raise
+
+    def process_request_thread(self, request: Any, client_address: Any) -> None:
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._slots.release()
+
+    def handle_error(self, request: Any, client_address: Any) -> None:
+        """Nessun traceback su stderr per richiesta (un client disconnesso non riempie i log)."""
+        logger.debug("control_api: connessione chiusa con errore")
     # Il server chiude le connessioni: senza SO_REUSEADDR un riavvio sulla stessa porta
     # fallirebbe per TIME_WAIT (~60 s). Su Linux SO_REUSEADDR NON permette due server in
     # ascolto sulla stessa porta. Su Windows resterebbe possibile il dirottamento: disattivato.
@@ -224,6 +285,7 @@ class ControlApiServer:
             for path, name in ROUTE_SCHEMAS.items()
         }
         self._httpd = _Server((host, port), _Handler, bind_and_activate=True)
+        self._httpd._slots = threading.BoundedSemaphore(MAX_CONNECTIONS)
         self.port = int(self._httpd.server_address[1])
         param_routes: dict[str, ParamProvider] = {
             template: providers[name] for template, name in PARAM_ROUTE_SCHEMAS.items()

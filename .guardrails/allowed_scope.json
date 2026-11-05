@@ -554,6 +554,34 @@
         "tests/unit/test_registry_guard.py"
       ],
       "max_files": 42
+    },
+    "mcp-sec01": {
+      "issue": "mandato owner 05/11/2026 (priorità 3: autenticazione, autorizzazioni, isolamento dei segreti, operazioni non consentite)",
+      "scheda": "MCP-SEC-01 — irrobustimento del package Control API dopo la revisione di sicurezza indipendente (contratto 1.9.0)",
+      "description": "Token deboli rifiutati, rotazioni serializzate, connessioni limitate con scadenza, errori di protocollo in JSON fisso senza eco, nessun traceback per richiesta; codice BAD_REQUEST nel contratto.",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "docs/contract_v1.md",
+        "docs/handoff/core_bridge_mcpsec01.patch.sha256",
+        "docs/handoff/mcpsec01_security.md",
+        "scripts/critical_mutations.py",
+        "src/pickfair_control_api/__init__.py",
+        "src/pickfair_control_api/contract.py",
+        "src/pickfair_control_api/contract_v1.json",
+        "src/pickfair_control_api/server.py",
+        "src/pickfair_control_api/tokens.py",
+        "src/pickfair_mcp/adapters/simulated.py",
+        "src/pickfair_mcp/contract/descriptor.py",
+        "src/pickfair_mcp/contract/descriptor_v1.json",
+        "src/pickfair_mcp/contract/version.py",
+        "tests/control_api/test_security_hardening.py",
+        "tests/e2e/test_stdio_subprocess.py",
+        "tests/unit/test_contract_descriptor.py",
+        "tests/unit/test_contract_version.py",
+        "tests/unit/test_control_api_distribution.py",
+        "tests/unit/test_handshake.py"
+      ],
+      "max_files": 20
     }
   }
 }

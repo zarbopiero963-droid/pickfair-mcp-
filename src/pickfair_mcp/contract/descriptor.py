@@ -46,6 +46,7 @@ from pickfair_mcp.tools.status import MAX_CLOCK_SKEW_S, MAX_SNAPSHOT_AGE_S
 # Codici d'errore della Control API (corpo `{"error": {"code": ...}}`), fissi.
 CONTROL_API_ERROR_CODES: Final = (
     "BAD_HOST",
+    "BAD_REQUEST",
     "BODY_NOT_ALLOWED",
     "CONTRACT_SELF_CHECK",
     "INTERNAL",
@@ -150,6 +151,13 @@ SEMANTICS: Final = {
         "max_clock_skew_s": MAX_CLOCK_SKEW_S,
     },
     "source": "Responses declare source=core; the simulated adapter declares source=simulated.",
+    "security": (
+        "Control API: token of at least 43 URL-safe characters (shorter or malformed tokens are "
+        "refused at construction), rotations serialized end to end; at most 16 connections served "
+        "at once (others closed without a thread), each closed within 10 s; protocol errors answer "
+        "400 BAD_REQUEST or 405 METHOD_NOT_ALLOWED with a fixed JSON body, never echoing the input; "
+        "no per-request log or traceback."
+    ),
     "transport": (
         "HTTP/1.1 GET only on 127.0.0.1, Authorization Bearer token required, "
         "Host must be 127.0.0.1:<port>, no redirects, Content-Type application/json; "

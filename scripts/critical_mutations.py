@@ -1194,6 +1194,72 @@ MUTANTS: tuple[Mutant, ...] = (
         ),
     ),
     Mutant(
+        "X01",
+        "token corto o fuori alfabeto accettato",
+        (
+            (
+                'src/pickfair_control_api/tokens.py',
+                '    if (not isinstance(token, str) or not MIN_TOKEN_CHARS <= len(token) <= MAX_TOKEN_CHARS\n            or not _TOKEN_RE.fullmatch(token)):',
+                '    if not isinstance(token, str):',
+            ),
+        ),
+    ),
+    Mutant(
+        "X02",
+        "rotazioni concorrenti non serializzate",
+        (
+            (
+                'src/pickfair_control_api/tokens.py',
+                '        with self._rotation_lock:\n            return self._rotate_serialized(path)',
+                '        return self._rotate_serialized(path)',
+            ),
+        ),
+    ),
+    Mutant(
+        "X03",
+        "connessioni oltre il tetto servite",
+        (
+            (
+                'src/pickfair_control_api/server.py',
+                '        if not self._slots.acquire(blocking=False):',
+                '        if False:',
+            ),
+        ),
+    ),
+    Mutant(
+        "X04",
+        "connessione senza scadenza complessiva",
+        (
+            (
+                'src/pickfair_control_api/server.py',
+                '        self._deadline.start()',
+                '        pass',
+            ),
+        ),
+    ),
+    Mutant(
+        "X05",
+        "errore di protocollo con il testo ricevuto",
+        (
+            (
+                'src/pickfair_control_api/server.py',
+                '        status, error = _PROTOCOL_ERRORS.get(code, (400, "BAD_REQUEST"))\n        try:\n            self._error(status, error)\n        except OSError:\n            self.close_connection = True',
+                '        super().send_error(code, message, explain)',
+            ),
+        ),
+    ),
+    Mutant(
+        "X06",
+        "traceback per richiesta su stderr",
+        (
+            (
+                'src/pickfair_control_api/server.py',
+                '        logger.debug("control_api: connessione chiusa con errore")',
+                '        super().handle_error(request, client_address)',
+            ),
+        ),
+    ),
+    Mutant(
         "O01",
         "ordine AMBIGUOUS accettato come FAILED",
         (

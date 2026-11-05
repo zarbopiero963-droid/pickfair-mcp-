@@ -402,3 +402,21 @@ Limiti dichiarati: `book_status` non è un giudizio di negoziabilità (quello è
 `market_tradability`, F-23); l'età del book è nota solo con `last_match_time` (il tracker non registra
 l'istante di ricezione); `list_events` resta 501: il core non ha un catalogo degli eventi senza rete.
 
+## MCP-SEC-01 — irrobustimento di sicurezza (contratto 1.9.0)
+
+Revisione di sicurezza indipendente del 05/11/2026 (sola lettura, riproduzioni eseguibili) sul package
+`pickfair_control_api` e sul server MCP. Nessun bypass dell'autenticazione, nessun percorso di scrittura, nessuna
+fuga di token o di testo d'eccezione. Corrette quattro debolezze riprodotte (test RED → GREEN in
+`tests/control_api/test_security_hardening.py`):
+
+| # | Debolezza | Correzione |
+|---|---|---|
+| 1 | `TokenStore` accettava un token vuoto o corto (`MIN_TOKEN_CHARS` definito ma non usato) | token di 43–256 caratteri URL-safe, altrimenti `WeakTokenError` (messaggio senza il token) |
+| 2 | due rotazioni concorrenti con una scrittura fallita: token revocato di nuovo valido, token del file rifiutato | rotazione serializzata per intero da un lock dedicato |
+| 3 | connessioni senza token tenute aperte all'infinito (un thread ciascuna nel processo Pickfair) | al più 16 connessioni servite insieme (le altre chiuse senza thread); scadenza complessiva di 10 s per connessione |
+| 4 | errori di protocollo della libreria standard in HTML con l'eco dell'input; traceback su stderr alla disconnessione | `400 BAD_REQUEST` / `405 METHOD_NOT_ALLOWED` in JSON fisso; nessun traceback per richiesta |
+
+Codice d'errore nuovo nel contratto: `BAD_REQUEST`. Rischio residuo accettato e dichiarato: i campi codice
+(`^[A-Z][A-Z0-9_]{0,63}$`) arrivano all'agente come il core li produce (alfabeto ristretto, 64 caratteri, mai
+testo libero); le descrizioni dei tool dichiarano che sono dati, non istruzioni.
+
