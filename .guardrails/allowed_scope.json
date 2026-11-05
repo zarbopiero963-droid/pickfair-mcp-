@@ -636,6 +636,7 @@
         "src/pickfair_mcp/contract/models.py",
         "src/pickfair_mcp/contract/version.py",
         "tests/control_api/bodies.py",
+        "tests/crossrepo/core_runtime_server.py",
         "tests/crossrepo/test_core_e2e.py",
         "tests/e2e/test_stdio_subprocess.py",
         "tests/integration/test_config_tools.py",
@@ -646,9 +647,10 @@
         "tests/unit/test_control_api_distribution.py",
         "tests/unit/test_handshake.py",
         "tests/unit/test_resolve_git_sha.py",
-        "tests/unit/test_settlement_sltp_models.py"
+        "tests/unit/test_settlement_sltp_models.py",
+        "tests/unit/test_trailing_models.py"
       ],
-      "max_files": 26
+      "max_files": 28
     }
   }
 }
