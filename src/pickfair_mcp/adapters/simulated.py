@@ -208,7 +208,7 @@ class SimulatedControlApiAdapter:
 _SCENARIO_BODIES: dict[Scenario, bytes] = {
     Scenario.COMPATIBLE: _encode(_meta()),
     Scenario.INCOMPATIBLE_MAJOR: _encode(_meta(contract_version="2.0.0")),
-    Scenario.UNSUPPORTED_MINOR: _encode(_meta(contract_version="1.11.0")),
+    Scenario.UNSUPPORTED_MINOR: _encode(_meta(contract_version="1.12.0")),
     Scenario.SCHEMA_HASH_MISMATCH: _encode(_meta(schema_hash="0" * 64)),
     Scenario.MISSING_META_CAPABILITY: _encode(_meta(capabilities=["GET /v1/status"])),
     Scenario.META_ONLY: _encode(_meta(capabilities=["GET /v1/meta"])),
@@ -433,6 +433,8 @@ def _table(table_id: int, **overrides: Any) -> dict[str, Any]:
             "stop_loss_pct": None,
             "take_profit_pct": None,
             "trailing_stop_pct": None,
+            "trailing": {"state": "NOT_IN_CORE", "pct": None, "peak": None, "threshold": None,
+                         "peak_source": "NONE"},
         },
     }
     data.update(overrides)
@@ -481,6 +483,8 @@ def _exposure_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
                     "stop_loss_pct": "25",
                     "take_profit_pct": "50",
                     "trailing_stop_pct": None,
+                    "trailing": {"state": "NOT_IN_CORE", "pct": None, "peak": None, "threshold": None,
+                                 "peak_source": "NONE"},
                 },
             ),
             _table(2),
@@ -547,6 +551,7 @@ _PROTECTION_NAMES = (
     "anti_duplication",
     "order_circuit_breaker",
     "recovery_state",
+    "config_validity",
 )
 
 
@@ -822,8 +827,9 @@ def _config_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
         settings.append({"key": key, "kind": kind, "state": state, "value": value})
     unlisted: list[str] = []
     unavailable: list[str] = []
+    invalid: list[str] | None = []
     if scenario is StatusScenario.NOT_STARTED:
-        settings, unavailable = None, ["settings"]
+        settings, invalid, unavailable = None, None, ["settings", "invalid_persisted"]
     elif scenario is StatusScenario.EXTRA_FIELD:
         settings[0] = {**settings[0], "raw": 1.0}
     elif scenario is StatusScenario.INJECTION_TEXT:
@@ -837,6 +843,7 @@ def _config_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
         "settings": settings,
         "unlisted": unlisted,
         "redacted": 0,
+        "invalid_persisted": invalid,
         "unavailable": unavailable,
     }
 

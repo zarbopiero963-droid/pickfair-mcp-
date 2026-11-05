@@ -72,7 +72,7 @@ async def test_status_carries_engine_and_every_protection() -> None:
     assert is_error is False, payload
     jsonschema.validate(payload, tools["get_status"].outputSchema)
     status = payload["data"]["status"]
-    assert len(status["protections"]["items"]) == 22
+    assert len(status["protections"]["items"]) == 23
     assert status["engine"]["modes"]["read_only_mode"] == "NOT_IN_CORE"
     assert status["protections"]["unverifiable"] == ["funds_freshness", "market_tradability"]
     assert "never treat them as safe" in (tools["get_status"].description or "")

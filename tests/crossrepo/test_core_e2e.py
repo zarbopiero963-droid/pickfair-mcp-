@@ -409,7 +409,7 @@ async def test_e2e_diagnostics_protections_and_positions(core: Core, tmp_path: P
         jsonschema.validate(payload, tools[name].outputSchema)
     st = status[1]["data"]["status"]
     prot = st["protections"]
-    assert len(prot["items"]) == 22
+    assert len(prot["items"]) == 23
     assert prot["items"]["market_tradability"]["state"] == "UNAVAILABLE"
     assert set(prot["unverifiable"]) == {
         k for k, v in prot["items"].items() if v["state"] in ("UNKNOWN", "UNAVAILABLE")

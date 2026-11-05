@@ -38,7 +38,7 @@ def rejected(body: dict[str, Any]) -> None:
 
 
 def test_valid_body_is_accepted_by_both_sides() -> None:
-    body = bodies.config(unlisted=["stop_loss_pct"], redacted=2)
+    body = bodies.config(unlisted=["future_field_pct"], redacted=2)
     parsed = parse_config(raw(body))
     assert [s.key for s in parsed.settings or ()] == list(CONFIG_KEYS)
     server_validate(body, response_schema("config"))
@@ -46,7 +46,7 @@ def test_valid_body_is_accepted_by_both_sides() -> None:
 
 
 def test_allowlist_shape() -> None:
-    assert len(CONFIG_KEYS) == 42 and OPTIONAL_CONFIG_KEYS < set(CONFIG_KEYS)
+    assert len(CONFIG_KEYS) == 45 and OPTIONAL_CONFIG_KEYS < set(CONFIG_KEYS)
     assert set(CONFIG_KEYS.values()) == {"DECIMAL", "BOOL", "INT", "ENUM"}
     for key in CONFIG_KEYS:  # nessuna chiave dell'allowlist ha un nome da segreto
         assert not any(f in key for f in ("token", "secret", "password", "cert", "app_key"))
@@ -117,7 +117,19 @@ def test_sensitive_names_never_accepted_in_unlisted(name: str) -> None:
 
 @pytest.mark.parametrize(
     "unlisted",
-    [["stop_loss_pct", "stop_loss_pct"], ["table_count"], ["Stop"], ["x" * 65], ["a"] * 65],
+    [["future_field_pct", "future_field_pct"], ["table_count"], ["Stop"], ["x" * 65], ["a"] * 65],
 )
 def test_unlisted_rules(unlisted: list[str]) -> None:
     rejected(bodies.config(unlisted=unlisted))
+
+
+def test_invalid_persisted_f18() -> None:
+    """MCP-01m: chiavi persistite illeggibili (F-18) per nome; nomi sensibili mai elencati; null dichiarato."""
+    parse_config(raw(bodies.config(invalid_persisted=["roserpina.profit_epsilon"])))
+    parse_config(raw(bodies.config(invalid_persisted=None, unavailable=["invalid_persisted"])))
+    parse_config(raw(bodies.config(invalid_persisted=["max_win", "roserpina.trailing_stop_pct"])))
+    for bad in (["roserpina.profit_epsilon", "roserpina.profit_epsilon"], ["telegram.bot_token"],
+                ["betfair.app_key"], ["Roserpina.X"], ["a" * 70], ["roserpina.pin_code"],
+                ["roserpina.api_secret"], ["other.max_win"]):
+        rejected(bodies.config(invalid_persisted=bad))
+    rejected(bodies.config(invalid_persisted=None, unavailable=[]))

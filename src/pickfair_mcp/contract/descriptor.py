@@ -100,9 +100,11 @@ SEMANTICS: Final = {
     },
     "sl_tp": (
         "Per Roserpina table, read from the table meta as the core writes it: NOT_ARMED (no "
-        "SL/TP amount), ARMED, TRIGGERED (core marked the trigger) or UNKNOWN (unreadable). "
-        "Trailing appears only as a configured percentage: the core has no trailing logic and "
-        "the contract never reports it as active."
+        "SL/TP amount), ARMED, TRIGGERED (core marked an SL or TP trigger) or UNKNOWN (unreadable). "
+        "trailing (MCP-01m, F-03): NOT_IN_CORE without the core's trailing logic, OFF, WAITING_PROFIT, "
+        "ARMED (peak and threshold computed by the core's trailing_stop module), TRIGGERED or UNKNOWN "
+        "(persisted peak unreadable); peak from the table meta (MEMORY) or the persisted "
+        "risk.trailing_peak record (PERSISTED). A trailing trigger never changes the SL/TP state."
     ),
     "sl_tp_closes": (
         "get_exposure.sl_tp_closes: closes persisted by the core's SL/TP close (F-04, settings "

@@ -86,13 +86,13 @@ async def test_simulated_not_started_declares_unavailable() -> None:
         is_error, payload = await call(s)
     assert is_error is False
     assert payload["data"]["config"]["settings"] is None
-    assert payload["data"]["config"]["unavailable"] == ["settings"]
+    assert payload["data"]["config"]["unavailable"] == ["settings", "invalid_persisted"]
 
 
 @pytest.mark.loopback
 async def test_real_control_api_round_trip(tmp_path: Path) -> None:
     with control_api(tmp_path) as (server, _s, token_path, providers):
-        providers.config = lambda: bodies.config(unlisted=["stop_loss_pct"], redacted=3)
+        providers.config = lambda: bodies.config(unlisted=["future_field_pct"], redacted=3)
         adapter = HttpControlApiAdapter(
             port=server.port, token_file=LocalTokenFile(token_path), timeout_s=2.0
         )
@@ -100,7 +100,7 @@ async def test_real_control_api_round_trip(tmp_path: Path) -> None:
             is_error, payload = await call(s)
     assert is_error is False, payload
     cfg = payload["data"]["config"]
-    assert cfg["unlisted"] == ["stop_loss_pct"] and cfg["redacted"] == 3
+    assert cfg["unlisted"] == ["future_field_pct"] and cfg["redacted"] == 3
     assert payload["data"]["upstream"]["kind"] == "http"
 
 

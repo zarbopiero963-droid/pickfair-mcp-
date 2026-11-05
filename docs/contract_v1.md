@@ -441,3 +441,21 @@ Limiti dichiarati: le chiusure respinte prima della rivendicazione
 (es. `ORDER_STATE_UNCERTAIN`) non sono persistite dal core e non compaiono; il `customer_ref` non esce mai.
 **Non integrabile finché F-04 non è su `main`.**
 
+## MCP-01m — trailing stop (F-03), percentuali F-02, impostazioni non valide F-18 (contratto 1.11.0)
+
+Preparato offline sopra MCP-01i: **non integrabile finché F-03 (`claude/d-f03-trailing-stop`, che contiene F-02 e F-04)
+non è su `main`**. Nessuna route nuova.
+
+- `get_exposure.tables[].sl_tp.trailing`: `state` NOT_IN_CORE (core senza la logica di trailing: la percentuale, se
+  c'è, non è applicata), OFF, WAITING_PROFIT, ARMED, TRIGGERED, UNKNOWN (picco persistito illeggibile: il core non
+  decide); `pct`, `peak`, `threshold` (calcolata da `core.trailing_stop.threshold`), `peak_source` MEMORY (dal `meta`)
+  o PERSISTED (`risk.trailing_peak.<customer_ref>`, letto fuori dal lock dei tavoli finché il runtime non lo carica).
+  Uno scatto del trailing non cambia lo stato di SL/TP.
+- `get_exposure.sl_tp_closes[].trigger`: anche `TRAILING_STOP` (chiusura di F-04 scattata dal trailing).
+- `get_config`: `stop_loss_pct`, `take_profit_pct`, `trailing_stop_pct` (F-02) nell'allowlist (45 chiavi);
+  `invalid_persisted` (F-18): le impostazioni persistite illeggibili per nome (`roserpina.<nome>`), nomi sensibili solo
+  contati, `null` senza F-18. Chiude il limite dichiarato in MCP-01j.
+- `get_status.protections.config_validity` (23 protezioni): TRIGGERED `CONFIGURAZIONE_NON_VALIDA` quando il core ha
+  impostazioni non valide e nega ogni nuova entrata; UNAVAILABLE `CORE_PENDING_F18` senza F-18.
+- `resolve_git_sha` supporta i git worktree (prima la Control API rifiutava di partire con `GIT_SHA_UNRESOLVABLE`).
+

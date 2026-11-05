@@ -615,6 +615,40 @@
         "tests/unit/test_sl_tp_close_models.py"
       ],
       "max_files": 25
+    },
+    "mcp01m-trailing": {
+      "issue": "mandato owner 05/11/2026 (priorità 2: stati F-14/F-16/SL-TP/trailing/cashout rispettando le dipendenze)",
+      "scheda": "MCP-01m — trailing F-03, percentuali F-02, impostazioni non valide F-18 (contratto 1.11.0), offline",
+      "description": "Stato del trailing per tavolo, trigger TRAILING_STOP nelle chiusure, chiavi F-02 e invalid_persisted F-18 in get_config, protezione config_validity, resolve_git_sha nei worktree; non integrabile finché F-03 non è su main.",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "docs/contract_v1.md",
+        "docs/handoff/core_bridge_mcp01m.patch.sha256",
+        "docs/handoff/mcp01m_trailing.md",
+        "docs/roadmap/INTEGRATION_INVENTORY.md",
+        "scripts/critical_mutations.py",
+        "src/pickfair_control_api/__init__.py",
+        "src/pickfair_control_api/contract.py",
+        "src/pickfair_control_api/contract_v1.json",
+        "src/pickfair_mcp/adapters/simulated.py",
+        "src/pickfair_mcp/contract/descriptor.py",
+        "src/pickfair_mcp/contract/descriptor_v1.json",
+        "src/pickfair_mcp/contract/models.py",
+        "src/pickfair_mcp/contract/version.py",
+        "tests/control_api/bodies.py",
+        "tests/crossrepo/test_core_e2e.py",
+        "tests/e2e/test_stdio_subprocess.py",
+        "tests/integration/test_config_tools.py",
+        "tests/integration/test_diagnostics_tools.py",
+        "tests/unit/test_config_models.py",
+        "tests/unit/test_contract_descriptor.py",
+        "tests/unit/test_contract_version.py",
+        "tests/unit/test_control_api_distribution.py",
+        "tests/unit/test_handshake.py",
+        "tests/unit/test_resolve_git_sha.py",
+        "tests/unit/test_settlement_sltp_models.py"
+      ],
+      "max_files": 26
     }
   }
 }

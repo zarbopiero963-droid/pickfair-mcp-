@@ -65,6 +65,7 @@ PROTECTION_KEYS = (
     "anti_duplication",
     "order_circuit_breaker",
     "recovery_state",
+    "config_validity",
 )
 
 
@@ -222,6 +223,8 @@ def not_armed() -> dict[str, Any]:
         "stop_loss_pct": None,
         "take_profit_pct": None,
         "trailing_stop_pct": None,
+        "trailing": {"state": "NOT_IN_CORE", "pct": None, "peak": None, "threshold": None,
+                     "peak_source": "NONE"},
     }
 
 
@@ -375,6 +378,7 @@ def config(**overrides: Any) -> dict[str, Any]:
         "settings": [setting(k) for k in CONFIG_KEYS],
         "unlisted": [],
         "redacted": 0,
+        "invalid_persisted": [],
         "unavailable": [],
     }
     body.update(overrides)

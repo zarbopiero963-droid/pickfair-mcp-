@@ -57,7 +57,7 @@ def test_pure_check_accepts_supported_pair() -> None:
     ("overrides", "expected"),
     [
         ({"contract_version": "2.0.0"}, "VERSION_UNSUPPORTED"),
-        ({"contract_version": "1.11.0"}, "VERSION_UNSUPPORTED"),
+        ({"contract_version": "1.12.0"}, "VERSION_UNSUPPORTED"),
         ({"contract_version": "0.9.0"}, "VERSION_UNSUPPORTED"),
         ({"schema_hash": "d" * 64}, "SCHEMA_HASH_UNKNOWN"),
         ({"capabilities": ("GET /v1/status",)}, "CAPABILITY_MISSING:GET /v1/meta"),

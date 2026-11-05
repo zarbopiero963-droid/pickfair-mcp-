@@ -14,7 +14,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Final
 
-CONTRACT_VERSION: Final = "1.10.0"
+CONTRACT_VERSION: Final = "1.11.0"
 DESCRIPTOR_PATH: Final = Path(__file__).with_name("contract_v1.json")
 
 # Route servite in sola lettura. Nessuna route di comando.
@@ -100,13 +100,18 @@ def resolve_git_sha(repo_root: Path) -> str:
             raise ValueError("unsupported .git file")
         git = (repo_root / line[len("gitdir: ") :]).resolve()
     head = (git / "HEAD").read_text(encoding="utf-8").strip()
+    # git worktree: HEAD è nella directory del worktree, i ref dei branch nella directory comune.
+    common = git
+    commondir = git / "commondir"
+    if commondir.is_file():
+        common = (git / commondir.read_text(encoding="utf-8").strip()).resolve()
     sha = head
     if head.startswith("ref: "):
         ref = head[len("ref: ") :]
-        ref_file = git / ref
+        ref_file = git / ref if (git / ref).is_file() else common / ref
         sha = ref_file.read_text(encoding="utf-8").strip() if ref_file.is_file() else ""
         if not sha:
-            packed = git / "packed-refs"
+            packed = common / "packed-refs"
             for row in packed.read_text(encoding="utf-8").splitlines() if packed.is_file() else ():
                 parts = row.split(" ")
                 if len(parts) == 2 and parts[1] == ref:

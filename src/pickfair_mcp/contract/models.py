@@ -202,6 +202,8 @@ class ProtectionItems(StrictModel):
     anti_duplication: Protection
     order_circuit_breaker: Protection
     recovery_state: Protection
+    # MCP-01m (F-18 di Claude D): impostazioni persistite illeggibili => il core nega ogni nuova entrata.
+    config_validity: Protection
 
 
 PROTECTION_NAMES: tuple[str, ...] = tuple(ProtectionItems.model_fields)
@@ -228,6 +230,7 @@ ProtectionName = Literal[
     "anti_duplication",
     "order_circuit_breaker",
     "recovery_state",
+    "config_validity",
 ]
 ProtectionNames = Annotated[
     tuple[ProtectionName, ...],
@@ -733,13 +736,52 @@ class AccountResponse(StrictModel):
 TableStatus = Literal["FREE", "ACTIVE", "RECOVERY", "LOCKED"]
 
 
+class Trailing(StrictModel):
+    """Trailing stop del tavolo (MCP-01m, F-03 di Claude D), dal `meta` del tavolo e dal picco persistito.
+
+    NOT_IN_CORE: il core non ha la logica di trailing (prima di F-03): la percentuale, se configurata, non è
+    applicata. OFF: percentuale assente o non valida (il core lo tratta come spento). WAITING_PROFIT: attivo, nessun
+    profitto garantito ancora (nessun picco). ARMED: picco > 0, soglia calcolata dal core. TRIGGERED: il core ha
+    segnato lo scatto del trailing. UNKNOWN: picco persistito illeggibile (il core non decide: fail-closed).
+    """
+
+    state: Literal["NOT_IN_CORE", "OFF", "WAITING_PROFIT", "ARMED", "TRIGGERED", "UNKNOWN"]
+    pct: NonNegativeDecimal | None
+    peak: NonNegativeDecimal | None
+    threshold: NonNegativeDecimal | None
+    peak_source: Literal["MEMORY", "PERSISTED", "NONE"]
+
+    @model_validator(mode="after")
+    def _coherent(self) -> Trailing:
+        has_peak = self.peak is not None
+        if (self.peak_source == "NONE") == has_peak:
+            raise ValueError("peak and peak_source disagree")
+        if self.state in ("NOT_IN_CORE", "OFF", "WAITING_PROFIT", "UNKNOWN") and (
+            has_peak or self.threshold is not None
+        ):
+            raise ValueError("peak or threshold without an armed trailing")
+        if self.state in ("WAITING_PROFIT", "ARMED", "TRIGGERED") and self.pct is None:
+            raise ValueError("active trailing without a percentage")
+        if self.state == "OFF" and self.pct is not None:
+            raise ValueError("OFF trailing with a valid percentage")
+        if self.state == "ARMED" and (not has_peak or self.threshold is None):
+            raise ValueError("ARMED trailing without peak and threshold")
+        if (
+            self.peak is not None
+            and self.threshold is not None
+            and Decimal(self.threshold) > Decimal(self.peak)
+        ):
+            raise ValueError("threshold above the peak")
+        return self
+
+
 class SlTp(StrictModel):
     """SL/TP del tavolo (MCP-01h, contratto 1.5.0), letto dal `meta` del tavolo del core.
 
     NOT_ARMED: nessun importo SL/TP sul tavolo (oggi sempre, sul `main` del core: nessun percorso
     li arma prima di F-02 di Claude D). ARMED: almeno un importo. TRIGGERED: il core ha segnato lo
-    scatto (`sl_tp_triggered`). UNKNOWN: valori presenti ma illeggibili. Il trailing compare solo
-    come percentuale configurata: il core non ha logica di trailing, mai dichiarata attiva.
+    scatto di SL o TP (`sl_tp_triggered`). UNKNOWN: valori presenti ma illeggibili. Il trailing ha il suo
+    stato in `trailing` (MCP-01m): uno scatto del trailing non cambia lo stato di SL/TP.
     """
 
     state: Literal["NOT_ARMED", "ARMED", "TRIGGERED", "UNKNOWN"]
@@ -748,6 +790,7 @@ class SlTp(StrictModel):
     stop_loss_pct: NonNegativeDecimal | None
     take_profit_pct: NonNegativeDecimal | None
     trailing_stop_pct: NonNegativeDecimal | None
+    trailing: Trailing
 
     @model_validator(mode="after")
     def _coherent(self) -> SlTp:
@@ -839,7 +882,7 @@ class SlTpClose(StrictModel):
     market_id: Identifier
     selection_id: Identifier
     side: Literal["BACK", "LAY"]
-    trigger: Literal["STOP_LOSS", "TAKE_PROFIT", "UNKNOWN"]
+    trigger: Literal["STOP_LOSS", "TAKE_PROFIT", "TRAILING_STOP", "UNKNOWN"]
     close_state: CloseState
     # Dal core (`REROUTABLE_STATES`): solo NOT_EXECUTED si ritenta, e solo con un nuovo scatto.
     retryable: bool
@@ -1253,6 +1296,10 @@ CONFIG_KEYS: dict[str, str] = {
     "profit_epsilon_enabled": "BOOL",
     "auto_green_delay_enabled": "BOOL",
     "auto_green_delay_sec": "DECIMAL",
+    # MCP-01m: percentuali di default della posizione (F-02 di Claude D)
+    "stop_loss_pct": "DECIMAL",
+    "take_profit_pct": "DECIMAL",
+    "trailing_stop_pct": "DECIMAL",
 }
 
 # Campi `Optional` del core: `None` = non configurato (limite non attivo o percentuale mancante,
@@ -1263,7 +1310,7 @@ OPTIONAL_CONFIG_KEYS: frozenset[str] = frozenset({
     "max_event_exposure_pct", "max_daily_loss", "max_drawdown_hard_stop_pct",
     "max_open_exposure", "max_order_exposure", "max_market_exposure", "max_event_exposure_abs",
     "max_drawdown_abs", "max_session_loss", "max_exposure_stop", "max_recovery_chase_abs",
-    "max_stake_abs", "max_win",
+    "max_stake_abs", "max_win", "stop_loss_pct", "take_profit_pct", "trailing_stop_pct",
 })
 
 # Frammenti che un nome in `unlisted` non può contenere: seconda barriera, oltre al filtro
@@ -1342,6 +1389,22 @@ def _check_unlisted(values: tuple[str, ...]) -> tuple[str, ...]:
     return values
 
 
+# Solo impostazioni di Roserpina (`roserpina.<nome>`) o nomi semplici: credenziali Betfair/Telegram escluse per forma.
+SettingKeyName = Annotated[
+    str, StringConstraints(pattern=r"^(roserpina\.)?[a-z][a-z0-9_]{0,63}$", max_length=80)
+]
+
+
+def _check_invalid_persisted(values: tuple[str, ...]) -> tuple[str, ...]:
+    if len(set(values)) != len(values):
+        raise ValueError("duplicate invalid setting names")
+    for name in values:
+        bare = name.removeprefix("roserpina.")  # «roserpina» contiene «pin»: si controlla il nome
+        if any(fragment in bare for fragment in SENSITIVE_NAME_FRAGMENTS):
+            raise ValueError("sensitive setting name must be redacted, not listed")
+    return values
+
+
 class ConfigResponse(StrictModel):
     source: Source
     observed_at: ObservedAt
@@ -1353,13 +1416,24 @@ class ConfigResponse(StrictModel):
         tuple[FieldName, ...], Field(max_length=MAX_UNLISTED), AfterValidator(_check_unlisted)
     ]
     redacted: Count
+    # MCP-01m (F-18 di Claude D): chiavi persistite illeggibili o fuori dominio (il core nega ogni nuova
+    # entrata finché ce n'è una). null se il core non le registra (prima di F-18).
+    invalid_persisted: (
+        Annotated[
+            tuple[SettingKeyName, ...], Field(max_length=64), AfterValidator(_check_invalid_persisted)
+        ]
+        | None
+    )
     unavailable: Annotated[
-        tuple[Literal["settings"], ...], Field(max_length=1, json_schema_extra={"uniqueItems": True})
+        tuple[Literal["settings", "invalid_persisted"], ...],
+        Field(max_length=2, json_schema_extra={"uniqueItems": True}),
     ]
 
     @model_validator(mode="after")
     def _complete(self) -> ConfigResponse:
-        _check_unavailable({"settings": self.settings}, self.unavailable)
+        _check_unavailable(
+            {"settings": self.settings, "invalid_persisted": self.invalid_persisted}, self.unavailable
+        )
         if self.settings is None:
             return self
         if tuple(s.key for s in self.settings) != tuple(CONFIG_KEYS):

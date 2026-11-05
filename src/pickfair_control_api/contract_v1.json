@@ -1,6 +1,6 @@
 {
   "contract_name": "pickfair-control-api",
-  "contract_version": "1.10.0",
+  "contract_version": "1.11.0",
   "error_codes": {
     "control_api": [
       "BAD_HOST",
@@ -198,8 +198,11 @@
         "profit_epsilon": "DECIMAL",
         "profit_epsilon_enabled": "BOOL",
         "risk_profile": "ENUM",
+        "stop_loss_pct": "DECIMAL",
         "table_count": "INT",
-        "target_profit_cycle_pct": "DECIMAL"
+        "take_profit_pct": "DECIMAL",
+        "target_profit_cycle_pct": "DECIMAL",
+        "trailing_stop_pct": "DECIMAL"
       },
       "optional_keys": [
         "max_daily_loss",
@@ -217,7 +220,10 @@
         "max_stake_abs",
         "max_total_exposure_pct",
         "max_win",
-        "target_profit_cycle_pct"
+        "stop_loss_pct",
+        "take_profit_pct",
+        "target_profit_cycle_pct",
+        "trailing_stop_pct"
       ],
       "source": "The core's RoserpinaConfig, read through one reference (reload_config swaps it whole). Only the allowlisted keys below are returned; credentials, tokens, certificates and persisted settings are never read.",
       "states": "SET exact value; NOT_SET optional setting not configured (the core treats a missing risk percentage as a block, a missing optional cap as inactive); INVALID present but unreadable, never shown as zero.",
@@ -294,7 +300,7 @@
     "protections": "Each protection is ACTIVE, INACTIVE, TRIGGERED, UNKNOWN or UNAVAILABLE; only ACTIVE has no reason. A protection that cannot be verified is UNKNOWN (core has it, value not readable) or UNAVAILABLE (core does not expose it yet), never ACTIVE or INACTIVE; the derived lists `disabled` and `unverifiable` must match the items.",
     "security": "Control API: token of at least 43 URL-safe characters (shorter or malformed tokens are refused at construction), rotations serialized end to end; at most 16 connections served at once (others closed without a thread), each closed within 10 s; protocol errors answer 400 BAD_REQUEST or 405 METHOD_NOT_ALLOWED with a fixed JSON body, never echoing the input; no per-request log or traceback.",
     "settlement": "Counts only (no payload, reference or event name): unrecorded settlements, held Dutching batches, settlement_effects by outcome, cycle checkpoints by stage, SIM broker settlements (null in LIVE).",
-    "sl_tp": "Per Roserpina table, read from the table meta as the core writes it: NOT_ARMED (no SL/TP amount), ARMED, TRIGGERED (core marked the trigger) or UNKNOWN (unreadable). Trailing appears only as a configured percentage: the core has no trailing logic and the contract never reports it as active.",
+    "sl_tp": "Per Roserpina table, read from the table meta as the core writes it: NOT_ARMED (no SL/TP amount), ARMED, TRIGGERED (core marked an SL or TP trigger) or UNKNOWN (unreadable). trailing (MCP-01m, F-03): NOT_IN_CORE without the core's trailing logic, OFF, WAITING_PROFIT, ARMED (peak and threshold computed by the core's trailing_stop module), TRIGGERED or UNKNOWN (persisted peak unreadable); peak from the table meta (MEMORY) or the persisted risk.trailing_peak record (PERSISTED). A trailing trigger never changes the SL/TP state.",
     "sl_tp_closes": "get_exposure.sl_tp_closes: closes persisted by the core's SL/TP close (F-04, settings `risk.sl_tp_close.*`), read in one read-only transaction with the position's orders and the ledger hedge rows: table, position, trigger, close state (CLAIMED/ROUTED/NOT_EXECUTED/UNCERTAIN, unreadable UNKNOWN), retryable as the core decides, detail code, residual exposure only from the table that still holds the position. Hedges of the close are the ledger rows whose cashout_request_id is recorded in the close (cashout_request_ids); null when the record does not carry them. Closes rejected before the claim are not persisted by the core and never appear. Without F-04: UNAVAILABLE CORE_PENDING_F04.",
     "source": "Responses declare source=core; the simulated adapter declares source=simulated.",
     "transport": "HTTP/1.1 GET only on 127.0.0.1, Authorization Bearer token required, Host must be 127.0.0.1:<port>, no redirects, Content-Type application/json; charset=utf-8, body at most 65536 bytes.",
@@ -845,7 +851,10 @@
                   "profit_epsilon",
                   "profit_epsilon_enabled",
                   "auto_green_delay_enabled",
-                  "auto_green_delay_sec"
+                  "auto_green_delay_sec",
+                  "stop_loss_pct",
+                  "take_profit_pct",
+                  "trailing_stop_pct"
                 ],
                 "title": "Key",
                 "type": "string"
@@ -893,6 +902,23 @@
                 "title": "Consistency",
                 "type": "string"
               },
+              "invalid_persisted": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "maxLength": 80,
+                      "pattern": "^(roserpina\\.)?[a-z][a-z0-9_]{0,63}$",
+                      "type": "string"
+                    },
+                    "maxItems": 64,
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Invalid Persisted"
+              },
               "observed_at": {
                 "exclusiveMaximum": 100000000000.0,
                 "exclusiveMinimum": 0,
@@ -924,7 +950,7 @@
                         }
                       ]
                     },
-                    "maxItems": 42,
+                    "maxItems": 45,
                     "type": "array"
                   },
                   {
@@ -943,10 +969,13 @@
               },
               "unavailable": {
                 "items": {
-                  "const": "settings",
+                  "enum": [
+                    "settings",
+                    "invalid_persisted"
+                  ],
                   "type": "string"
                 },
-                "maxItems": 1,
+                "maxItems": 2,
                 "title": "Unavailable",
                 "type": "array",
                 "uniqueItems": true
@@ -968,6 +997,7 @@
               "settings",
               "unlisted",
               "redacted",
+              "invalid_persisted",
               "unavailable"
             ],
             "title": "ConfigResponse",
@@ -1019,7 +1049,10 @@
                   "profit_epsilon",
                   "profit_epsilon_enabled",
                   "auto_green_delay_enabled",
-                  "auto_green_delay_sec"
+                  "auto_green_delay_sec",
+                  "stop_loss_pct",
+                  "take_profit_pct",
+                  "trailing_stop_pct"
                 ],
                 "title": "Key",
                 "type": "string"
@@ -1107,7 +1140,10 @@
                   "profit_epsilon",
                   "profit_epsilon_enabled",
                   "auto_green_delay_enabled",
-                  "auto_green_delay_sec"
+                  "auto_green_delay_sec",
+                  "stop_loss_pct",
+                  "take_profit_pct",
+                  "trailing_stop_pct"
                 ],
                 "title": "Key",
                 "type": "string"
@@ -1300,7 +1336,10 @@
                   "profit_epsilon",
                   "profit_epsilon_enabled",
                   "auto_green_delay_enabled",
-                  "auto_green_delay_sec"
+                  "auto_green_delay_sec",
+                  "stop_loss_pct",
+                  "take_profit_pct",
+                  "trailing_stop_pct"
                 ],
                 "title": "Key",
                 "type": "string"
@@ -1851,7 +1890,7 @@
           },
           "SlTp": {
             "additionalProperties": false,
-            "description": "SL/TP del tavolo (MCP-01h, contratto 1.5.0), letto dal `meta` del tavolo del core.\n\nNOT_ARMED: nessun importo SL/TP sul tavolo (oggi sempre, sul `main` del core: nessun percorso\nli arma prima di F-02 di Claude D). ARMED: almeno un importo. TRIGGERED: il core ha segnato lo\nscatto (`sl_tp_triggered`). UNKNOWN: valori presenti ma illeggibili. Il trailing compare solo\ncome percentuale configurata: il core non ha logica di trailing, mai dichiarata attiva.",
+            "description": "SL/TP del tavolo (MCP-01h, contratto 1.5.0), letto dal `meta` del tavolo del core.\n\nNOT_ARMED: nessun importo SL/TP sul tavolo (oggi sempre, sul `main` del core: nessun percorso\nli arma prima di F-02 di Claude D). ARMED: almeno un importo. TRIGGERED: il core ha segnato lo\nscatto di SL o TP (`sl_tp_triggered`). UNKNOWN: valori presenti ma illeggibili. Il trailing ha il suo\nstato in `trailing` (MCP-01m): uno scatto del trailing non cambia lo stato di SL/TP.",
             "properties": {
               "state": {
                 "enum": [
@@ -1915,6 +1954,9 @@
                 ],
                 "title": "Take Profit Pct"
               },
+              "trailing": {
+                "$ref": "#/$defs/Trailing"
+              },
               "trailing_stop_pct": {
                 "anyOf": [
                   {
@@ -1935,7 +1977,8 @@
               "take_profit",
               "stop_loss_pct",
               "take_profit_pct",
-              "trailing_stop_pct"
+              "trailing_stop_pct",
+              "trailing"
             ],
             "title": "SlTp",
             "type": "object"
@@ -2060,6 +2103,7 @@
                 "enum": [
                   "STOP_LOSS",
                   "TAKE_PROFIT",
+                  "TRAILING_STOP",
                   "UNKNOWN"
                 ],
                 "title": "Trigger",
@@ -2162,6 +2206,81 @@
               "truncated"
             ],
             "title": "SlTpClosesRead",
+            "type": "object"
+          },
+          "Trailing": {
+            "additionalProperties": false,
+            "description": "Trailing stop del tavolo (MCP-01m, F-03 di Claude D), dal `meta` del tavolo e dal picco persistito.\n\nNOT_IN_CORE: il core non ha la logica di trailing (prima di F-03): la percentuale, se configurata, non \u00e8\napplicata. OFF: percentuale assente o non valida (il core lo tratta come spento). WAITING_PROFIT: attivo, nessun\nprofitto garantito ancora (nessun picco). ARMED: picco > 0, soglia calcolata dal core. TRIGGERED: il core ha\nsegnato lo scatto del trailing. UNKNOWN: picco persistito illeggibile (il core non decide: fail-closed).",
+            "properties": {
+              "pct": {
+                "anyOf": [
+                  {
+                    "maxLength": 48,
+                    "pattern": "^(?:[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?)$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Pct"
+              },
+              "peak": {
+                "anyOf": [
+                  {
+                    "maxLength": 48,
+                    "pattern": "^(?:[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?)$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Peak"
+              },
+              "peak_source": {
+                "enum": [
+                  "MEMORY",
+                  "PERSISTED",
+                  "NONE"
+                ],
+                "title": "Peak Source",
+                "type": "string"
+              },
+              "state": {
+                "enum": [
+                  "NOT_IN_CORE",
+                  "OFF",
+                  "WAITING_PROFIT",
+                  "ARMED",
+                  "TRIGGERED",
+                  "UNKNOWN"
+                ],
+                "title": "State",
+                "type": "string"
+              },
+              "threshold": {
+                "anyOf": [
+                  {
+                    "maxLength": 48,
+                    "pattern": "^(?:[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?)$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Threshold"
+              }
+            },
+            "required": [
+              "state",
+              "pct",
+              "peak",
+              "threshold",
+              "peak_source"
+            ],
+            "title": "Trailing",
             "type": "object"
           },
           "UpstreamInfo": {
@@ -4175,6 +4294,17 @@
                 ],
                 "title": "Book Guard"
               },
+              "config_validity": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ActiveProtection"
+                  },
+                  {
+                    "$ref": "#/$defs/FlaggedProtection"
+                  }
+                ],
+                "title": "Config Validity"
+              },
               "daily_loss": {
                 "anyOf": [
                   {
@@ -4418,7 +4548,8 @@
               "market_tradability",
               "anti_duplication",
               "order_circuit_breaker",
-              "recovery_state"
+              "recovery_state",
+              "config_validity"
             ],
             "title": "ProtectionItems",
             "type": "object"
@@ -4450,11 +4581,12 @@
                     "market_tradability",
                     "anti_duplication",
                     "order_circuit_breaker",
-                    "recovery_state"
+                    "recovery_state",
+                    "config_validity"
                   ],
                   "type": "string"
                 },
-                "maxItems": 22,
+                "maxItems": 23,
                 "title": "Disabled",
                 "type": "array",
                 "uniqueItems": true
@@ -4486,11 +4618,12 @@
                     "market_tradability",
                     "anti_duplication",
                     "order_circuit_breaker",
-                    "recovery_state"
+                    "recovery_state",
+                    "config_validity"
                   ],
                   "type": "string"
                 },
-                "maxItems": 22,
+                "maxItems": 23,
                 "title": "Unverifiable",
                 "type": "array",
                 "uniqueItems": true
@@ -6672,7 +6805,10 @@
                 "profit_epsilon",
                 "profit_epsilon_enabled",
                 "auto_green_delay_enabled",
-                "auto_green_delay_sec"
+                "auto_green_delay_sec",
+                "stop_loss_pct",
+                "take_profit_pct",
+                "trailing_stop_pct"
               ],
               "title": "Key",
               "type": "string"
@@ -6758,7 +6894,10 @@
                 "profit_epsilon",
                 "profit_epsilon_enabled",
                 "auto_green_delay_enabled",
-                "auto_green_delay_sec"
+                "auto_green_delay_sec",
+                "stop_loss_pct",
+                "take_profit_pct",
+                "trailing_stop_pct"
               ],
               "title": "Key",
               "type": "string"
@@ -6846,7 +6985,10 @@
                 "profit_epsilon",
                 "profit_epsilon_enabled",
                 "auto_green_delay_enabled",
-                "auto_green_delay_sec"
+                "auto_green_delay_sec",
+                "stop_loss_pct",
+                "take_profit_pct",
+                "trailing_stop_pct"
               ],
               "title": "Key",
               "type": "string"
@@ -6937,7 +7079,10 @@
                 "profit_epsilon",
                 "profit_epsilon_enabled",
                 "auto_green_delay_enabled",
-                "auto_green_delay_sec"
+                "auto_green_delay_sec",
+                "stop_loss_pct",
+                "take_profit_pct",
+                "trailing_stop_pct"
               ],
               "title": "Key",
               "type": "string"
@@ -6987,6 +7132,23 @@
           "title": "Consistency",
           "type": "string"
         },
+        "invalid_persisted": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 80,
+                "pattern": "^(roserpina\\.)?[a-z][a-z0-9_]{0,63}$",
+                "type": "string"
+              },
+              "maxItems": 64,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Invalid Persisted"
+        },
         "observed_at": {
           "exclusiveMaximum": 100000000000.0,
           "exclusiveMinimum": 0,
@@ -7018,7 +7180,7 @@
                   }
                 ]
               },
-              "maxItems": 42,
+              "maxItems": 45,
               "type": "array"
             },
             {
@@ -7037,10 +7199,13 @@
         },
         "unavailable": {
           "items": {
-            "const": "settings",
+            "enum": [
+              "settings",
+              "invalid_persisted"
+            ],
             "type": "string"
           },
-          "maxItems": 1,
+          "maxItems": 2,
           "title": "Unavailable",
           "type": "array",
           "uniqueItems": true
@@ -7062,6 +7227,7 @@
         "settings",
         "unlisted",
         "redacted",
+        "invalid_persisted",
         "unavailable"
       ],
       "title": "ConfigResponse",
@@ -7317,7 +7483,7 @@
         },
         "SlTp": {
           "additionalProperties": false,
-          "description": "SL/TP del tavolo (MCP-01h, contratto 1.5.0), letto dal `meta` del tavolo del core.\n\nNOT_ARMED: nessun importo SL/TP sul tavolo (oggi sempre, sul `main` del core: nessun percorso\nli arma prima di F-02 di Claude D). ARMED: almeno un importo. TRIGGERED: il core ha segnato lo\nscatto (`sl_tp_triggered`). UNKNOWN: valori presenti ma illeggibili. Il trailing compare solo\ncome percentuale configurata: il core non ha logica di trailing, mai dichiarata attiva.",
+          "description": "SL/TP del tavolo (MCP-01h, contratto 1.5.0), letto dal `meta` del tavolo del core.\n\nNOT_ARMED: nessun importo SL/TP sul tavolo (oggi sempre, sul `main` del core: nessun percorso\nli arma prima di F-02 di Claude D). ARMED: almeno un importo. TRIGGERED: il core ha segnato lo\nscatto di SL o TP (`sl_tp_triggered`). UNKNOWN: valori presenti ma illeggibili. Il trailing ha il suo\nstato in `trailing` (MCP-01m): uno scatto del trailing non cambia lo stato di SL/TP.",
           "properties": {
             "state": {
               "enum": [
@@ -7381,6 +7547,9 @@
               ],
               "title": "Take Profit Pct"
             },
+            "trailing": {
+              "$ref": "#/$defs/Trailing"
+            },
             "trailing_stop_pct": {
               "anyOf": [
                 {
@@ -7401,7 +7570,8 @@
             "take_profit",
             "stop_loss_pct",
             "take_profit_pct",
-            "trailing_stop_pct"
+            "trailing_stop_pct",
+            "trailing"
           ],
           "title": "SlTp",
           "type": "object"
@@ -7526,6 +7696,7 @@
               "enum": [
                 "STOP_LOSS",
                 "TAKE_PROFIT",
+                "TRAILING_STOP",
                 "UNKNOWN"
               ],
               "title": "Trigger",
@@ -7628,6 +7799,81 @@
             "truncated"
           ],
           "title": "SlTpClosesRead",
+          "type": "object"
+        },
+        "Trailing": {
+          "additionalProperties": false,
+          "description": "Trailing stop del tavolo (MCP-01m, F-03 di Claude D), dal `meta` del tavolo e dal picco persistito.\n\nNOT_IN_CORE: il core non ha la logica di trailing (prima di F-03): la percentuale, se configurata, non \u00e8\napplicata. OFF: percentuale assente o non valida (il core lo tratta come spento). WAITING_PROFIT: attivo, nessun\nprofitto garantito ancora (nessun picco). ARMED: picco > 0, soglia calcolata dal core. TRIGGERED: il core ha\nsegnato lo scatto del trailing. UNKNOWN: picco persistito illeggibile (il core non decide: fail-closed).",
+          "properties": {
+            "pct": {
+              "anyOf": [
+                {
+                  "maxLength": 48,
+                  "pattern": "^(?:[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Pct"
+            },
+            "peak": {
+              "anyOf": [
+                {
+                  "maxLength": 48,
+                  "pattern": "^(?:[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Peak"
+            },
+            "peak_source": {
+              "enum": [
+                "MEMORY",
+                "PERSISTED",
+                "NONE"
+              ],
+              "title": "Peak Source",
+              "type": "string"
+            },
+            "state": {
+              "enum": [
+                "NOT_IN_CORE",
+                "OFF",
+                "WAITING_PROFIT",
+                "ARMED",
+                "TRIGGERED",
+                "UNKNOWN"
+              ],
+              "title": "State",
+              "type": "string"
+            },
+            "threshold": {
+              "anyOf": [
+                {
+                  "maxLength": 48,
+                  "pattern": "^(?:[1-9][0-9]{0,14}(?:\\.[0-9]{1,28})?|0(?:\\.[0-9]{1,28})?)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Threshold"
+            }
+          },
+          "required": [
+            "state",
+            "pct",
+            "peak",
+            "threshold",
+            "peak_source"
+          ],
+          "title": "Trailing",
           "type": "object"
         }
       },
@@ -9720,6 +9966,17 @@
               ],
               "title": "Book Guard"
             },
+            "config_validity": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ActiveProtection"
+                },
+                {
+                  "$ref": "#/$defs/FlaggedProtection"
+                }
+              ],
+              "title": "Config Validity"
+            },
             "daily_loss": {
               "anyOf": [
                 {
@@ -9963,7 +10220,8 @@
             "market_tradability",
             "anti_duplication",
             "order_circuit_breaker",
-            "recovery_state"
+            "recovery_state",
+            "config_validity"
           ],
           "title": "ProtectionItems",
           "type": "object"
@@ -9995,11 +10253,12 @@
                   "market_tradability",
                   "anti_duplication",
                   "order_circuit_breaker",
-                  "recovery_state"
+                  "recovery_state",
+                  "config_validity"
                 ],
                 "type": "string"
               },
-              "maxItems": 22,
+              "maxItems": 23,
               "title": "Disabled",
               "type": "array",
               "uniqueItems": true
@@ -10031,11 +10290,12 @@
                   "market_tradability",
                   "anti_duplication",
                   "order_circuit_breaker",
-                  "recovery_state"
+                  "recovery_state",
+                  "config_validity"
                 ],
                 "type": "string"
               },
-              "maxItems": 22,
+              "maxItems": 23,
               "title": "Unverifiable",
               "type": "array",
               "uniqueItems": true

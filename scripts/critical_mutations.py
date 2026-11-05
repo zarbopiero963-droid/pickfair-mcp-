@@ -1348,6 +1348,83 @@ MUTANTS: tuple[Mutant, ...] = (
         ),
     ),
     Mutant(
+        "Y01",
+        "picco senza fonte (o fonte senza picco) accettato",
+        (
+            (
+                'src/pickfair_mcp/contract/models.py',
+                '        if (self.peak_source == "NONE") == has_peak:',
+                '        if False:',
+            ),
+        ),
+    ),
+    Mutant(
+        "Y02",
+        "trailing attivo senza percentuale accettato",
+        (
+            (
+                'src/pickfair_mcp/contract/models.py',
+                '        if self.state in ("WAITING_PROFIT", "ARMED", "TRIGGERED") and self.pct is None:',
+                '        if False:',
+            ),
+        ),
+    ),
+    Mutant(
+        "Y03",
+        "trailing OFF con percentuale valida accettato",
+        (
+            (
+                'src/pickfair_mcp/contract/models.py',
+                '        if self.state == "OFF" and self.pct is not None:',
+                '        if False:',
+            ),
+        ),
+    ),
+    Mutant(
+        "Y04",
+        "trailing ARMED senza picco o soglia accettato",
+        (
+            (
+                'src/pickfair_mcp/contract/models.py',
+                '        if self.state == "ARMED" and (not has_peak or self.threshold is None):',
+                '        if False:',
+            ),
+        ),
+    ),
+    Mutant(
+        "Y05",
+        "soglia sopra il picco accettata",
+        (
+            (
+                'src/pickfair_mcp/contract/models.py',
+                '            and Decimal(self.threshold) > Decimal(self.peak)',
+                '            and False',
+            ),
+        ),
+    ),
+    Mutant(
+        "Y06",
+        "nome sensibile accettato fra le impostazioni non valide",
+        (
+            (
+                'src/pickfair_mcp/contract/models.py',
+                '        if any(fragment in bare for fragment in SENSITIVE_NAME_FRAGMENTS):',
+                '        if False:',
+            ),
+        ),
+    ),
+    Mutant(
+        "Y07",
+        "SHA del codice non risolto nei git worktree",
+        (
+            (
+                'src/pickfair_control_api/contract.py',
+                '        ref_file = git / ref if (git / ref).is_file() else common / ref',
+                '        ref_file = git / ref',
+            ),
+        ),
+    ),
+    Mutant(
         "O01",
         "ordine AMBIGUOUS accettato come FAILED",
         (
