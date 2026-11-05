@@ -1,7 +1,7 @@
 {
  "blocks": [
   {
-   "descrizione": "i commit sorgente delle 12 patch del core (01d\u202601n) esistono solo nel clone locale di questa sessione (Pickfair-nogui in sola lettura per C, codice core vietato nel repo MCP); recuperabili solo dai file consegnati all'owner. Decisione owner: A = branch di consegna su Pickfair-nogui, B = patch come artefatto nella catena C",
+   "descrizione": "sorgenti delle 12 patch del core consegnate come git bundle (stessi SHA) e patch canoniche; DURABLE solo dopo la pubblicazione del branch di handoff da parte di Claude B (opzione A). Fino ad allora NEEDS_RECONCILIATION",
    "id": "CORE-HANDOFF-SOURCES-UNPUBLISHED",
    "stato": "NEEDS_RECONCILIATION"
   }
@@ -11,10 +11,10 @@
   "F-04 su main": "MCP-01i r2",
   "claude/d-market-book-age su main": "MCP-01n",
   "correzione catalogo F-13b/F-02 (Claude B)": "regressione verde del core con F-03",
-  "decisione owner A/B (pubblicazione sorgenti core)": "riconciliazione degli handoff del core",
   "hardening pfckpt.py (Claude B)": "protezione squash merge / branch cancellati per questa catena",
   "hardening pfckpt.py cross-repo (Claude B)": "prova INTEGRATED_VERIFIED degli handoff del core nella catena C",
   "integrazione patch (Claude B)": "MCP-01d...SEC-01",
+  "pubblicazione branch di handoff (Claude B, opzione A)": "DURABLE degli handoff del core",
   "ratifica owner K3": "RC-10/11/12"
  },
  "gate_a": "N/A (repository MCP)",
@@ -29,11 +29,12 @@
   "K3 specifiche offline (bad873b)",
   "G8 campagna all PASS 6/6, 1845 test (e029363)",
   "MCP-01n et\u00e0 del book, contratto 1.12.0 (bfcd39c, evidenze 2494e3e)",
-  "handoff 01i riallineato alla r2 sui branch 01m/01n (5ec7961)"
+  "handoff 01i riallineato alla r2 sui branch 01m/01n (5ec7961)",
+  "consegna cross-repo opzione A: bundle + 12 patch canoniche, digest riproducibili da clone nuovo 12/12 (f1b4b64)"
  ],
- "lotto_corrente": "checkpoint seq 4: handoff del core registrati DELIVERED; sorgenti non pubblicate => NEEDS_RECONCILIATION in attesa della decisione owner A/B",
- "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C",
- "next_atomic_action": "attendere la decisione owner A/B sulla pubblicazione delle sorgenti del core e l'hardening cross-repo di B; nel frattempo rendere deterministico test_rotation_mid_traffic (MCP-LOAD-FLAKE)",
+ "lotto_corrente": "consegna cross-repo DELIVERED; attesa pubblicazione del branch di handoff (B) e hardening multi-repo di pfckpt",
+ "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A)",
+ "next_atomic_action": "quando B pubblica il branch di handoff: verificare SHA/tree nel repo destinatario, spostare i record in `handoffs` (DURABLE); intanto rendere deterministico test_rotation_mid_traffic (MCP-LOAD-FLAKE)",
  "pr_505": "N/A (repository MCP)",
  "schema": "pf-task-state/1",
  "tests_missing": []

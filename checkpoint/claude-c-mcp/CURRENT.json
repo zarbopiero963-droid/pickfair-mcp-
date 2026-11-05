@@ -3,11 +3,11 @@
  "checkpoint_commit": null,
  "code": {
   "branch": "ccr-edf04c7d-e7vtj1-mcp01n-book-age",
-  "sha": "5ec79613b841f0f0603a7af4e3b1cf64d8a3a85d"
+  "sha": "f1b4b6492dcf4637c8cfc1e2b0cd2312e3ed5c79"
  },
- "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C",
- "next_atomic_action": "attendere la decisione owner A/B sulla pubblicazione delle sorgenti del core e l'hardening cross-repo di B; nel frattempo rendere deterministico test_rotation_mid_traffic (MCP-LOAD-FLAKE)",
- "previous_checkpoint_sha": "05bb8524e803464e8b9cc8ea103a890e38a7edde",
+ "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A)",
+ "next_atomic_action": "quando B pubblica il branch di handoff: verificare SHA/tree nel repo destinatario, spostare i record in `handoffs` (DURABLE); intanto rendere deterministico test_rotation_mid_traffic (MCP-LOAD-FLAKE)",
+ "previous_checkpoint_sha": "a71bc44e26bdb58bd2db865222ce9475a3254405",
  "schema": "pf-current/1",
- "seq": 4
+ "seq": 5
 }
