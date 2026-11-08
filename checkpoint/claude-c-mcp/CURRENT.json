@@ -2,12 +2,12 @@
  "certification_verdict": "NOT VERIFIED",
  "checkpoint_commit": null,
  "code": {
-  "branch": "ccr-edf04c7d-e7vtj1-mcp01o-blackbox-read",
-  "sha": "2350850d9f38774bfa842c00425fdb21b0a1b8e0"
+  "branch": "ccr-edf04c7d-e7vtj1-mcp-mutants-realign",
+  "sha": "40c34c4fdeebec786b244a05515675e3c5a5e238"
  },
  "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01",
- "next_atomic_action": "alla risposta di B: vista del ponte nel core sull'interfaccia di lettura (provider + request_hook), E2E crossrepo; intanto riallineare i 9 mutanti critici preesistenti inapplicabili",
- "previous_checkpoint_sha": "17b5abe041a277c5f5967496bf565e3886a5e61a",
+ "next_atomic_action": "alla consegna delle firme di BB-1 da B: vista del ponte (provider blackbox_* + request_hook) e crossrepo 1.13.0",
+ "previous_checkpoint_sha": "36a987b9a8ad5b2f4b653e2be6dfac9942eca67e",
  "schema": "pf-current/1",
- "seq": 10
+ "seq": 11
 }

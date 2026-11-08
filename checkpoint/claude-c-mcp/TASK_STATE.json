@@ -34,11 +34,13 @@
   "token MCP su Windows: codice dichiarato (0251937)",
   "G8: provenienza nel rapporto, PASS solo attribuibile (a5333571)",
   "campagna G8 all PASS 6/6, 1923 test, codice a5333571 + core ddc8a4f4 puliti",
-  "MCP-01o: lettura della scatola nera offline, contratto 1.13.0, mutanti B 15/15 (2350850)"
+  "MCP-01o: lettura della scatola nera offline, contratto 1.13.0, mutanti B 15/15 (2350850)",
+  "MCP-01o: record RESULT con `returned` (READ_REQUEST di B), contratto accettato da B (6580f91)",
+  "mutanti critici: 9 riallineati, P01-P03, guardia di applicabilit\u00e0; 12/12 KILLED (40c34c4)"
  ],
- "lotto_corrente": "MCP-01o offline completo; vista del ponte nel core in attesa dell'interfaccia di B (\u00a77)",
+ "lotto_corrente": "MCP-01o accettato da B; attesa BB-1 per la vista del ponte; catalogo mutanti sano",
  "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01",
- "next_atomic_action": "alla risposta di B: vista del ponte nel core sull'interfaccia di lettura (provider + request_hook), E2E crossrepo; intanto riallineare i 9 mutanti critici preesistenti inapplicabili",
+ "next_atomic_action": "alla consegna delle firme di BB-1 da B: vista del ponte (provider blackbox_* + request_hook) e crossrepo 1.13.0",
  "pr_505": "N/A (repository MCP)",
  "schema": "pf-task-state/1",
  "tests_missing": []

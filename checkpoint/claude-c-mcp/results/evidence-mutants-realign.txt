@@ -1,0 +1,6 @@
+MCP-MUTANTS-REALIGN (40c34c4)
+M20 A10 C01 C05 C06 K07 O07 O08 O11 P01 P02 P03: 12/12 KILLED
+216 mutanti, 0 inapplicabili
+guardia tests/guards/test_mutation_catalog.py: RED sul catalogo precedente (1 failed), GREEN dopo
+suite unit/control_api/integration/guards: 2072 passed
+campagna completa 216 mutanti: NON eseguita (3-4 ore)

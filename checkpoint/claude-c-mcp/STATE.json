@@ -1,15 +1,15 @@
 {
  "schema": "pf-checkpoint/3",
  "repository": "zarbopiero963-droid/pickfair-mcp-",
- "seq": 10,
+ "seq": 11,
  "agent": "claude-c",
  "agent_identity": "Claude C — MCP + Control API (sessione session_013X2mCaF4fE5YMWGVrM8LtR)",
  "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01",
- "previous_checkpoint_sha": "17b5abe041a277c5f5967496bf565e3886a5e61a",
+ "previous_checkpoint_sha": "36a987b9a8ad5b2f4b653e2be6dfac9942eca67e",
  "code": {
-  "branch": "ccr-edf04c7d-e7vtj1-mcp01o-blackbox-read",
-  "sha": "2350850d9f38774bfa842c00425fdb21b0a1b8e0",
-  "tree": "b5893678b99e45ac396ecd0af70529b841645535"
+  "branch": "ccr-edf04c7d-e7vtj1-mcp-mutants-realign",
+  "sha": "40c34c4fdeebec786b244a05515675e3c5a5e238",
+  "tree": "d253b42aaf3c77d41d40e7767a5fd7b07fa6b1d5"
  },
  "published_branches": {
   "ccr-edf04c7d-e7vtj1": "647d5e8d269952af975ec01df7be27abf2ff3c1e",
@@ -31,7 +31,8 @@
   "ccr-edf04c7d-e7vtj1-mcp-integration-prep": "fcde366",
   "ccr-edf04c7d-e7vtj1-mcp-win-token": "0251937",
   "ccr-edf04c7d-e7vtj1-g8-provenance": "a5333571d4ac6b9c5063bffc2f2deeee8628ac88",
-  "ccr-edf04c7d-e7vtj1-mcp01o-blackbox-read": "2350850d9f38774bfa842c00425fdb21b0a1b8e0"
+  "ccr-edf04c7d-e7vtj1-mcp01o-blackbox-read": "6580f91",
+  "ccr-edf04c7d-e7vtj1-mcp-mutants-realign": "40c34c4fdeebec786b244a05515675e3c5a5e238"
  },
  "integration_chain": [
   "MCP-01d",
@@ -51,9 +52,10 @@
   "matrice d'integrazione (fcde366)",
   "token Windows MCP (0251937)",
   "G8 provenienza (a5333571)",
-  "MCP-01o lettura della scatola nera (dopo l'interfaccia di lettura di B)"
+  "MCP-01o lettura della scatola nera (dopo l'interfaccia di lettura di B)",
+  "MCP-MUTANTS-REALIGN (solo catalogo e guardia, sopra 01o)"
  ],
- "lotto_corrente": "MCP-01o offline completo; vista del ponte nel core in attesa dell'interfaccia di B (§7)",
+ "lotto_corrente": "MCP-01o accettato da B; attesa BB-1 per la vista del ponte; catalogo mutanti sano",
  "lotti_completati": [
   "MCP-01j get_config (305b843)",
   "MCP-01k compatibilità P0/F-16 (4cd3e75)",
@@ -75,9 +77,11 @@
   "token MCP su Windows: codice dichiarato (0251937)",
   "G8: provenienza nel rapporto, PASS solo attribuibile (a5333571)",
   "campagna G8 all PASS 6/6, 1923 test, codice a5333571 + core ddc8a4f4 puliti",
-  "MCP-01o: lettura della scatola nera offline, contratto 1.13.0, mutanti B 15/15 (2350850)"
+  "MCP-01o: lettura della scatola nera offline, contratto 1.13.0, mutanti B 15/15 (2350850)",
+  "MCP-01o: record RESULT con `returned` (READ_REQUEST di B), contratto accettato da B (6580f91)",
+  "mutanti critici: 9 riallineati, P01-P03, guardia di applicabilità; 12/12 KILLED (40c34c4)"
  ],
- "next_atomic_action": "alla risposta di B: vista del ponte nel core sull'interfaccia di lettura (provider + request_hook), E2E crossrepo; intanto riallineare i 9 mutanti critici preesistenti inapplicabili",
+ "next_atomic_action": "alla consegna delle firme di BB-1 da B: vista del ponte (provider blackbox_* + request_hook) e crossrepo 1.13.0",
  "dependencies": {
   "F-04 su main": "MCP-01i r2",
   "F-03 su main (con F-02, F-04)": "MCP-01m",
@@ -108,17 +112,13 @@
    "descrizione": "pickfair_control_api.tokens su Windows: AttributeError (O_NOFOLLOW) catturato dal launcher del core (fail-closed, CONTROL_API_NOT_STARTED: AttributeError); codice dichiarato al prossimo cambio di versione del package"
   },
   {
-   "id": "MCP-MUTANTS-STALE",
-   "owner": "Claude C",
-   "descrizione": "9 mutanti critici inapplicabili da incrementi precedenti (M20, A10, C01, C05, C06, K07, O07, O08, O11): codice cambiato senza riallineamento"
-  },
-  {
    "id": "MCP01O-CROSSREPO-BLOCKED",
    "owner": "Claude C (dopo B)",
    "descrizione": "crossrepo con il core reale BLOCKED sulla 1.13.0 finché il ponte non ha i provider della scatola nera e request_hook"
   }
  ],
  "github_evidence": [
+  "https://github.com/zarbopiero963-droid/pickfair-mcp-/issues/37",
   "https://github.com/zarbopiero963-droid/pickfair-mcp-/issues/37#issuecomment-6728479301",
   "https://github.com/zarbopiero963-droid/pickfair-mcp-/issues/37#issuecomment-6663115366",
   "https://github.com/zarbopiero963-droid/pickfair-mcp-/issues/37",
@@ -232,6 +232,12 @@
    "status": "PASS",
    "sha": "2350850d9f38774bfa842c00425fdb21b0a1b8e0",
    "artifact": "results/evidence-01o.txt"
+  },
+  {
+   "name": "realign: 12/12 KILLED, 216 mutanti applicabili, guardia RED->GREEN, suite 2072",
+   "status": "PASS",
+   "sha": "40c34c4fdeebec786b244a05515675e3c5a5e238",
+   "artifact": "results/evidence-mutants-realign.txt"
   }
  ],
  "tests_missing": [],
