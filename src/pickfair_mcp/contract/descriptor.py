@@ -23,6 +23,10 @@ from pickfair_mcp.contract.models import (
     OPTIONAL_CONFIG_KEYS,
     ORDER_STATUS_MAP,
     AccountResponse,
+    BlackboxEventResponse,
+    BlackboxEventsResponse,
+    BlackboxSessionsResponse,
+    BlackboxStatusResponse,
     ConfigResponse,
     MarketBookResponse,
     MarketsResponse,
@@ -47,12 +51,19 @@ from pickfair_mcp.tools.status import MAX_CLOCK_SKEW_S, MAX_SNAPSHOT_AGE_S
 CONTROL_API_ERROR_CODES: Final = (
     "BAD_HOST",
     "BAD_REQUEST",
+    "BLACKBOX_UNAVAILABLE",
     "BODY_NOT_ALLOWED",
     "CONTRACT_SELF_CHECK",
     "INTERNAL",
     "METHOD_NOT_ALLOWED",
     "NOT_FOUND",
     "NOT_IMPLEMENTED",
+    "QUERY_ENCODING",
+    "QUERY_PARAM",
+    "QUERY_PARAM_REPEATED",
+    "QUERY_RANGE",
+    "QUERY_TOO_LONG",
+    "QUERY_VALUE",
     "UNAUTHORIZED",
 )
 
@@ -149,6 +160,22 @@ SEMANTICS: Final = {
         "are exact decimal strings; best three levels per side; market id pattern "
         "^[0-9]{1,4}\\.[0-9]{1,15}$, anything else is 404 on the Control API."
     ),
+    "blackbox": (
+        "PF-BLACKBOX-01, read-only. The engine's permanent chronological register; the reader "
+        "never invents: a field the engine did not record is null and listed in the event's "
+        "`unavailable`. seq is the persistent progressive number: missing seq are reported as "
+        "gaps (LOST, CORRUPT, or RETENTION when removed by the configured retention), never "
+        "repaired. phase ATTEMPT is what Pickfair tried (outcome always PENDING), RESULT what "
+        "actually happened; an exchange AMBIGUOUS is outcome UNKNOWN, never FAILED. Timestamps "
+        "are UTC with milliseconds; local time is the viewer's job. Values of sensitive names "
+        "are always [REDACTED]. Filters only on GET /v1/blackbox/events, from a closed "
+        "whitelist (since, until, after_seq, limit 1-500, session_id, table_id, market_id, "
+        "order_id, bet_id, strategy, correlation_id, category, origin, severity_min, "
+        "event_type, outcome, q); an unknown or repeated parameter, a value out of pattern or a "
+        "range over 31 days is 400 without calling the core. Every Control API request is "
+        "recorded once in the register (never once per returned event); a request that cannot "
+        "be recorded is refused 503 BLACKBOX_UNAVAILABLE, except /v1/blackbox/status."
+    ),
     "protections": (
         "Each protection is ACTIVE, INACTIVE, TRIGGERED, UNKNOWN or UNAVAILABLE; only ACTIVE has "
         "no reason. A protection that cannot be verified is UNKNOWN (core has it, value not "
@@ -226,6 +253,10 @@ def build_contract_descriptor() -> dict[str, Any]:
             "config": _schema(ConfigResponse),
             "markets": _schema(MarketsResponse),
             "market_book": _schema(MarketBookResponse),
+            "blackbox_status": _schema(BlackboxStatusResponse),
+            "blackbox_sessions": _schema(BlackboxSessionsResponse),
+            "blackbox_events": _schema(BlackboxEventsResponse),
+            "blackbox_event": _schema(BlackboxEventResponse),
             "error": error_schema,
         },
         "tools": tools,

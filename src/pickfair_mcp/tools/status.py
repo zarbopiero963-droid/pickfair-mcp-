@@ -24,6 +24,10 @@ from pickfair_mcp.adapters.base import ControlApiAdapter
 from pickfair_mcp.auth import Scope
 from pickfair_mcp.contract.models import (
     AccountResponse,
+    BlackboxEventResponse,
+    BlackboxEventsResponse,
+    BlackboxSessionsResponse,
+    BlackboxStatusResponse,
     ExposureResponse,
     OrdersResponse,
     PositionsResponse,
@@ -96,6 +100,10 @@ SnapshotT = TypeVar(
     ExposureResponse,
     PositionsResponse,
     OrdersResponse,
+    BlackboxStatusResponse,
+    BlackboxSessionsResponse,
+    BlackboxEventsResponse,
+    BlackboxEventResponse,
 )
 
 

@@ -321,6 +321,11 @@ def test_invalid_configuration_refused() -> None:
         ControlApiServer({"status": bodies.status}, **good)
     with pytest.raises(ControlApiConfigError, match="PROVIDERS_INVALID"):
         ControlApiServer({**Providers().mapping(), "cashout": bodies.status}, **good)
+    # PF-BLACKBOX-01: senza l'hook di registrazione delle richieste il server non parte.
+    with pytest.raises(ControlApiConfigError, match="REQUEST_HOOK_REQUIRED"):
+        ControlApiServer(Providers().mapping(), **good)
+    with pytest.raises(ControlApiConfigError, match="REQUEST_HOOK_REQUIRED"):
+        ControlApiServer(Providers().mapping(), **{**good, "request_hook": "not callable"})
 
 
 def test_restart_on_the_same_port_is_immediate_but_never_shared(tmp_path: Path) -> None:
@@ -331,7 +336,8 @@ def test_restart_on_the_same_port_is_immediate_but_never_shared(tmp_path: Path) 
         assert request(port, "GET", "/v1/meta", token=token_path.read_text())[0] == 200
         with pytest.raises(OSError):  # un secondo server in ascolto sulla stessa porta: mai
             ControlApiServer(
-                Providers().mapping(), port=port, tokens=TokenStore("a" * 43), git_sha=SHA
+                Providers().mapping(), port=port, tokens=TokenStore("a" * 43), git_sha=SHA,
+                request_hook=Providers().hook,
             )
     with control_api(tmp_path, port=port) as (_server2, _s2, token_path2, _p2):  # riavvio subito
         assert request(port, "GET", "/v1/meta", token=token_path2.read_text())[0] == 200

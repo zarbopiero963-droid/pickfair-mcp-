@@ -91,3 +91,19 @@ class ControlApiAdapter(Protocol):
     async def get_market_book_raw(self, market_id: str) -> bytes:
         """Corpo grezzo di GET /v1/markets/{id}/book (MCP-01l); `market_id` già validato dal tool."""
         ...
+
+    async def get_blackbox_status_raw(self) -> bytes:
+        """Corpo grezzo di GET /v1/blackbox/status (MCP-01o, PF-BLACKBOX-01)."""
+        ...
+
+    async def get_blackbox_sessions_raw(self) -> bytes:
+        """Corpo grezzo di GET /v1/blackbox/sessions (MCP-01o)."""
+        ...
+
+    async def get_blackbox_events_raw(self, query: tuple[tuple[str, str], ...]) -> bytes:
+        """Corpo grezzo di GET /v1/blackbox/events (MCP-01o); `query` già validata dal tool."""
+        ...
+
+    async def get_blackbox_event_raw(self, event_id: str) -> bytes:
+        """Corpo grezzo di GET /v1/blackbox/events/{event_id} (MCP-01o); `event_id` già validato."""
+        ...

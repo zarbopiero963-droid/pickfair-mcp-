@@ -45,8 +45,8 @@ def test_both_committed_copies_equal_the_generated_descriptor() -> None:
 
 def test_hash_and_version_are_shared() -> None:
     assert api_contract.schema_hash() == contract_schema_hash()
-    assert api_contract.CONTRACT_VERSION == SUPPORTED_CONTRACT_VERSION == "1.12.0"
-    assert COMPAT_MATRIX == {"1.12.0": frozenset({contract_schema_hash()})}
+    assert api_contract.CONTRACT_VERSION == SUPPORTED_CONTRACT_VERSION == "1.13.0"
+    assert COMPAT_MATRIX == {"1.13.0": frozenset({contract_schema_hash()})}
 
 
 def test_descriptor_covers_tools_errors_and_semantics() -> None:
@@ -62,6 +62,10 @@ def test_descriptor_covers_tools_errors_and_semantics() -> None:
         "get_config",
         "list_markets",
         "get_market_book",
+        "get_blackbox_status",
+        "list_blackbox_sessions",
+        "list_blackbox_events",
+        "get_blackbox_event",
     }
     for tool in d["tools"].values():
         assert tool["input_schema"]["additionalProperties"] is False
@@ -80,13 +84,20 @@ def test_descriptor_covers_tools_errors_and_semantics() -> None:
         "config",
         "markets",
         "market_book",
+        "blackbox_status",
+        "blackbox_sessions",
+        "blackbox_events",
+        "blackbox_event",
         "error",
     }
-    assert {"unavailable", "codes", "consistency", "freshness", "money", "not_implemented"} <= set(
+    expected_semantics = {
+        "unavailable", "codes", "consistency", "freshness", "money", "not_implemented",
+    }
+    assert expected_semantics | {"blackbox"} <= set(
         d["semantics"]
     )
     assert "NOT_IMPLEMENTED" in d["error_codes"]["control_api"]
-    assert len(d["routes"]) == 25
+    assert len(d["routes"]) == 29  # 25 + 4 di lettura della scatola nera (PF-BLACKBOX-01)
 
 
 def test_any_contract_change_changes_the_hash() -> None:

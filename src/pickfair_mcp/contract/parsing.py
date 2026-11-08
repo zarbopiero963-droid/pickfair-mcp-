@@ -15,6 +15,10 @@ from typing import Any, Final
 from pydantic import ValidationError
 
 from pickfair_mcp.contract.models import (
+    BlackboxEventResponse,
+    BlackboxEventsResponse,
+    BlackboxSessionsResponse,
+    BlackboxStatusResponse,
     AccountResponse,
     ConfigResponse,
     MarketBookResponse,
@@ -174,5 +178,38 @@ def parse_market_book(raw: bytes) -> MarketBookResponse:
     obj = parse_json_object(raw)
     try:
         return MarketBookResponse.model_validate(_tuplify(obj))
+    except (ValidationError, ArithmeticError):
+        raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None
+
+
+# MCP-01o: scatola nera (PF-BLACKBOX-01), sola lettura.
+def parse_blackbox_status(raw: bytes) -> BlackboxStatusResponse:
+    obj = parse_json_object(raw)
+    try:
+        return BlackboxStatusResponse.model_validate(_tuplify(obj))
+    except (ValidationError, ArithmeticError):
+        raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None
+
+
+def parse_blackbox_sessions(raw: bytes) -> BlackboxSessionsResponse:
+    obj = parse_json_object(raw)
+    try:
+        return BlackboxSessionsResponse.model_validate(_tuplify(obj))
+    except (ValidationError, ArithmeticError):
+        raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None
+
+
+def parse_blackbox_events(raw: bytes) -> BlackboxEventsResponse:
+    obj = parse_json_object(raw)
+    try:
+        return BlackboxEventsResponse.model_validate(_tuplify(obj))
+    except (ValidationError, ArithmeticError):
+        raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None
+
+
+def parse_blackbox_event(raw: bytes) -> BlackboxEventResponse:
+    obj = parse_json_object(raw)
+    try:
+        return BlackboxEventResponse.model_validate(_tuplify(obj))
     except (ValidationError, ArithmeticError):
         raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None

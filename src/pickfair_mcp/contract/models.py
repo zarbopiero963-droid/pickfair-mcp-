@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 from decimal import Decimal
 from typing import Annotated, Literal
 
@@ -1563,3 +1564,348 @@ class MarketBookResponse(StrictModel):
             raise ValueError("book present iff state is OK")
         return self
 
+
+
+# ------------------------------------------------- MCP-01o: scatola nera, sola lettura
+# (PF-BLACKBOX-01)
+#
+# Vista di lettura del registro cronologico permanente del motore (architettura e scrittura: Claude
+# B).
+# Il lettore non inventa nulla: un campo che il motore non ha registrato vale null ed è elencato in
+# `not_recorded` (un null fuori elenco vuol dire «non applicabile», es. nessuna causa); un
+# tentativo (ATTEMPT) non è mai mostrato come confermato; i valori sensibili escono solo redatti.
+# Convenzione del contratto: dove c'è `unavailable`, un campo è null se e solo se è elencato.
+
+BLACKBOX_MAX_EVENTS = 500
+BLACKBOX_MAX_GAPS = 64
+BLACKBOX_MAX_CHAIN = 32
+BLACKBOX_MAX_SESSIONS = 256
+BLACKBOX_MAX_VALUES = 32
+BLACKBOX_REDACTED = "[REDACTED]"
+# Nomi di campo i cui valori non escono mai in chiaro (seconda redazione, difesa in profondità).
+BLACKBOX_SENSITIVE_FRAGMENTS: tuple[str, ...] = (
+    "token", "secret", "password", "passwd", "bearer", "credential", "cookie", "ssoid", "private",
+    "api_key", "apikey", "application", "auth", "customer_ref", "certificate", "pem",
+)
+
+BlackboxSeq = Annotated[int, Field(ge=1, le=10**15)]
+BlackboxEventId = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{32}$")]
+_UTC_MILLIS = r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$"
+UtcMillis = Annotated[str, StringConstraints(pattern=_UTC_MILLIS)]
+BlackboxOrigin = Literal["USER", "SYSTEM", "MCP", "CONTROL_API", "STRATEGY", "EXCHANGE"]
+BlackboxSeverity = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+BlackboxPhase = Literal["ATTEMPT", "RESULT", "OBSERVATION"]
+BlackboxOutcome = Literal["VERIFIED", "PENDING", "UNKNOWN", "REJECTED", "FAILED", "NOT_APPLICABLE"]
+UpperCode = Annotated[str, StringConstraints(pattern=r"^[A-Z][A-Z0-9_]{0,63}$")]
+BlackboxCategory = Annotated[str, StringConstraints(pattern=r"^[A-Z][A-Z0-9_]{0,31}$")]
+BlackboxComponent = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_.]{0,63}$")]
+SessionKey = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{1,64}$")]
+ValueName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_.]{0,63}$")]
+ShortText = Annotated[str, StringConstraints(max_length=256)]
+BlackboxScalar = Annotated[str, StringConstraints(max_length=256)] | bool | Annotated[
+    int, Field(ge=-(10**15), le=10**15)
+] | None
+StrategyName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,31}$")]
+BetIdText = Annotated[str, StringConstraints(pattern=r"^[0-9]{1,20}$")]
+
+BlackboxRecordedField = Literal[
+    "state_before", "state_after", "values_before", "values_after", "reason", "reason_code",
+    "correlation_id", "causation_id", "process_id", "component",
+]
+
+
+def _is_sensitive_name(name: str) -> bool:
+    lowered = name.lower()
+    return any(fragment in lowered for fragment in BLACKBOX_SENSITIVE_FRAGMENTS)
+
+
+def _redacted_values(
+    values: dict[str, BlackboxScalar] | None,
+) -> dict[str, BlackboxScalar] | None:
+    if values is not None:
+        for name, value in values.items():
+            if _is_sensitive_name(name) and value != BLACKBOX_REDACTED:
+                raise ValueError("sensitive value not redacted")
+    return values
+
+
+BlackboxValues = Annotated[
+    dict[ValueName, BlackboxScalar],
+    Field(max_length=BLACKBOX_MAX_VALUES),
+    AfterValidator(_redacted_values),
+]
+
+
+class BlackboxRefs(StrictModel):
+    table_id: Annotated[int, Field(ge=1, le=9999)] | None
+    market_id: MarketId | None
+    order_id: Annotated[int, Field(ge=1, le=10**15)] | None
+    bet_id: BetIdText | None
+    strategy: StrategyName | None
+
+
+class BlackboxEvent(StrictModel):
+    seq: BlackboxSeq
+    event_id: BlackboxEventId
+    ts_utc: UtcMillis
+    session_id: SessionKey
+    process_id: Annotated[int, Field(ge=1, le=2**31)] | None
+    component: BlackboxComponent | None
+    origin: BlackboxOrigin
+    category: BlackboxCategory
+    event_type: UpperCode
+    severity: BlackboxSeverity
+    # ATTEMPT = ciò che Pickfair tenta; RESULT = ciò che risulta davvero; OBSERVATION = un fatto
+    # osservato.
+    phase: BlackboxPhase
+    outcome: BlackboxOutcome
+    state_before: Annotated[str, StringConstraints(max_length=64)] | None
+    state_after: Annotated[str, StringConstraints(max_length=64)] | None
+    values_before: BlackboxValues | None
+    values_after: BlackboxValues | None
+    reason: ShortText | None
+    reason_code: UpperCode | None
+    correlation_id: SessionKey | None
+    causation_id: BlackboxEventId | None
+    refs: BlackboxRefs
+    not_recorded: Annotated[
+        tuple[BlackboxRecordedField, ...],
+        Field(max_length=10, json_schema_extra={"uniqueItems": True}),
+    ]
+
+    @model_validator(mode="after")
+    def _coherent(self) -> BlackboxEvent:
+        if self.phase == "ATTEMPT" and self.outcome != "PENDING":
+            raise ValueError("an attempt is never shown as a result")
+        if self.causation_id == self.event_id:
+            raise ValueError("an event cannot cause itself")
+        if len(set(self.not_recorded)) != len(self.not_recorded):
+            raise ValueError("not_recorded repeated")
+        recorded = {
+            "state_before": self.state_before, "state_after": self.state_after,
+            "values_before": self.values_before, "values_after": self.values_after,
+            "reason": self.reason, "reason_code": self.reason_code,
+            "correlation_id": self.correlation_id, "causation_id": self.causation_id,
+            "process_id": self.process_id, "component": self.component,
+        }
+        for name in self.not_recorded:
+            if recorded[name] is not None:
+                raise ValueError("a field declared not recorded carries a value")
+        return self
+
+
+class BlackboxGap(StrictModel):
+    from_seq: BlackboxSeq
+    to_seq: BlackboxSeq
+    # LOST: seq mai trovati; CORRUPT: record illeggibili o con checksum errato; RETENTION: rimossi
+    # dalla
+    # retention configurata (non una perdita).
+    kind: Literal["LOST", "CORRUPT", "RETENTION"]
+
+    @model_validator(mode="after")
+    def _ordered(self) -> BlackboxGap:
+        if self.from_seq > self.to_seq:
+            raise ValueError("gap bounds inverted")
+        return self
+
+
+def _sorted_gaps(values: tuple[BlackboxGap, ...]) -> tuple[BlackboxGap, ...]:
+    for a, b in itertools.pairwise(values):
+        if b.from_seq <= a.to_seq:
+            raise ValueError("gaps not sorted or overlapping")
+    return values
+
+
+BlackboxGaps = Annotated[
+    tuple[BlackboxGap, ...], Field(max_length=BLACKBOX_MAX_GAPS), AfterValidator(_sorted_gaps)
+]
+
+
+def _strictly_increasing_seq(values: tuple[BlackboxEvent, ...]) -> tuple[BlackboxEvent, ...]:
+    for a, b in itertools.pairwise(values):
+        if b.seq <= a.seq:
+            raise ValueError("events not in strictly increasing seq order")
+    if len({e.event_id for e in values}) != len(values):
+        raise ValueError("duplicate event_id")
+    return values
+
+
+class BlackboxEventsResponse(StrictModel):
+    source: Source
+    observed_at: ObservedAt
+    consistency: Literal["SINGLE_READ_SNAPSHOT"]
+    events: (
+        Annotated[
+            tuple[BlackboxEvent, ...],
+            Field(max_length=BLACKBOX_MAX_EVENTS),
+            AfterValidator(_strictly_increasing_seq),
+        ]
+        | None
+    )
+    # Cursore della pagina successiva: l'ultimo seq restituito; 0 = nessuna pagina successiva.
+    next_after_seq: Annotated[int, Field(ge=0, le=10**15)]
+    truncated: bool
+    # Ultimo seq scritto al momento della lettura (0 = registro vuoto).
+    as_of_seq: Annotated[int, Field(ge=0, le=10**15)] | None
+    gaps_in_range: BlackboxGaps
+    redacted: Count
+    unavailable: Annotated[
+        tuple[Literal["events", "as_of_seq"], ...],
+        Field(max_length=2, json_schema_extra={"uniqueItems": True}),
+    ]
+
+    @model_validator(mode="after")
+    def _coherent(self) -> BlackboxEventsResponse:
+        _check_unavailable({"events": self.events, "as_of_seq": self.as_of_seq}, self.unavailable)
+        if self.events is None:
+            if self.truncated or self.next_after_seq or self.gaps_in_range or self.redacted:
+                raise ValueError("pagination or gaps without events")
+            return self
+        if self.truncated != (self.next_after_seq != 0):
+            raise ValueError("truncated iff a next cursor is given")
+        if self.next_after_seq and (not self.events or self.next_after_seq != self.events[-1].seq):
+            raise ValueError("the cursor is the last returned seq")
+        if self.as_of_seq is not None and self.events and self.events[-1].seq > self.as_of_seq:
+            raise ValueError("event beyond the reported write position")
+        return self
+
+
+class BlackboxEventResponse(StrictModel):
+    source: Source
+    observed_at: ObservedAt
+    consistency: Literal["SINGLE_READ_SNAPSHOT"]
+    event_id: BlackboxEventId
+    state: Literal["OK", "NOT_FOUND", "UNAVAILABLE"]
+    event: BlackboxEvent | None
+    # Catena causale verso l'alto (causation_id), dal più vicino; si ferma a un evento mancante.
+    chain: Annotated[tuple[BlackboxEvent, ...], Field(max_length=BLACKBOX_MAX_CHAIN)]
+    chain_truncated: bool
+    chain_broken_at: BlackboxEventId | None
+    redacted: Count
+
+    @model_validator(mode="after")
+    def _coherent(self) -> BlackboxEventResponse:
+        if (self.event is not None) != (self.state == "OK"):
+            raise ValueError("event present iff state is OK")
+        if self.event is not None and self.event.event_id != self.event_id:
+            raise ValueError("event does not match the requested id")
+        has_chain = bool(self.chain or self.chain_truncated or self.chain_broken_at)
+        if self.event is None and (has_chain or self.redacted):
+            raise ValueError("chain without the event")
+        expected = self.event.causation_id if self.event is not None else None
+        for link in self.chain:
+            if link.event_id != expected:
+                raise ValueError("chain does not follow causation_id")
+            expected = link.causation_id
+        if self.chain_broken_at is not None and self.chain_broken_at != expected:
+            raise ValueError("broken link is not the next cause")
+        return self
+
+
+class BlackboxSession(StrictModel):
+    session_id: SessionKey
+    process_id: Annotated[int, Field(ge=1, le=2**31)] | None
+    started_at: UtcMillis
+    ended_at: UtcMillis | None
+    # RUNNING: sessione corrente; CLEAN_STOP: arresto registrato; CRASH_DETECTED: il motore ha
+    # rilevato al
+    # riavvio un arresto non pulito; UNRECORDED: nessun arresto registrato e nessuna rilevazione.
+    end_reason: Literal["RUNNING", "CLEAN_STOP", "CRASH_DETECTED", "UNRECORDED"]
+    first_seq: BlackboxSeq | None
+    last_seq: BlackboxSeq | None
+
+    @model_validator(mode="after")
+    def _coherent(self) -> BlackboxSession:
+        if (self.ended_at is None) != (self.end_reason in ("RUNNING", "UNRECORDED")):
+            raise ValueError("ended_at present iff the end was recorded or detected")
+        if self.ended_at is not None and self.ended_at < self.started_at:
+            raise ValueError("session ends before it starts")
+        if (self.first_seq is None) != (self.last_seq is None):
+            raise ValueError("seq range incomplete")
+        if (self.first_seq is not None and self.last_seq is not None
+                and self.first_seq > self.last_seq):
+            raise ValueError("seq range inverted")
+        return self
+
+
+class BlackboxSessionsResponse(StrictModel):
+    source: Source
+    observed_at: ObservedAt
+    consistency: Literal["SINGLE_READ_SNAPSHOT"]
+    sessions: Annotated[tuple[BlackboxSession, ...], Field(max_length=BLACKBOX_MAX_SESSIONS)] | None
+    truncated: bool
+    unavailable: Annotated[
+        tuple[Literal["sessions"], ...],
+        Field(max_length=1, json_schema_extra={"uniqueItems": True}),
+    ]
+
+    @model_validator(mode="after")
+    def _coherent(self) -> BlackboxSessionsResponse:
+        _check_unavailable({"sessions": self.sessions}, self.unavailable)
+        if self.sessions is None and self.truncated:
+            raise ValueError("truncated without sessions")
+        if self.sessions is not None:
+            if len({s.session_id for s in self.sessions}) != len(self.sessions):
+                raise ValueError("duplicate session")
+            if sum(1 for s in self.sessions if s.end_reason == "RUNNING") > 1:
+                raise ValueError("more than one running session")
+        return self
+
+
+class BlackboxStatusResponse(StrictModel):
+    source: Source
+    observed_at: ObservedAt
+    consistency: Literal["PER_FIELD_NON_ATOMIC"]
+    available: bool
+    first_seq: BlackboxSeq | None
+    last_seq: BlackboxSeq | None
+    retained_from_seq: BlackboxSeq | None
+    gaps: BlackboxGaps
+    gaps_truncated: bool
+    corrupt_records: Count | None
+    sessions: Count | None
+    current_session_id: SessionKey | None
+    last_write_error_code: UpperCode | None
+    last_durable_write_at: UtcMillis | None
+    retention_days: Annotated[int, Field(ge=1, le=36500)] | None
+    # Richieste Control API servite (o rifiutate) senza un record nella scatola nera: contate in
+    # memoria.
+    requests_unrecorded: Count
+    # Dati che il motore non ha riportato (distinti dai null legittimi: nessun errore, registro
+    # vuoto).
+    not_reported: Annotated[
+        tuple[
+            Literal[
+                "seq_range", "corrupt_records", "sessions", "last_durable_write_at",
+                "retention_days",
+            ],
+            ...,
+        ],
+        Field(max_length=5, json_schema_extra={"uniqueItems": True}),
+    ]
+
+    @model_validator(mode="after")
+    def _coherent(self) -> BlackboxStatusResponse:
+        if len(set(self.not_reported)) != len(self.not_reported):
+            raise ValueError("not_reported repeated")
+        reported = {
+            "corrupt_records": self.corrupt_records, "sessions": self.sessions,
+            "last_durable_write_at": self.last_durable_write_at,
+            "retention_days": self.retention_days,
+        }
+        for name, value in reported.items():
+            if name in self.not_reported and value is not None:
+                raise ValueError("a field declared not reported carries a value")
+        if "seq_range" in self.not_reported and self.first_seq is not None:
+            raise ValueError("seq range declared not reported carries a value")
+        if (self.first_seq is None) != (self.last_seq is None):
+            raise ValueError("seq range incomplete")
+        if (self.first_seq is not None and self.last_seq is not None
+                and self.first_seq > self.last_seq):
+            raise ValueError("seq range inverted")
+        if self.gaps_truncated and not self.gaps:
+            raise ValueError("gaps truncated without gaps")
+        no_cause = self.last_write_error_code is None and "seq_range" not in self.not_reported
+        if not self.available and no_cause:
+            raise ValueError("an unavailable register must say why")
+        return self

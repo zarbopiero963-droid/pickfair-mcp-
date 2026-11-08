@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-COPY = ("src", "tests", "docs", "scripts", "pyproject.toml", "AGENTS.md", ".guardrails", ".github")
+COPY = ("src", "tests", "docs", "scripts", "catalog", "pyproject.toml", "AGENTS.md", ".guardrails", ".github")
 TEST_ARGS = ("tests/unit", "tests/integration", "tests/control_api", "tests/guards")
 
 
@@ -770,8 +770,8 @@ MUTANTS: tuple[Mutant, ...] = (
         (
             (
                 HT,
-                "            status, content_type, body = self._request(path, self._current_token(reload=True))",
-                "            status, content_type, body = self._request(path, self._current_token(reload=False))",
+                "            fresh = self._current_token(reload=True)",
+                "            fresh = self._current_token(reload=False)",
             ),
         ),
     ),
@@ -1465,6 +1465,160 @@ MUTANTS: tuple[Mutant, ...] = (
                 'src/pickfair_mcp/contract/models.py',
                 '    omitted_runners: Count\n    book_age_s: NonNegativeDecimal | None',
                 '    omitted_runners: Count\n    book_age_s: NonNegativeDecimal | None = "0"',
+            ),
+        ),
+    ),
+    Mutant(
+        "B01",
+        "richiesta non registrata servita comunque (registra o rifiuta)",
+        (
+            (
+                'src/pickfair_control_api/server.py',
+                '            if route != BLACKBOX_STATUS_ROUTE:\n                return self._error(503, "BLACKBOX_UNAVAILABLE")',
+                '            if False:\n                return self._error(503, "BLACKBOX_UNAVAILABLE")',
+            ),
+        ),
+    ),
+    Mutant(
+        "B02",
+        "server avviato senza hook di registrazione",
+        (
+            (
+                'src/pickfair_control_api/server.py',
+                '        if not callable(request_hook):',
+                '        if False:',
+            ),
+        ),
+    ),
+    Mutant(
+        "B03",
+        "parametro sconosciuto della query accettato",
+        (
+            (
+                'src/pickfair_control_api/blackbox_query.py',
+                '        if not sep or name not in ALLOWED:',
+                '        if not sep:',
+            ),
+        ),
+    ),
+    Mutant(
+        "B04",
+        "parametro ripetuto accettato",
+        (
+            (
+                'src/pickfair_control_api/blackbox_query.py',
+                '        if name in seen:\n            raise QueryRejected("QUERY_PARAM_REPEATED")',
+                '        if False:\n            raise QueryRejected("QUERY_PARAM_REPEATED")',
+            ),
+        ),
+    ),
+    Mutant(
+        "B05",
+        "intervallo oltre 31 giorni accettato",
+        (
+            (
+                'src/pickfair_control_api/blackbox_query.py',
+                '        if (until - since).total_seconds() > MAX_RANGE_DAYS * 86400:',
+                '        if False:',
+            ),
+        ),
+    ),
+    Mutant(
+        "B06",
+        "seconda redazione assente sul server",
+        (
+            (
+                'src/pickfair_control_api/server.py',
+                '            body = redact_response(body)',
+                '            pass',
+            ),
+        ),
+    ),
+    Mutant(
+        "B07",
+        "un tentativo mostrato come esito confermato",
+        (
+            (
+                'src/pickfair_mcp/contract/models.py',
+                '        if self.phase == "ATTEMPT" and self.outcome != "PENDING":',
+                '        if False:',
+            ),
+        ),
+    ),
+    Mutant(
+        "B08",
+        "valore sensibile non redatto accettato dal modello",
+        (
+            (
+                'src/pickfair_mcp/contract/models.py',
+                '            if _is_sensitive_name(name) and value != BLACKBOX_REDACTED:',
+                '            if False:',
+            ),
+        ),
+    ),
+    Mutant(
+        "B09",
+        "query fuori whitelist costruita dall'adapter HTTP",
+        (
+            (
+                'src/pickfair_mcp/adapters/http.py',
+                '            if name not in _BLACKBOX_PARAMS or not _BLACKBOX_VALUE_RE.fullmatch(value):',
+                '            if False:',
+            ),
+        ),
+    ),
+    Mutant(
+        "B10",
+        "risposta 503 trattata come dato valido dall'adapter",
+        (
+            (
+                'src/pickfair_mcp/adapters/http.py',
+                '        if status == 503:\n            # PF-BLACKBOX-01: il core non ha potuto registrare la richiesta e non ha dato dati.\n            raise UpstreamUnavailable',
+                '        if False:\n            raise UpstreamUnavailable',
+            ),
+        ),
+    ),
+    Mutant(
+        "B11",
+        "catena causale non verificata",
+        (
+            (
+                'src/pickfair_mcp/contract/models.py',
+                '            if link.event_id != expected:\n                raise ValueError("chain does not follow causation_id")',
+                '            if False:\n                raise ValueError("chain does not follow causation_id")',
+            ),
+        ),
+    ),
+    Mutant(
+        "B12",
+        "cursore ignorato dal core non rilevato",
+        (
+            (
+                'src/pickfair_mcp/tools/blackbox.py',
+                '            e.seq <= args.after_seq for e in snapshot.events or ()',
+                '            False for e in snapshot.events or ()',
+            ),
+        ),
+    ),
+    Mutant(
+        "B13",
+        "una richiesta per evento letto invece che per richiesta (ricorsione)",
+        (
+            (
+                'src/pickfair_control_api/server.py',
+                '        self._record_result(200, "OK")\n',
+                '        for _ in (body.get("events") or [None]) if isinstance(body, dict) else [None]:\n            self._record_result(200, "OK")\n',
+            ),
+        ),
+    ),
+    Mutant(
+        "B14",
+        "query ammessa anche sulle altre route",
+        (
+            (
+                'src/pickfair_control_api/server.py',
+                '        if route is None and path_part in QUERY_ROUTE_SCHEMAS:',
+                '        if route is None and \"?\" in raw_path:',
             ),
         ),
     ),

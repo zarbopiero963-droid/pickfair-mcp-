@@ -74,6 +74,10 @@ async def test_both_tools_listed_as_read_only_with_output_schema() -> None:
         "get_config",
         "list_markets",
         "get_market_book",
+        "get_blackbox_status",
+        "list_blackbox_sessions",
+        "list_blackbox_events",
+        "get_blackbox_event",
     }
     for name in TOOLS:
         tool = tools[name]

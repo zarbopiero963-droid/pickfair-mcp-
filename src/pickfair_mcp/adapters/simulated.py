@@ -53,6 +53,10 @@ SIMULATED_CAPABILITIES = [
     "GET /v1/config",
     "GET /v1/markets",
     "GET /v1/markets/{id}/book",
+    "GET /v1/blackbox/status",
+    "GET /v1/blackbox/sessions",
+    "GET /v1/blackbox/events",
+    "GET /v1/blackbox/events/{event_id}",
 ]
 
 
@@ -116,6 +120,8 @@ class SimulatedControlApiAdapter:
         self.config_calls = 0
         self.markets_calls = 0
         self.market_book_calls = 0
+        self.blackbox_calls = 0
+        self.blackbox_queries: list[tuple[tuple[str, str], ...]] = []
 
     @property
     def kind(self) -> AdapterKind:
@@ -186,6 +192,23 @@ class SimulatedControlApiAdapter:
         self.market_book_calls += 1
         return await self._status_like(lambda sc, now: _market_book_body(sc, now, market_id))
 
+    async def get_blackbox_status_raw(self) -> bytes:
+        self.blackbox_calls += 1
+        return await self._status_like(_blackbox_status_body)
+
+    async def get_blackbox_sessions_raw(self) -> bytes:
+        self.blackbox_calls += 1
+        return await self._status_like(_blackbox_sessions_body)
+
+    async def get_blackbox_events_raw(self, query: tuple[tuple[str, str], ...]) -> bytes:
+        self.blackbox_calls += 1
+        self.blackbox_queries.append(query)
+        return await self._status_like(_blackbox_events_body)
+
+    async def get_blackbox_event_raw(self, event_id: str) -> bytes:
+        self.blackbox_calls += 1
+        return await self._status_like(lambda sc, now: _blackbox_event_body(sc, now, event_id))
+
     async def _status_like(self, build: Callable[[StatusScenario, float], dict[str, Any]]) -> bytes:
         if self._delay_s > 0:
             await anyio.sleep(self._delay_s)
@@ -208,7 +231,7 @@ class SimulatedControlApiAdapter:
 _SCENARIO_BODIES: dict[Scenario, bytes] = {
     Scenario.COMPATIBLE: _encode(_meta()),
     Scenario.INCOMPATIBLE_MAJOR: _encode(_meta(contract_version="2.0.0")),
-    Scenario.UNSUPPORTED_MINOR: _encode(_meta(contract_version="1.13.0")),
+    Scenario.UNSUPPORTED_MINOR: _encode(_meta(contract_version="1.14.0")),
     Scenario.SCHEMA_HASH_MISMATCH: _encode(_meta(schema_hash="0" * 64)),
     Scenario.MISSING_META_CAPABILITY: _encode(_meta(capabilities=["GET /v1/status"])),
     Scenario.META_ONLY: _encode(_meta(capabilities=["GET /v1/meta"])),
@@ -907,3 +930,112 @@ def _market_book_body(scenario: StatusScenario, now: float, market_id: str) -> d
         "state": state,
         "book": book,
     }
+
+
+# ------------------------------------------------------------------ MCP-01o: scatola nera simulata
+_SIM_SESSION = "sim-session-1"
+
+
+def _bb_event(seq: int, **over: Any) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "seq": seq, "event_id": f"{seq:032x}", "ts_utc": "2026-11-07T15:00:00.000Z",
+        "session_id": _SIM_SESSION, "process_id": 1000, "component": "sim.engine",
+        "origin": "SYSTEM", "category": "SESSION", "event_type": "SIM_EVENT", "severity": "INFO",
+        "phase": "OBSERVATION", "outcome": "NOT_APPLICABLE", "state_before": None,
+        "state_after": None, "values_before": None,
+        "values_after": None, "reason": None, "reason_code": None, "correlation_id": None,
+        "causation_id": None,
+        "refs": {"table_id": None, "market_id": None, "order_id": None, "bet_id": None,
+                 "strategy": None},
+        "not_recorded": [],
+    }
+    data.update(over)
+    return data
+
+
+def _bb_sim_events() -> list[dict[str, Any]]:
+    """Ciclo fittizio di un ordine: tentativo, poi esito confermato, con la sua causa."""
+    attempt = _bb_event(2, ts_utc="2026-11-07T15:00:01.250Z", origin="STRATEGY", category="ORDER",
+                        event_type="ORDER_PLACE_ATTEMPT", phase="ATTEMPT", outcome="PENDING",
+                        correlation_id="sim-corr-1", values_after={"stake": "2.00", "price": "3.1"},
+                        refs={"table_id": 1, "market_id": _SIM_MARKET, "order_id": 7,
+                              "bet_id": None, "strategy": "roserpina"})
+    result = _bb_event(3, ts_utc="2026-11-07T15:00:01.900Z", origin="EXCHANGE", category="ORDER",
+                       event_type="ORDER_PLACE_RESULT", phase="RESULT", outcome="VERIFIED",
+                       state_before="INFLIGHT", state_after="SUBMITTED",
+                       correlation_id="sim-corr-1",
+                       causation_id=attempt["event_id"],
+                       refs={"table_id": 1, "market_id": _SIM_MARKET, "order_id": 7,
+                             "bet_id": "1001", "strategy": "roserpina"})
+    start = _bb_event(1, event_type="SESSION_STARTED", values_after={"api_key": "[REDACTED]"})
+    return [start, attempt, result]
+
+
+def _blackbox_events_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
+    events: list[dict[str, Any]] | None = _bb_sim_events()
+    unavailable: list[str] = []
+    as_of: int | None = 3
+    if scenario is StatusScenario.NOT_STARTED:
+        events, unavailable, as_of = None, ["events", "as_of_seq"], None
+    elif scenario is StatusScenario.EXTRA_FIELD:
+        events[0] = {**events[0], "customer_ref": "cref-secret"}  # type: ignore[index]
+    elif scenario is StatusScenario.INJECTION_TEXT:
+        # Testo registrato, mai un comando.
+        events[0] = {**events[0], "reason": _INJECTION}  # type: ignore[index]
+    elif scenario is StatusScenario.INCONSISTENT:
+        # Un tentativo mostrato come confermato: rifiutato.
+        events[1] = {**events[1], "outcome": "VERIFIED"}  # type: ignore[index]
+    return {
+        "source": "core" if scenario is StatusScenario.WRONG_SOURCE else "simulated",
+        "observed_at": _observed_at(scenario, now), "consistency": "SINGLE_READ_SNAPSHOT",
+        "events": events, "next_after_seq": 0, "truncated": False, "as_of_seq": as_of,
+        "gaps_in_range": [], "redacted": 0, "unavailable": unavailable,
+    }
+
+
+def _blackbox_event_body(scenario: StatusScenario, now: float, event_id: str) -> dict[str, Any]:
+    by_id = {e["event_id"]: e for e in _bb_sim_events()}
+    event = by_id.get(event_id)
+    chain = [by_id[event["causation_id"]]] if event is not None and event["causation_id"] else []
+    if scenario is StatusScenario.INCONSISTENT and event is not None:
+        event = {**event, "event_id": f"{99:032x}"}  # evento diverso da quello chiesto: rifiutato
+    return {
+        "source": "core" if scenario is StatusScenario.WRONG_SOURCE else "simulated",
+        "observed_at": _observed_at(scenario, now), "consistency": "SINGLE_READ_SNAPSHOT",
+        "event_id": event_id, "state": "OK" if event is not None else "NOT_FOUND", "event": event,
+        "chain": chain, "chain_truncated": False, "chain_broken_at": None, "redacted": 0,
+    }
+
+
+def _blackbox_sessions_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
+    sessions: list[dict[str, Any]] | None = [
+        {"session_id": _SIM_SESSION, "process_id": 1000, "started_at": "2026-11-07T15:00:00.000Z",
+         "ended_at": None, "end_reason": "RUNNING", "first_seq": 1, "last_seq": 3},
+    ]
+    unavailable: list[str] = []
+    if scenario is StatusScenario.NOT_STARTED:
+        sessions, unavailable = None, ["sessions"]
+    return {
+        "source": "core" if scenario is StatusScenario.WRONG_SOURCE else "simulated",
+        "observed_at": _observed_at(scenario, now), "consistency": "SINGLE_READ_SNAPSHOT",
+        "sessions": sessions, "truncated": False, "unavailable": unavailable,
+    }
+
+
+def _blackbox_status_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
+    body: dict[str, Any] = {
+        "source": "core" if scenario is StatusScenario.WRONG_SOURCE else "simulated",
+        "observed_at": _observed_at(scenario, now), "consistency": "PER_FIELD_NON_ATOMIC",
+        "available": True, "first_seq": 1, "last_seq": 3, "retained_from_seq": 1, "gaps": [],
+        "gaps_truncated": False, "corrupt_records": 0, "sessions": 1,
+        "current_session_id": _SIM_SESSION,
+        "last_write_error_code": None, "last_durable_write_at": "2026-11-07T15:00:01.900Z",
+        "retention_days": None, "requests_unrecorded": 0, "not_reported": ["retention_days"],
+    }
+    if scenario is StatusScenario.NOT_STARTED:
+        body.update(available=False, first_seq=None, last_seq=None, retained_from_seq=None,
+                    corrupt_records=None, sessions=None, current_session_id=None,
+                    last_durable_write_at=None,
+                    not_reported=["seq_range", "corrupt_records", "sessions",
+                                  "last_durable_write_at", "retention_days"])
+    return body

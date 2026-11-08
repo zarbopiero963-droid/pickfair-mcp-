@@ -40,6 +40,10 @@ def test_contract_info(capsys: pytest.CaptureFixture[str]) -> None:
         "get_config",
         "list_markets",
         "get_market_book",
+        "get_blackbox_status",
+        "list_blackbox_sessions",
+        "list_blackbox_events",
+        "get_blackbox_event",
     ]
     assert info["live_commands"] == "DISABLED"
 

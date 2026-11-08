@@ -36,8 +36,8 @@ def spec(name: str, route: str) -> ToolSpec:
     )
 
 
-def test_catalog_maps_25_names_onto_the_25_routes() -> None:
-    assert len(APPROVED_TOOL_ROUTES) == 25
+def test_catalog_maps_29_names_onto_the_29_routes() -> None:
+    assert len(APPROVED_TOOL_ROUTES) == 29  # 25 + 4 di lettura della scatola nera (PF-BLACKBOX-01)
     assert set(APPROVED_TOOL_ROUTES.values()) == {route_key(r) for r in APPROVED_ROUTES}
 
 
@@ -55,6 +55,10 @@ def test_default_registry_exposes_only_read_tools() -> None:
         "get_config",
         "list_markets",
         "get_market_book",
+        "get_blackbox_status",
+        "list_blackbox_sessions",
+        "list_blackbox_events",
+        "get_blackbox_event",
     )
 
 

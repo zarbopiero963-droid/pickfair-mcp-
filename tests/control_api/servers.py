@@ -33,6 +33,20 @@ class Providers:
         self.market_book: Callable[[str], dict[str, Any]] = bodies.market_book
         self.book_requests: list[str] = []
         self.calls = 0
+        # MCP-01o (PF-BLACKBOX-01): letture della scatola nera e hook di registrazione delle
+        # richieste.
+        self.bb_status: Callable[[], dict[str, Any]] = bodies.bb_status
+        self.bb_sessions: Callable[[], dict[str, Any]] = bodies.bb_sessions
+        self.bb_events: Callable[[dict[str, object]], dict[str, Any]] = lambda f: bodies.bb_events()
+        self.bb_event: Callable[[str], dict[str, Any]] = lambda eid: bodies.bb_event_detail()
+        self.bb_queries: list[dict[str, object]] = []
+        self.records: list[dict[str, Any]] = []
+        self.hook_accepts: bool | Callable[[dict[str, Any]], bool] = True
+
+    def hook(self, record: dict[str, Any]) -> bool:
+        self.records.append(record)
+        accepts = self.hook_accepts
+        return accepts(record) if callable(accepts) else accepts
 
     def mapping(self) -> dict[str, Callable[[], dict[str, Any]]]:
         def status() -> dict[str, Any]:
@@ -72,7 +86,28 @@ class Providers:
             self.book_requests.append(market_id)
             return self.market_book(market_id)
 
+        def bb_status() -> dict[str, Any]:
+            self.calls += 1
+            return self.bb_status()
+
+        def bb_sessions() -> dict[str, Any]:
+            self.calls += 1
+            return self.bb_sessions()
+
+        def bb_events(filters: dict[str, object]) -> dict[str, Any]:
+            self.calls += 1
+            self.bb_queries.append(dict(filters))
+            return self.bb_events(filters)
+
+        def bb_event(event_id: str) -> dict[str, Any]:
+            self.calls += 1
+            return self.bb_event(event_id)
+
         return {
+            "blackbox_status": bb_status,
+            "blackbox_sessions": bb_sessions,
+            "blackbox_events": bb_events,
+            "blackbox_event": bb_event,
             "markets": markets,
             "market_book": market_book,
             "config": config,
@@ -101,7 +136,8 @@ def control_api(
     store = TokenStore(issue_token_file(token_path))
     prov = providers or Providers()
     server = ControlApiServer(
-        prov.mapping(), port=port, tokens=store, git_sha=SHA, allow_ephemeral_port=True
+        prov.mapping(), port=port, tokens=store, git_sha=SHA, request_hook=prov.hook,
+        allow_ephemeral_port=True,
     )
     server.start()
     try:

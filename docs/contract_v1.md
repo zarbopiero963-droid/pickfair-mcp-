@@ -2,7 +2,8 @@
 
 Stato: **PROVISIONAL**. La Control API di Pickfair non esiste ancora (PF-API-0/1/commands).
 Questo documento descrive ciò che l'adapter si aspetta e come si comporta; non
-crea route né semantiche di prodotto. Le 25 route sono quelle approvate in pickfair-mcp- #1.
+crea route né semantiche di prodotto. Le 25 route sono quelle approvate in pickfair-mcp- #1, più le 4 di
+sola lettura della scatola nera ratificate dalla decisione owner PF-BLACKBOX-01 (08/11/2026).
 
 ## Route approvate (copia verificata dai test)
 
@@ -22,6 +23,10 @@ crea route né semantiche di prodotto. Le 25 route sono quelle approvate in pick
 | Read | GET | `/v1/operations?status=pending` | `list_pending_operations` | Non esposto (MCP-02) |
 | Read | GET | `/v1/reconciliation/status` | `get_reconciliation_status` | Esposto, adapter simulato (MCP-02a) |
 | Read | GET | `/v1/audit/{correlation_id}` | `get_audit_trail` | Non esposto (MCP-02) |
+| Read | GET | `/v1/blackbox/status` | `get_blackbox_status` | Esposto (MCP-01o, PF-BLACKBOX-01) |
+| Read | GET | `/v1/blackbox/sessions` | `list_blackbox_sessions` | Esposto (MCP-01o, PF-BLACKBOX-01) |
+| Read | GET | `/v1/blackbox/events` | `list_blackbox_events` | Esposto (MCP-01o, PF-BLACKBOX-01) |
+| Read | GET | `/v1/blackbox/events/{event_id}` | `get_blackbox_event` | Esposto (MCP-01o, PF-BLACKBOX-01) |
 | Command | POST | `/v1/preview` | `preview_order` | Bloccato (BLOCKED_CORE) |
 | Command | POST | `/v1/orders` | `place_order` | Bloccato (BLOCKED_CORE) |
 | Command | POST | `/v1/dutching` | `place_dutching` | Bloccato (BLOCKED_CORE) |
@@ -475,3 +480,27 @@ Preparato offline sopra MCP-01m: **non integrabile finché `claude/d-market-book
   un'età ignota, mai dedotta da `last_match_time`.
 
 Chiude il limite dichiarato in MCP-01l («l'età del book è nota solo con `last_match_time`»), solo con il core di D.
+
+## MCP-01o — lettura della scatola nera (contratto 1.13.0, PF-BLACKBOX-01)
+
+Decisione owner PF-BLACKBOX-01 del 08/11/2026: quattro route di **sola lettura** oltre le 25 approvate
+(`GET /v1/blackbox/status`, `/sessions`, `/events`, `/events/{event_id}`) e i quattro strumenti MCP
+`get_blackbox_status`, `list_blackbox_sessions`, `list_blackbox_events`, `get_blackbox_event`. Nessuna route
+di scrittura: l'MCP non può modificare, cancellare o falsificare il registro. Contratto di lettura e motivazioni
+in `docs/design/BLACKBOX_READ_CONTRACT.md`.
+
+- Record: `seq` persistente, `event_id`, `ts_utc` al millisecondo, sessione e PID, `origin`, `category`,
+  `event_type`, `severity`, `phase` ATTEMPT/RESULT/OBSERVATION (un tentativo ha sempre esito `PENDING`),
+  `outcome` (AMBIGUOUS dell'exchange = `UNKNOWN`), stati e valori prima/dopo, `reason_code`, `correlation_id`,
+  `causation_id`, `refs` (mai `customer_ref`), `not_recorded`.
+- Lacune `LOST`/`CORRUPT`/`RETENTION` riportate, mai riparate; sessione senza arresto registrato = `UNRECORDED`.
+- Unica query string del server, solo su `/v1/blackbox/events`, in whitelist chiusa: 400 con codice fisso senza
+  chiamare il core. Tutte le altre route restano «nessuna query».
+- Ogni richiesta Control API è registrata dal ponte tramite `request_hook` (una volta per richiesta, mai per evento
+  letto, con l'`X-Request-Id` dell'MCP); una richiesta non registrabile riceve `503 BLACKBOX_UNAVAILABLE`, tranne
+  `/v1/blackbox/status`, che riporta `requests_unrecorded`.
+- Valori di nomi sensibili sempre `[REDACTED]`: redatti dal motore, ri-redatti dal server, rifiutati dal modello
+  MCP se arrivassero in chiaro.
+
+Stato: offline. Il ponte del core si scrive sopra l'interfaccia di lettura di Claude B (§7 del contratto di
+lettura); fino ad allora la suite crossrepo con il core reale è BLOCKED.

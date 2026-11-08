@@ -1,6 +1,7 @@
 # Scatola nera — contratto di lettura MCP / Control API (PF-BLACKBOX-01, lato Claude C)
 
-Stato: **BOZZA per l'allineamento con Claude B**. B possiede l'architettura e la scrittura nel motore; C possiede
+Stato: **lato MCP e Control API implementato offline** (contratto 1.13.0, branch
+`ccr-edf04c7d-e7vtj1-mcp01o-blackbox-read`); vista nel core **in attesa dell'interfaccia di Claude B** (§7). B possiede l'architettura e la scrittura nel motore; C possiede
 la lettura sicura. Questo documento fissa ciò che il lettore si aspetta, così le due parti possono procedere in
 parallelo senza una seconda struttura di registrazione. Nessun codice del motore è qui.
 
@@ -9,8 +10,11 @@ MCP qui sotto sono di **sola lettura** e sono ratificati da quella direttiva; ne
 
 ## 1. Il record (vista di lettura)
 
-Il lettore non inventa nulla: un campo che il motore non ha registrato vale `null` e compare in `unavailable`
-dell'evento. Un valore mancante non diventa mai zero o stringa vuota.
+Il lettore non inventa nulla: un campo che il motore non ha registrato vale `null` e compare in `not_recorded`
+dell'evento; un `null` fuori elenco vuol dire «non applicabile» (es. nessuna causa). Un valore mancante non diventa
+mai zero o stringa vuota. (Nel contratto `unavailable` ha già un significato fisso — null se e solo se elencato —
+che il validatore del server applica a ogni oggetto: per questo l'evento usa `not_recorded` e lo stato
+`not_reported`.)
 
 | Campo | Tipo | Regola |
 |---|---|---|
@@ -30,7 +34,7 @@ dell'evento. Un valore mancante non diventa mai zero o stringa vuota.
 | `reason`, `reason_code` | stringa \| null | `reason_code` `^[A-Z][A-Z0-9_]{0,63}$` |
 | `correlation_id`, `causation_id` | stringa \| null | `causation_id` = `event_id` dell'evento che ha causato questo |
 | `refs` | oggetto | `table_id`, `market_id`, `order_id` (id locale del ledger), `bet_id`, `strategy`; mai `customer_ref` né segreti |
-| `unavailable` | lista di nomi di campo | campi non registrati dal motore |
+| `not_recorded` | lista di nomi di campo | campi non registrati dal motore |
 
 ## 2. Route Control API (GET, sola lettura)
 
@@ -60,8 +64,10 @@ resta «nessuna query».
 | `category`, `origin`, `severity_min`, `event_type`, `outcome` | vocabolari del §1 |
 | `q` | ricerca testuale su `event_type`, `reason_code`, `reason`: 1–64 caratteri `[A-Za-z0-9 _.:-]` |
 
-Risposta: `events`, `next_after_seq` (`null` se finiti), `truncated`, `gaps_in_range` (§4), `as_of_seq`
-(ultimo `seq` scritto al momento della lettura).
+Risposta: `events`, `next_after_seq` (ultimo `seq` restituito; `0` se non ci sono altre pagine), `truncated`,
+`gaps_in_range` (§4), `as_of_seq` (ultimo `seq` scritto al momento della lettura; `0` = registro vuoto),
+`redacted`. Su tutte le route `/v1/blackbox/*`: `consistency = SINGLE_READ_SNAPSHOT` (lo stato:
+`PER_FIELD_NON_ATOMIC`).
 
 ## 4. Lacune e integrità
 
@@ -69,7 +75,8 @@ Il lettore riporta, mai ripara:
 - **lacuna**: `seq` mancanti in un intervallo → `gaps` come intervalli `[from, to]`;
 - **record corrotto**: illeggibile o con checksum errato → contato, mai mostrato come se fosse valido;
 - **sessione senza chiusura**: `ended_at` `null` + `end_reason` `UNRECORDED` (crash o arresto non registrato);
-- **registro non disponibile**: `status.available = false`, eventi `null` con `unavailable: ["events"]`.
+- **registro non disponibile**: `status.available = false` con `last_write_error_code` o `not_reported`; eventi
+  `null` con `unavailable: ["events", "as_of_seq"]`.
 
 Un buco dovuto alla retention è dichiarato come tale (`retained_from_seq`), non come perdita.
 
@@ -82,16 +89,20 @@ nemmeno se il motore ne avesse registrato uno per errore.
 
 ## 6. Ogni richiesta è registrata, senza ricorsione
 
-- Il server Control API invoca un **hook** del ponte una volta per richiesta HTTP, mai per evento restituito:
-  route, parametri validati (senza valori sensibili), esito (`ACCEPTED` / `REJECTED` + `reason_code` /
-  `SERVED` / `FAILED`), `X-Request-Id` dell'MCP, durata. Il ponte lo scrive nella scatola nera con
+- Il server Control API invoca un **hook** del ponte (`request_hook`, obbligatorio: senza, il server non parte)
+  per ogni richiesta HTTP, mai per evento restituito: un record `ATTEMPT` prima della lettura e un record `RESULT`
+  dopo l'invio, con `route` (modello, mai il percorso grezzo), `params` (solo valori già validati), `status`,
+  `code`, `request_id` (l'`X-Request-Id` dell'MCP), `duration_ms` e `coalesced_before`. Una richiesta rifiutata
+  (401, 400, 404, 405) produce il solo `RESULT`. Il ponte scrive il record nella scatola nera con
   `origin = CONTROL_API`.
 - Gli strumenti MCP mandano `X-Request-Id` (`^[A-Za-z0-9-]{8,64}$`), così il comando MCP e la sua registrazione
   in Pickfair si collegano.
 - **Nessuna ricorsione**: leggere la scatola nera produce un solo record (la richiesta), mai un record per ciascun
   evento letto.
-- **Nessun sovraccarico**: oltre una soglia (es. 20 richieste/s) le registrazioni si aggregano in un record di
-  conteggio. Nessuna richiesta sparisce senza contarla.
+- **Nessun sovraccarico**: oltre 20 record/s (raffica 40) le registrazioni non chiamano l'hook e si contano;
+  il conteggio esce in `coalesced_before` del record successivo. Se quel record fallisce, i conteggi portati
+  diventano `requests_unrecorded`. Nessuna richiesta sparisce senza contarla (limite dichiarato: un conteggio
+  ancora in memoria si perde se il processo muore prima del record successivo).
 - **Registra o rifiuta.** Se l'hook rifiuta (registro non disponibile), la richiesta riceve 503
   `BLACKBOX_UNAVAILABLE`. Fa eccezione `/v1/blackbox/status`: serve proprio a vedere il guasto. Lì il mancato
   record è contato in memoria e riportato.
@@ -111,7 +122,22 @@ blackbox.record_control_api_request(fields) -> bool   # hook del §6; False = no
 I record restituiti sono quelli del §1, con i nomi del motore mappati dal ponte. Le scelte di storage, sequenza
 multi-processo, fsync, rotazione e retention restano di B.
 
-## 8. Da decidere con B
+## 8. Implementazione lato MCP / Control API (MCP-01o)
+
+- `pickfair_control_api/blackbox_query.py`: whitelist chiusa (17 parametri) con codici fissi
+  `QUERY_PARAM`, `QUERY_PARAM_REPEATED`, `QUERY_VALUE`, `QUERY_ENCODING`, `QUERY_TOO_LONG`, `QUERY_RANGE`.
+- `pickfair_control_api/blackbox_redact.py`: seconda redazione su lista, catena ed evento; `redacted` aggiornato.
+- `pickfair_control_api/server.py`: route, hook obbligatorio, «registra o rifiuta», aggregazione,
+  `requests_unrecorded` iniettato nello stato; `schema_check` supporta `patternProperties`/`maxProperties`
+  (chiave fuori pattern = violazione).
+- MCP: `get_blackbox_status`, `list_blackbox_sessions`, `list_blackbox_events`, `get_blackbox_event` (scope
+  READ, `readOnlyHint`); l'adapter HTTP manda `X-Request-Id: mcp-<24 hex>` e tratta il 503 come upstream non
+  disponibile, mai come dato; un core che ignora il cursore è una risposta non valida.
+- Ponte del core: i provider `blackbox_status`, `blackbox_sessions`, `blackbox_events`, `blackbox_event` e
+  `request_hook` sopra l'interfaccia del §7, **dopo** che B la pubblica. Fino ad allora la suite crossrepo con il
+  core reale è BLOCKED (il ponte fissa la 1.12.0).
+
+## 9. Da decidere con B
 
 - La forma dei campi del §1 nel vocabolario reale del motore (`event_journal`, `session_recorder`, `audit_events`).
 - `session_recorder` dichiara «non solleva MAI» (best-effort). La direttiva chiede fail-closed prima delle

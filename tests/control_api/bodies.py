@@ -448,3 +448,81 @@ def sl_tp_closes(*closes: dict[str, Any], **overrides: Any) -> dict[str, Any]:
                             "truncated": False}
     data.update(overrides)
     return data
+
+
+# ------------------------------------------------------------- MCP-01o: scatola nera
+# (PF-BLACKBOX-01)
+def bb_event(seq: int = 1, **overrides: Any) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "seq": seq, "event_id": f"{seq:032x}", "ts_utc": "2026-11-07T15:00:00.123Z",
+        "session_id": "s-20261107-1", "process_id": 4242, "component": "core.order_manager",
+        "origin": "STRATEGY", "category": "ORDER", "event_type": "ORDER_PLACE_RESULT",
+        "severity": "INFO", "phase": "RESULT", "outcome": "VERIFIED", "state_before": "INFLIGHT",
+        "state_after": "SUBMITTED",
+        "values_before": None, "values_after": {"stake": "2.50", "price": "3.1"},
+        "reason": None, "reason_code": None, "correlation_id": "corr-1", "causation_id": None,
+        "refs": {"table_id": 1, "market_id": "1.234567", "order_id": 42, "bet_id": "31415",
+                 "strategy": "roserpina"},
+        "not_recorded": [],
+    }
+    data.update(overrides)
+    return data
+
+
+def bb_events(events: list[dict[str, Any]] | None = None, **overrides: Any) -> dict[str, Any]:
+    evs = [bb_event(1), bb_event(2)] if events is None else events
+    body: dict[str, Any] = {
+        "source": "core", "observed_at": time.time(), "consistency": "SINGLE_READ_SNAPSHOT",
+        "events": evs, "next_after_seq": 0, "truncated": False,
+        "as_of_seq": max((e["seq"] for e in evs), default=0), "gaps_in_range": [], "redacted": 0,
+        "unavailable": [],
+    }
+    body.update(overrides)
+    return body
+
+
+def bb_event_detail(**overrides: Any) -> dict[str, Any]:
+    cause = bb_event(1, phase="ATTEMPT", outcome="PENDING", event_type="ORDER_PLACE_ATTEMPT")
+    event = bb_event(2, causation_id=cause["event_id"])
+    body: dict[str, Any] = {
+        "source": "core", "observed_at": time.time(), "consistency": "SINGLE_READ_SNAPSHOT",
+        "event_id": event["event_id"], "state": "OK", "event": event, "chain": [cause],
+        "chain_truncated": False, "chain_broken_at": None, "redacted": 0,
+    }
+    body.update(overrides)
+    return body
+
+
+def bb_session(session_id: str = "s-20261107-1", **overrides: Any) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "session_id": session_id, "process_id": 4242, "started_at": "2026-11-07T14:00:00.000Z",
+        "ended_at": "2026-11-07T18:00:00.000Z", "end_reason": "CLEAN_STOP", "first_seq": 1,
+        "last_seq": 900,
+    }
+    data.update(overrides)
+    return data
+
+
+def bb_sessions(**overrides: Any) -> dict[str, Any]:
+    body: dict[str, Any] = {
+        "source": "core", "observed_at": time.time(), "consistency": "SINGLE_READ_SNAPSHOT",
+        "sessions": [bb_session(), bb_session("s-20261108-1", started_at="2026-11-08T09:00:00.000Z",
+                                              ended_at=None, end_reason="RUNNING", first_seq=901,
+                                              last_seq=950)],
+        "truncated": False, "unavailable": [],
+    }
+    body.update(overrides)
+    return body
+
+
+def bb_status(**overrides: Any) -> dict[str, Any]:
+    body: dict[str, Any] = {
+        "source": "core", "observed_at": time.time(), "consistency": "PER_FIELD_NON_ATOMIC",
+        "available": True, "first_seq": 1, "last_seq": 950, "retained_from_seq": 1,
+        "gaps": [{"from_seq": 400, "to_seq": 402, "kind": "LOST"}], "gaps_truncated": False,
+        "corrupt_records": 0, "sessions": 2, "current_session_id": "s-20261108-1",
+        "last_write_error_code": None, "last_durable_write_at": "2026-11-08T09:30:00.000Z",
+        "retention_days": 365, "requests_unrecorded": 0, "not_reported": [],
+    }
+    body.update(overrides)
+    return body

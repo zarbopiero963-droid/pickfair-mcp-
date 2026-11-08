@@ -58,6 +58,10 @@ async def test_stdio_initialize_list_and_call_get_meta(tmp_path: Path) -> None:
                 "get_config",
                 "list_markets",
                 "get_market_book",
+                "get_blackbox_status",
+                "list_blackbox_sessions",
+                "list_blackbox_events",
+                "get_blackbox_event",
             ]
             result = await session.call_tool("get_meta", {})
             assert result.isError is False
@@ -127,9 +131,9 @@ def test_contract_info_prints_version_and_hash() -> None:
     proc = run_cli("contract-info")
     assert proc.returncode == 0
     info = json.loads(proc.stdout)
-    assert info["supported_contract_version"] == "1.12.0"
+    assert info["supported_contract_version"] == "1.13.0"
     assert len(info["schema_hash"]) == 64
-    assert info["routes"] == 25
+    assert info["routes"] == 29  # 25 + 4 di lettura della scatola nera (PF-BLACKBOX-01)
     assert info["tools"] == [
         "get_meta",
         "get_status",
@@ -141,5 +145,9 @@ def test_contract_info_prints_version_and_hash() -> None:
         "get_config",
         "list_markets",
         "get_market_book",
+        "get_blackbox_status",
+        "list_blackbox_sessions",
+        "list_blackbox_events",
+        "get_blackbox_event",
     ]
     assert info["mutation_exposure"] == "BLOCKED_UNTIL_CORE_AUTHORITY_READY"

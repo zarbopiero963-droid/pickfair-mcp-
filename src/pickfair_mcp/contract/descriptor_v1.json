@@ -1,16 +1,23 @@
 {
   "contract_name": "pickfair-control-api",
-  "contract_version": "1.12.0",
+  "contract_version": "1.13.0",
   "error_codes": {
     "control_api": [
       "BAD_HOST",
       "BAD_REQUEST",
+      "BLACKBOX_UNAVAILABLE",
       "BODY_NOT_ALLOWED",
       "CONTRACT_SELF_CHECK",
       "INTERNAL",
       "METHOD_NOT_ALLOWED",
       "NOT_FOUND",
       "NOT_IMPLEMENTED",
+      "QUERY_ENCODING",
+      "QUERY_PARAM",
+      "QUERY_PARAM_REPEATED",
+      "QUERY_RANGE",
+      "QUERY_TOO_LONG",
+      "QUERY_VALUE",
       "UNAUTHORIZED"
     ],
     "mcp": [
@@ -99,6 +106,26 @@
       "/v1/audit/{correlation_id}"
     ],
     [
+      "read",
+      "GET",
+      "/v1/blackbox/status"
+    ],
+    [
+      "read",
+      "GET",
+      "/v1/blackbox/sessions"
+    ],
+    [
+      "read",
+      "GET",
+      "/v1/blackbox/events"
+    ],
+    [
+      "read",
+      "GET",
+      "/v1/blackbox/events/{event_id}"
+    ],
+    [
       "command",
       "POST",
       "/v1/preview"
@@ -155,6 +182,7 @@
     ]
   ],
   "semantics": {
+    "blackbox": "PF-BLACKBOX-01, read-only. The engine's permanent chronological register; the reader never invents: a field the engine did not record is null and listed in the event's `unavailable`. seq is the persistent progressive number: missing seq are reported as gaps (LOST, CORRUPT, or RETENTION when removed by the configured retention), never repaired. phase ATTEMPT is what Pickfair tried (outcome always PENDING), RESULT what actually happened; an exchange AMBIGUOUS is outcome UNKNOWN, never FAILED. Timestamps are UTC with milliseconds; local time is the viewer's job. Values of sensitive names are always [REDACTED]. Filters only on GET /v1/blackbox/events, from a closed whitelist (since, until, after_seq, limit 1-500, session_id, table_id, market_id, order_id, bet_id, strategy, correlation_id, category, origin, severity_min, event_type, outcome, q); an unknown or repeated parameter, a value out of pattern or a range over 31 days is 400 without calling the core. Every Control API request is recorded once in the register (never once per returned event); a request that cannot be recorded is refused 503 BLACKBOX_UNAVAILABLE, except /v1/blackbox/status.",
     "codes": "Codes and reasons match ^[A-Z][A-Z0-9_]{0,63}$; free text from the core becomes UNSTRUCTURED and never crosses the API.",
     "config": {
       "keys": {
@@ -793,6 +821,1092 @@
         "type": "object"
       },
       "route": "GET /v1/account",
+      "scope": "read"
+    },
+    "get_blackbox_event": {
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "event_id": {
+            "pattern": "^[0-9a-f]{32}$",
+            "title": "Event Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id"
+        ],
+        "title": "GetBlackboxEventInput",
+        "type": "object"
+      },
+      "output_schema": {
+        "$defs": {
+          "BlackboxEvent": {
+            "additionalProperties": false,
+            "properties": {
+              "category": {
+                "pattern": "^[A-Z][A-Z0-9_]{0,31}$",
+                "title": "Category",
+                "type": "string"
+              },
+              "causation_id": {
+                "anyOf": [
+                  {
+                    "pattern": "^[0-9a-f]{32}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Causation Id"
+              },
+              "component": {
+                "anyOf": [
+                  {
+                    "pattern": "^[a-z][a-z0-9_.]{0,63}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Component"
+              },
+              "correlation_id": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Correlation Id"
+              },
+              "event_id": {
+                "pattern": "^[0-9a-f]{32}$",
+                "title": "Event Id",
+                "type": "string"
+              },
+              "event_type": {
+                "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                "title": "Event Type",
+                "type": "string"
+              },
+              "not_recorded": {
+                "items": {
+                  "enum": [
+                    "state_before",
+                    "state_after",
+                    "values_before",
+                    "values_after",
+                    "reason",
+                    "reason_code",
+                    "correlation_id",
+                    "causation_id",
+                    "process_id",
+                    "component"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 10,
+                "title": "Not Recorded",
+                "type": "array",
+                "uniqueItems": true
+              },
+              "origin": {
+                "enum": [
+                  "USER",
+                  "SYSTEM",
+                  "MCP",
+                  "CONTROL_API",
+                  "STRATEGY",
+                  "EXCHANGE"
+                ],
+                "title": "Origin",
+                "type": "string"
+              },
+              "outcome": {
+                "enum": [
+                  "VERIFIED",
+                  "PENDING",
+                  "UNKNOWN",
+                  "REJECTED",
+                  "FAILED",
+                  "NOT_APPLICABLE"
+                ],
+                "title": "Outcome",
+                "type": "string"
+              },
+              "phase": {
+                "enum": [
+                  "ATTEMPT",
+                  "RESULT",
+                  "OBSERVATION"
+                ],
+                "title": "Phase",
+                "type": "string"
+              },
+              "process_id": {
+                "anyOf": [
+                  {
+                    "maximum": 2147483648,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Process Id"
+              },
+              "reason": {
+                "anyOf": [
+                  {
+                    "maxLength": 256,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Reason"
+              },
+              "reason_code": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Reason Code"
+              },
+              "refs": {
+                "$ref": "#/$defs/BlackboxRefs"
+              },
+              "seq": {
+                "maximum": 1000000000000000,
+                "minimum": 1,
+                "title": "Seq",
+                "type": "integer"
+              },
+              "session_id": {
+                "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                "title": "Session Id",
+                "type": "string"
+              },
+              "severity": {
+                "enum": [
+                  "DEBUG",
+                  "INFO",
+                  "WARNING",
+                  "ERROR",
+                  "CRITICAL"
+                ],
+                "title": "Severity",
+                "type": "string"
+              },
+              "state_after": {
+                "anyOf": [
+                  {
+                    "maxLength": 64,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "State After"
+              },
+              "state_before": {
+                "anyOf": [
+                  {
+                    "maxLength": 64,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "State Before"
+              },
+              "ts_utc": {
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+                "title": "Ts Utc",
+                "type": "string"
+              },
+              "values_after": {
+                "anyOf": [
+                  {
+                    "maxProperties": 32,
+                    "patternProperties": {
+                      "^[a-z][a-z0-9_.]{0,63}$": {
+                        "anyOf": [
+                          {
+                            "maxLength": 256,
+                            "type": "string"
+                          },
+                          {
+                            "type": "boolean"
+                          },
+                          {
+                            "maximum": 1000000000000000,
+                            "minimum": -1000000000000000,
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Values After"
+              },
+              "values_before": {
+                "anyOf": [
+                  {
+                    "maxProperties": 32,
+                    "patternProperties": {
+                      "^[a-z][a-z0-9_.]{0,63}$": {
+                        "anyOf": [
+                          {
+                            "maxLength": 256,
+                            "type": "string"
+                          },
+                          {
+                            "type": "boolean"
+                          },
+                          {
+                            "maximum": 1000000000000000,
+                            "minimum": -1000000000000000,
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Values Before"
+              }
+            },
+            "required": [
+              "seq",
+              "event_id",
+              "ts_utc",
+              "session_id",
+              "process_id",
+              "component",
+              "origin",
+              "category",
+              "event_type",
+              "severity",
+              "phase",
+              "outcome",
+              "state_before",
+              "state_after",
+              "values_before",
+              "values_after",
+              "reason",
+              "reason_code",
+              "correlation_id",
+              "causation_id",
+              "refs",
+              "not_recorded"
+            ],
+            "title": "BlackboxEvent",
+            "type": "object"
+          },
+          "BlackboxEventData": {
+            "additionalProperties": false,
+            "properties": {
+              "age_s": {
+                "maximum": 30.0,
+                "minimum": 0,
+                "title": "Age S",
+                "type": "number"
+              },
+              "event": {
+                "$ref": "#/$defs/BlackboxEventResponse"
+              },
+              "upstream": {
+                "$ref": "#/$defs/UpstreamInfo"
+              }
+            },
+            "required": [
+              "event",
+              "age_s",
+              "upstream"
+            ],
+            "title": "BlackboxEventData",
+            "type": "object"
+          },
+          "BlackboxEventResponse": {
+            "additionalProperties": false,
+            "properties": {
+              "chain": {
+                "items": {
+                  "$ref": "#/$defs/BlackboxEvent"
+                },
+                "maxItems": 32,
+                "title": "Chain",
+                "type": "array"
+              },
+              "chain_broken_at": {
+                "anyOf": [
+                  {
+                    "pattern": "^[0-9a-f]{32}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Chain Broken At"
+              },
+              "chain_truncated": {
+                "title": "Chain Truncated",
+                "type": "boolean"
+              },
+              "consistency": {
+                "const": "SINGLE_READ_SNAPSHOT",
+                "title": "Consistency",
+                "type": "string"
+              },
+              "event": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/BlackboxEvent"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "event_id": {
+                "pattern": "^[0-9a-f]{32}$",
+                "title": "Event Id",
+                "type": "string"
+              },
+              "observed_at": {
+                "exclusiveMaximum": 100000000000.0,
+                "exclusiveMinimum": 0,
+                "title": "Observed At",
+                "type": "number"
+              },
+              "redacted": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Redacted",
+                "type": "integer"
+              },
+              "source": {
+                "enum": [
+                  "core",
+                  "simulated"
+                ],
+                "title": "Source",
+                "type": "string"
+              },
+              "state": {
+                "enum": [
+                  "OK",
+                  "NOT_FOUND",
+                  "UNAVAILABLE"
+                ],
+                "title": "State",
+                "type": "string"
+              }
+            },
+            "required": [
+              "source",
+              "observed_at",
+              "consistency",
+              "event_id",
+              "state",
+              "event",
+              "chain",
+              "chain_truncated",
+              "chain_broken_at",
+              "redacted"
+            ],
+            "title": "BlackboxEventResponse",
+            "type": "object"
+          },
+          "BlackboxRefs": {
+            "additionalProperties": false,
+            "properties": {
+              "bet_id": {
+                "anyOf": [
+                  {
+                    "pattern": "^[0-9]{1,20}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Bet Id"
+              },
+              "market_id": {
+                "anyOf": [
+                  {
+                    "maxLength": 20,
+                    "pattern": "^[0-9]{1,4}\\.[0-9]{1,15}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Market Id"
+              },
+              "order_id": {
+                "anyOf": [
+                  {
+                    "maximum": 1000000000000000,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Order Id"
+              },
+              "strategy": {
+                "anyOf": [
+                  {
+                    "pattern": "^[a-z][a-z0-9_]{0,31}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Strategy"
+              },
+              "table_id": {
+                "anyOf": [
+                  {
+                    "maximum": 9999,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Table Id"
+              }
+            },
+            "required": [
+              "table_id",
+              "market_id",
+              "order_id",
+              "bet_id",
+              "strategy"
+            ],
+            "title": "BlackboxRefs",
+            "type": "object"
+          },
+          "ErrorBody": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "$ref": "#/$defs/ErrorCode"
+              },
+              "details": {
+                "$ref": "#/$defs/ErrorDetails"
+              },
+              "message": {
+                "maxLength": 200,
+                "title": "Message",
+                "type": "string"
+              },
+              "retryable": {
+                "title": "Retryable",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "retryable",
+              "details"
+            ],
+            "title": "ErrorBody",
+            "type": "object"
+          },
+          "ErrorCode": {
+            "enum": [
+              "INVALID_REQUEST",
+              "UNKNOWN_TOOL",
+              "CONTRACT_INCOMPATIBLE",
+              "UPSTREAM_TIMEOUT",
+              "UPSTREAM_UNAVAILABLE",
+              "UPSTREAM_INVALID_RESPONSE",
+              "UPSTREAM_UNAUTHORIZED",
+              "UPSTREAM_NOT_IMPLEMENTED",
+              "INTERNAL_ERROR",
+              "JOURNAL_UNAVAILABLE",
+              "FORBIDDEN"
+            ],
+            "title": "ErrorCode",
+            "type": "string"
+          },
+          "ErrorDetails": {
+            "additionalProperties": false,
+            "properties": {
+              "handshake_status": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Z_]{1,32}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Handshake Status"
+              },
+              "reasons": {
+                "items": {
+                  "maxLength": 160,
+                  "pattern": "^[A-Z_]+(:[A-Za-z0-9_{}/?=. -]{1,140})?$",
+                  "type": "string"
+                },
+                "maxItems": 32,
+                "title": "Reasons",
+                "type": "array"
+              }
+            },
+            "required": [
+              "reasons",
+              "handshake_status"
+            ],
+            "title": "ErrorDetails",
+            "type": "object"
+          },
+          "UpstreamInfo": {
+            "additionalProperties": false,
+            "properties": {
+              "certified": {
+                "title": "Certified",
+                "type": "boolean"
+              },
+              "kind": {
+                "enum": [
+                  "simulated",
+                  "http"
+                ],
+                "title": "Kind",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "certified"
+            ],
+            "title": "UpstreamInfo",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BlackboxEventData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ErrorBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "request_id": {
+            "pattern": "^req_[0-9a-f]{32}$",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]{2,47}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool"
+          }
+        },
+        "required": [
+          "ok",
+          "request_id",
+          "tool",
+          "data",
+          "error"
+        ],
+        "title": "Envelope[BlackboxEventData]",
+        "type": "object"
+      },
+      "route": "GET /v1/blackbox/events/{event_id}",
+      "scope": "read"
+    },
+    "get_blackbox_status": {
+      "input_schema": {
+        "additionalProperties": false,
+        "description": "Nessun argomento ammesso.",
+        "properties": {},
+        "title": "NoInput",
+        "type": "object"
+      },
+      "output_schema": {
+        "$defs": {
+          "BlackboxGap": {
+            "additionalProperties": false,
+            "properties": {
+              "from_seq": {
+                "maximum": 1000000000000000,
+                "minimum": 1,
+                "title": "From Seq",
+                "type": "integer"
+              },
+              "kind": {
+                "enum": [
+                  "LOST",
+                  "CORRUPT",
+                  "RETENTION"
+                ],
+                "title": "Kind",
+                "type": "string"
+              },
+              "to_seq": {
+                "maximum": 1000000000000000,
+                "minimum": 1,
+                "title": "To Seq",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "from_seq",
+              "to_seq",
+              "kind"
+            ],
+            "title": "BlackboxGap",
+            "type": "object"
+          },
+          "BlackboxStatusData": {
+            "additionalProperties": false,
+            "properties": {
+              "age_s": {
+                "maximum": 30.0,
+                "minimum": 0,
+                "title": "Age S",
+                "type": "number"
+              },
+              "blackbox": {
+                "$ref": "#/$defs/BlackboxStatusResponse"
+              },
+              "upstream": {
+                "$ref": "#/$defs/UpstreamInfo"
+              }
+            },
+            "required": [
+              "blackbox",
+              "age_s",
+              "upstream"
+            ],
+            "title": "BlackboxStatusData",
+            "type": "object"
+          },
+          "BlackboxStatusResponse": {
+            "additionalProperties": false,
+            "properties": {
+              "available": {
+                "title": "Available",
+                "type": "boolean"
+              },
+              "consistency": {
+                "const": "PER_FIELD_NON_ATOMIC",
+                "title": "Consistency",
+                "type": "string"
+              },
+              "corrupt_records": {
+                "anyOf": [
+                  {
+                    "maximum": 1000000,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Corrupt Records"
+              },
+              "current_session_id": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Current Session Id"
+              },
+              "first_seq": {
+                "anyOf": [
+                  {
+                    "maximum": 1000000000000000,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "First Seq"
+              },
+              "gaps": {
+                "items": {
+                  "$ref": "#/$defs/BlackboxGap"
+                },
+                "maxItems": 64,
+                "title": "Gaps",
+                "type": "array"
+              },
+              "gaps_truncated": {
+                "title": "Gaps Truncated",
+                "type": "boolean"
+              },
+              "last_durable_write_at": {
+                "anyOf": [
+                  {
+                    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Last Durable Write At"
+              },
+              "last_seq": {
+                "anyOf": [
+                  {
+                    "maximum": 1000000000000000,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Last Seq"
+              },
+              "last_write_error_code": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Last Write Error Code"
+              },
+              "not_reported": {
+                "items": {
+                  "enum": [
+                    "seq_range",
+                    "corrupt_records",
+                    "sessions",
+                    "last_durable_write_at",
+                    "retention_days"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 5,
+                "title": "Not Reported",
+                "type": "array",
+                "uniqueItems": true
+              },
+              "observed_at": {
+                "exclusiveMaximum": 100000000000.0,
+                "exclusiveMinimum": 0,
+                "title": "Observed At",
+                "type": "number"
+              },
+              "requests_unrecorded": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Requests Unrecorded",
+                "type": "integer"
+              },
+              "retained_from_seq": {
+                "anyOf": [
+                  {
+                    "maximum": 1000000000000000,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Retained From Seq"
+              },
+              "retention_days": {
+                "anyOf": [
+                  {
+                    "maximum": 36500,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Retention Days"
+              },
+              "sessions": {
+                "anyOf": [
+                  {
+                    "maximum": 1000000,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Sessions"
+              },
+              "source": {
+                "enum": [
+                  "core",
+                  "simulated"
+                ],
+                "title": "Source",
+                "type": "string"
+              }
+            },
+            "required": [
+              "source",
+              "observed_at",
+              "consistency",
+              "available",
+              "first_seq",
+              "last_seq",
+              "retained_from_seq",
+              "gaps",
+              "gaps_truncated",
+              "corrupt_records",
+              "sessions",
+              "current_session_id",
+              "last_write_error_code",
+              "last_durable_write_at",
+              "retention_days",
+              "requests_unrecorded",
+              "not_reported"
+            ],
+            "title": "BlackboxStatusResponse",
+            "type": "object"
+          },
+          "ErrorBody": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "$ref": "#/$defs/ErrorCode"
+              },
+              "details": {
+                "$ref": "#/$defs/ErrorDetails"
+              },
+              "message": {
+                "maxLength": 200,
+                "title": "Message",
+                "type": "string"
+              },
+              "retryable": {
+                "title": "Retryable",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "retryable",
+              "details"
+            ],
+            "title": "ErrorBody",
+            "type": "object"
+          },
+          "ErrorCode": {
+            "enum": [
+              "INVALID_REQUEST",
+              "UNKNOWN_TOOL",
+              "CONTRACT_INCOMPATIBLE",
+              "UPSTREAM_TIMEOUT",
+              "UPSTREAM_UNAVAILABLE",
+              "UPSTREAM_INVALID_RESPONSE",
+              "UPSTREAM_UNAUTHORIZED",
+              "UPSTREAM_NOT_IMPLEMENTED",
+              "INTERNAL_ERROR",
+              "JOURNAL_UNAVAILABLE",
+              "FORBIDDEN"
+            ],
+            "title": "ErrorCode",
+            "type": "string"
+          },
+          "ErrorDetails": {
+            "additionalProperties": false,
+            "properties": {
+              "handshake_status": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Z_]{1,32}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Handshake Status"
+              },
+              "reasons": {
+                "items": {
+                  "maxLength": 160,
+                  "pattern": "^[A-Z_]+(:[A-Za-z0-9_{}/?=. -]{1,140})?$",
+                  "type": "string"
+                },
+                "maxItems": 32,
+                "title": "Reasons",
+                "type": "array"
+              }
+            },
+            "required": [
+              "reasons",
+              "handshake_status"
+            ],
+            "title": "ErrorDetails",
+            "type": "object"
+          },
+          "UpstreamInfo": {
+            "additionalProperties": false,
+            "properties": {
+              "certified": {
+                "title": "Certified",
+                "type": "boolean"
+              },
+              "kind": {
+                "enum": [
+                  "simulated",
+                  "http"
+                ],
+                "title": "Kind",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "certified"
+            ],
+            "title": "UpstreamInfo",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BlackboxStatusData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ErrorBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "request_id": {
+            "pattern": "^req_[0-9a-f]{32}$",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]{2,47}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool"
+          }
+        },
+        "required": [
+          "ok",
+          "request_id",
+          "tool",
+          "data",
+          "error"
+        ],
+        "title": "Envelope[BlackboxStatusData]",
+        "type": "object"
+      },
+      "route": "GET /v1/blackbox/status",
       "scope": "read"
     },
     "get_config": {
@@ -5122,6 +6236,1294 @@
       "route": "GET /v1/status",
       "scope": "read"
     },
+    "list_blackbox_events": {
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "after_seq": {
+            "anyOf": [
+              {
+                "maximum": 1000000000000000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "After Seq"
+          },
+          "bet_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{1,20}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Bet Id"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Z][A-Z0-9_]{0,31}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Category"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Correlation Id"
+          },
+          "event_type": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Event Type"
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "maximum": 500,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Limit"
+          },
+          "market_id": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "pattern": "^[0-9]{1,4}\\.[0-9]{1,15}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Market Id"
+          },
+          "order_id": {
+            "anyOf": [
+              {
+                "maximum": 1000000000000000,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Order Id"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "enum": [
+                  "USER",
+                  "SYSTEM",
+                  "MCP",
+                  "CONTROL_API",
+                  "STRATEGY",
+                  "EXCHANGE"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Origin"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "enum": [
+                  "VERIFIED",
+                  "PENDING",
+                  "UNKNOWN",
+                  "REJECTED",
+                  "FAILED",
+                  "NOT_APPLICABLE"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Outcome"
+          },
+          "q": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9 _.:-]{1,64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Q"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Session Id"
+          },
+          "severity_min": {
+            "anyOf": [
+              {
+                "enum": [
+                  "DEBUG",
+                  "INFO",
+                  "WARNING",
+                  "ERROR",
+                  "CRITICAL"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Severity Min"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{3})?Z$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Since"
+          },
+          "strategy": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]{0,31}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Strategy"
+          },
+          "table_id": {
+            "anyOf": [
+              {
+                "maximum": 9999,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Table Id"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{3})?Z$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Until"
+          }
+        },
+        "title": "ListBlackboxEventsInput",
+        "type": "object"
+      },
+      "output_schema": {
+        "$defs": {
+          "BlackboxEvent": {
+            "additionalProperties": false,
+            "properties": {
+              "category": {
+                "pattern": "^[A-Z][A-Z0-9_]{0,31}$",
+                "title": "Category",
+                "type": "string"
+              },
+              "causation_id": {
+                "anyOf": [
+                  {
+                    "pattern": "^[0-9a-f]{32}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Causation Id"
+              },
+              "component": {
+                "anyOf": [
+                  {
+                    "pattern": "^[a-z][a-z0-9_.]{0,63}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Component"
+              },
+              "correlation_id": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Correlation Id"
+              },
+              "event_id": {
+                "pattern": "^[0-9a-f]{32}$",
+                "title": "Event Id",
+                "type": "string"
+              },
+              "event_type": {
+                "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                "title": "Event Type",
+                "type": "string"
+              },
+              "not_recorded": {
+                "items": {
+                  "enum": [
+                    "state_before",
+                    "state_after",
+                    "values_before",
+                    "values_after",
+                    "reason",
+                    "reason_code",
+                    "correlation_id",
+                    "causation_id",
+                    "process_id",
+                    "component"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 10,
+                "title": "Not Recorded",
+                "type": "array",
+                "uniqueItems": true
+              },
+              "origin": {
+                "enum": [
+                  "USER",
+                  "SYSTEM",
+                  "MCP",
+                  "CONTROL_API",
+                  "STRATEGY",
+                  "EXCHANGE"
+                ],
+                "title": "Origin",
+                "type": "string"
+              },
+              "outcome": {
+                "enum": [
+                  "VERIFIED",
+                  "PENDING",
+                  "UNKNOWN",
+                  "REJECTED",
+                  "FAILED",
+                  "NOT_APPLICABLE"
+                ],
+                "title": "Outcome",
+                "type": "string"
+              },
+              "phase": {
+                "enum": [
+                  "ATTEMPT",
+                  "RESULT",
+                  "OBSERVATION"
+                ],
+                "title": "Phase",
+                "type": "string"
+              },
+              "process_id": {
+                "anyOf": [
+                  {
+                    "maximum": 2147483648,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Process Id"
+              },
+              "reason": {
+                "anyOf": [
+                  {
+                    "maxLength": 256,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Reason"
+              },
+              "reason_code": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Reason Code"
+              },
+              "refs": {
+                "$ref": "#/$defs/BlackboxRefs"
+              },
+              "seq": {
+                "maximum": 1000000000000000,
+                "minimum": 1,
+                "title": "Seq",
+                "type": "integer"
+              },
+              "session_id": {
+                "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                "title": "Session Id",
+                "type": "string"
+              },
+              "severity": {
+                "enum": [
+                  "DEBUG",
+                  "INFO",
+                  "WARNING",
+                  "ERROR",
+                  "CRITICAL"
+                ],
+                "title": "Severity",
+                "type": "string"
+              },
+              "state_after": {
+                "anyOf": [
+                  {
+                    "maxLength": 64,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "State After"
+              },
+              "state_before": {
+                "anyOf": [
+                  {
+                    "maxLength": 64,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "State Before"
+              },
+              "ts_utc": {
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+                "title": "Ts Utc",
+                "type": "string"
+              },
+              "values_after": {
+                "anyOf": [
+                  {
+                    "maxProperties": 32,
+                    "patternProperties": {
+                      "^[a-z][a-z0-9_.]{0,63}$": {
+                        "anyOf": [
+                          {
+                            "maxLength": 256,
+                            "type": "string"
+                          },
+                          {
+                            "type": "boolean"
+                          },
+                          {
+                            "maximum": 1000000000000000,
+                            "minimum": -1000000000000000,
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Values After"
+              },
+              "values_before": {
+                "anyOf": [
+                  {
+                    "maxProperties": 32,
+                    "patternProperties": {
+                      "^[a-z][a-z0-9_.]{0,63}$": {
+                        "anyOf": [
+                          {
+                            "maxLength": 256,
+                            "type": "string"
+                          },
+                          {
+                            "type": "boolean"
+                          },
+                          {
+                            "maximum": 1000000000000000,
+                            "minimum": -1000000000000000,
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Values Before"
+              }
+            },
+            "required": [
+              "seq",
+              "event_id",
+              "ts_utc",
+              "session_id",
+              "process_id",
+              "component",
+              "origin",
+              "category",
+              "event_type",
+              "severity",
+              "phase",
+              "outcome",
+              "state_before",
+              "state_after",
+              "values_before",
+              "values_after",
+              "reason",
+              "reason_code",
+              "correlation_id",
+              "causation_id",
+              "refs",
+              "not_recorded"
+            ],
+            "title": "BlackboxEvent",
+            "type": "object"
+          },
+          "BlackboxEventsData": {
+            "additionalProperties": false,
+            "properties": {
+              "age_s": {
+                "maximum": 30.0,
+                "minimum": 0,
+                "title": "Age S",
+                "type": "number"
+              },
+              "events": {
+                "$ref": "#/$defs/BlackboxEventsResponse"
+              },
+              "upstream": {
+                "$ref": "#/$defs/UpstreamInfo"
+              }
+            },
+            "required": [
+              "events",
+              "age_s",
+              "upstream"
+            ],
+            "title": "BlackboxEventsData",
+            "type": "object"
+          },
+          "BlackboxEventsResponse": {
+            "additionalProperties": false,
+            "properties": {
+              "as_of_seq": {
+                "anyOf": [
+                  {
+                    "maximum": 1000000000000000,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "As Of Seq"
+              },
+              "consistency": {
+                "const": "SINGLE_READ_SNAPSHOT",
+                "title": "Consistency",
+                "type": "string"
+              },
+              "events": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "$ref": "#/$defs/BlackboxEvent"
+                    },
+                    "maxItems": 500,
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Events"
+              },
+              "gaps_in_range": {
+                "items": {
+                  "$ref": "#/$defs/BlackboxGap"
+                },
+                "maxItems": 64,
+                "title": "Gaps In Range",
+                "type": "array"
+              },
+              "next_after_seq": {
+                "maximum": 1000000000000000,
+                "minimum": 0,
+                "title": "Next After Seq",
+                "type": "integer"
+              },
+              "observed_at": {
+                "exclusiveMaximum": 100000000000.0,
+                "exclusiveMinimum": 0,
+                "title": "Observed At",
+                "type": "number"
+              },
+              "redacted": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Redacted",
+                "type": "integer"
+              },
+              "source": {
+                "enum": [
+                  "core",
+                  "simulated"
+                ],
+                "title": "Source",
+                "type": "string"
+              },
+              "truncated": {
+                "title": "Truncated",
+                "type": "boolean"
+              },
+              "unavailable": {
+                "items": {
+                  "enum": [
+                    "events",
+                    "as_of_seq"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 2,
+                "title": "Unavailable",
+                "type": "array",
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "source",
+              "observed_at",
+              "consistency",
+              "events",
+              "next_after_seq",
+              "truncated",
+              "as_of_seq",
+              "gaps_in_range",
+              "redacted",
+              "unavailable"
+            ],
+            "title": "BlackboxEventsResponse",
+            "type": "object"
+          },
+          "BlackboxGap": {
+            "additionalProperties": false,
+            "properties": {
+              "from_seq": {
+                "maximum": 1000000000000000,
+                "minimum": 1,
+                "title": "From Seq",
+                "type": "integer"
+              },
+              "kind": {
+                "enum": [
+                  "LOST",
+                  "CORRUPT",
+                  "RETENTION"
+                ],
+                "title": "Kind",
+                "type": "string"
+              },
+              "to_seq": {
+                "maximum": 1000000000000000,
+                "minimum": 1,
+                "title": "To Seq",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "from_seq",
+              "to_seq",
+              "kind"
+            ],
+            "title": "BlackboxGap",
+            "type": "object"
+          },
+          "BlackboxRefs": {
+            "additionalProperties": false,
+            "properties": {
+              "bet_id": {
+                "anyOf": [
+                  {
+                    "pattern": "^[0-9]{1,20}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Bet Id"
+              },
+              "market_id": {
+                "anyOf": [
+                  {
+                    "maxLength": 20,
+                    "pattern": "^[0-9]{1,4}\\.[0-9]{1,15}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Market Id"
+              },
+              "order_id": {
+                "anyOf": [
+                  {
+                    "maximum": 1000000000000000,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Order Id"
+              },
+              "strategy": {
+                "anyOf": [
+                  {
+                    "pattern": "^[a-z][a-z0-9_]{0,31}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Strategy"
+              },
+              "table_id": {
+                "anyOf": [
+                  {
+                    "maximum": 9999,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Table Id"
+              }
+            },
+            "required": [
+              "table_id",
+              "market_id",
+              "order_id",
+              "bet_id",
+              "strategy"
+            ],
+            "title": "BlackboxRefs",
+            "type": "object"
+          },
+          "ErrorBody": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "$ref": "#/$defs/ErrorCode"
+              },
+              "details": {
+                "$ref": "#/$defs/ErrorDetails"
+              },
+              "message": {
+                "maxLength": 200,
+                "title": "Message",
+                "type": "string"
+              },
+              "retryable": {
+                "title": "Retryable",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "retryable",
+              "details"
+            ],
+            "title": "ErrorBody",
+            "type": "object"
+          },
+          "ErrorCode": {
+            "enum": [
+              "INVALID_REQUEST",
+              "UNKNOWN_TOOL",
+              "CONTRACT_INCOMPATIBLE",
+              "UPSTREAM_TIMEOUT",
+              "UPSTREAM_UNAVAILABLE",
+              "UPSTREAM_INVALID_RESPONSE",
+              "UPSTREAM_UNAUTHORIZED",
+              "UPSTREAM_NOT_IMPLEMENTED",
+              "INTERNAL_ERROR",
+              "JOURNAL_UNAVAILABLE",
+              "FORBIDDEN"
+            ],
+            "title": "ErrorCode",
+            "type": "string"
+          },
+          "ErrorDetails": {
+            "additionalProperties": false,
+            "properties": {
+              "handshake_status": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Z_]{1,32}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Handshake Status"
+              },
+              "reasons": {
+                "items": {
+                  "maxLength": 160,
+                  "pattern": "^[A-Z_]+(:[A-Za-z0-9_{}/?=. -]{1,140})?$",
+                  "type": "string"
+                },
+                "maxItems": 32,
+                "title": "Reasons",
+                "type": "array"
+              }
+            },
+            "required": [
+              "reasons",
+              "handshake_status"
+            ],
+            "title": "ErrorDetails",
+            "type": "object"
+          },
+          "UpstreamInfo": {
+            "additionalProperties": false,
+            "properties": {
+              "certified": {
+                "title": "Certified",
+                "type": "boolean"
+              },
+              "kind": {
+                "enum": [
+                  "simulated",
+                  "http"
+                ],
+                "title": "Kind",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "certified"
+            ],
+            "title": "UpstreamInfo",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BlackboxEventsData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ErrorBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "request_id": {
+            "pattern": "^req_[0-9a-f]{32}$",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]{2,47}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool"
+          }
+        },
+        "required": [
+          "ok",
+          "request_id",
+          "tool",
+          "data",
+          "error"
+        ],
+        "title": "Envelope[BlackboxEventsData]",
+        "type": "object"
+      },
+      "route": "GET /v1/blackbox/events",
+      "scope": "read"
+    },
+    "list_blackbox_sessions": {
+      "input_schema": {
+        "additionalProperties": false,
+        "description": "Nessun argomento ammesso.",
+        "properties": {},
+        "title": "NoInput",
+        "type": "object"
+      },
+      "output_schema": {
+        "$defs": {
+          "BlackboxSession": {
+            "additionalProperties": false,
+            "properties": {
+              "end_reason": {
+                "enum": [
+                  "RUNNING",
+                  "CLEAN_STOP",
+                  "CRASH_DETECTED",
+                  "UNRECORDED"
+                ],
+                "title": "End Reason",
+                "type": "string"
+              },
+              "ended_at": {
+                "anyOf": [
+                  {
+                    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Ended At"
+              },
+              "first_seq": {
+                "anyOf": [
+                  {
+                    "maximum": 1000000000000000,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "First Seq"
+              },
+              "last_seq": {
+                "anyOf": [
+                  {
+                    "maximum": 1000000000000000,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Last Seq"
+              },
+              "process_id": {
+                "anyOf": [
+                  {
+                    "maximum": 2147483648,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Process Id"
+              },
+              "session_id": {
+                "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                "title": "Session Id",
+                "type": "string"
+              },
+              "started_at": {
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+                "title": "Started At",
+                "type": "string"
+              }
+            },
+            "required": [
+              "session_id",
+              "process_id",
+              "started_at",
+              "ended_at",
+              "end_reason",
+              "first_seq",
+              "last_seq"
+            ],
+            "title": "BlackboxSession",
+            "type": "object"
+          },
+          "BlackboxSessionsData": {
+            "additionalProperties": false,
+            "properties": {
+              "age_s": {
+                "maximum": 30.0,
+                "minimum": 0,
+                "title": "Age S",
+                "type": "number"
+              },
+              "sessions": {
+                "$ref": "#/$defs/BlackboxSessionsResponse"
+              },
+              "upstream": {
+                "$ref": "#/$defs/UpstreamInfo"
+              }
+            },
+            "required": [
+              "sessions",
+              "age_s",
+              "upstream"
+            ],
+            "title": "BlackboxSessionsData",
+            "type": "object"
+          },
+          "BlackboxSessionsResponse": {
+            "additionalProperties": false,
+            "properties": {
+              "consistency": {
+                "const": "SINGLE_READ_SNAPSHOT",
+                "title": "Consistency",
+                "type": "string"
+              },
+              "observed_at": {
+                "exclusiveMaximum": 100000000000.0,
+                "exclusiveMinimum": 0,
+                "title": "Observed At",
+                "type": "number"
+              },
+              "sessions": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "$ref": "#/$defs/BlackboxSession"
+                    },
+                    "maxItems": 256,
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Sessions"
+              },
+              "source": {
+                "enum": [
+                  "core",
+                  "simulated"
+                ],
+                "title": "Source",
+                "type": "string"
+              },
+              "truncated": {
+                "title": "Truncated",
+                "type": "boolean"
+              },
+              "unavailable": {
+                "items": {
+                  "const": "sessions",
+                  "type": "string"
+                },
+                "maxItems": 1,
+                "title": "Unavailable",
+                "type": "array",
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "source",
+              "observed_at",
+              "consistency",
+              "sessions",
+              "truncated",
+              "unavailable"
+            ],
+            "title": "BlackboxSessionsResponse",
+            "type": "object"
+          },
+          "ErrorBody": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "$ref": "#/$defs/ErrorCode"
+              },
+              "details": {
+                "$ref": "#/$defs/ErrorDetails"
+              },
+              "message": {
+                "maxLength": 200,
+                "title": "Message",
+                "type": "string"
+              },
+              "retryable": {
+                "title": "Retryable",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "retryable",
+              "details"
+            ],
+            "title": "ErrorBody",
+            "type": "object"
+          },
+          "ErrorCode": {
+            "enum": [
+              "INVALID_REQUEST",
+              "UNKNOWN_TOOL",
+              "CONTRACT_INCOMPATIBLE",
+              "UPSTREAM_TIMEOUT",
+              "UPSTREAM_UNAVAILABLE",
+              "UPSTREAM_INVALID_RESPONSE",
+              "UPSTREAM_UNAUTHORIZED",
+              "UPSTREAM_NOT_IMPLEMENTED",
+              "INTERNAL_ERROR",
+              "JOURNAL_UNAVAILABLE",
+              "FORBIDDEN"
+            ],
+            "title": "ErrorCode",
+            "type": "string"
+          },
+          "ErrorDetails": {
+            "additionalProperties": false,
+            "properties": {
+              "handshake_status": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Z_]{1,32}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Handshake Status"
+              },
+              "reasons": {
+                "items": {
+                  "maxLength": 160,
+                  "pattern": "^[A-Z_]+(:[A-Za-z0-9_{}/?=. -]{1,140})?$",
+                  "type": "string"
+                },
+                "maxItems": 32,
+                "title": "Reasons",
+                "type": "array"
+              }
+            },
+            "required": [
+              "reasons",
+              "handshake_status"
+            ],
+            "title": "ErrorDetails",
+            "type": "object"
+          },
+          "UpstreamInfo": {
+            "additionalProperties": false,
+            "properties": {
+              "certified": {
+                "title": "Certified",
+                "type": "boolean"
+              },
+              "kind": {
+                "enum": [
+                  "simulated",
+                  "http"
+                ],
+                "title": "Kind",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "certified"
+            ],
+            "title": "UpstreamInfo",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BlackboxSessionsData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ErrorBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "request_id": {
+            "pattern": "^req_[0-9a-f]{32}$",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]{2,47}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool"
+          }
+        },
+        "required": [
+          "ok",
+          "request_id",
+          "tool",
+          "data",
+          "error"
+        ],
+        "title": "Envelope[BlackboxSessionsData]",
+        "type": "object"
+      },
+      "route": "GET /v1/blackbox/sessions",
+      "scope": "read"
+    },
     "list_markets": {
       "input_schema": {
         "additionalProperties": false,
@@ -6785,6 +9187,1362 @@
       "title": "AccountResponse",
       "type": "object"
     },
+    "blackbox_event": {
+      "$defs": {
+        "BlackboxEvent": {
+          "additionalProperties": false,
+          "properties": {
+            "category": {
+              "pattern": "^[A-Z][A-Z0-9_]{0,31}$",
+              "title": "Category",
+              "type": "string"
+            },
+            "causation_id": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9a-f]{32}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Causation Id"
+            },
+            "component": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-z][a-z0-9_.]{0,63}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Component"
+            },
+            "correlation_id": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Correlation Id"
+            },
+            "event_id": {
+              "pattern": "^[0-9a-f]{32}$",
+              "title": "Event Id",
+              "type": "string"
+            },
+            "event_type": {
+              "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+              "title": "Event Type",
+              "type": "string"
+            },
+            "not_recorded": {
+              "items": {
+                "enum": [
+                  "state_before",
+                  "state_after",
+                  "values_before",
+                  "values_after",
+                  "reason",
+                  "reason_code",
+                  "correlation_id",
+                  "causation_id",
+                  "process_id",
+                  "component"
+                ],
+                "type": "string"
+              },
+              "maxItems": 10,
+              "title": "Not Recorded",
+              "type": "array",
+              "uniqueItems": true
+            },
+            "origin": {
+              "enum": [
+                "USER",
+                "SYSTEM",
+                "MCP",
+                "CONTROL_API",
+                "STRATEGY",
+                "EXCHANGE"
+              ],
+              "title": "Origin",
+              "type": "string"
+            },
+            "outcome": {
+              "enum": [
+                "VERIFIED",
+                "PENDING",
+                "UNKNOWN",
+                "REJECTED",
+                "FAILED",
+                "NOT_APPLICABLE"
+              ],
+              "title": "Outcome",
+              "type": "string"
+            },
+            "phase": {
+              "enum": [
+                "ATTEMPT",
+                "RESULT",
+                "OBSERVATION"
+              ],
+              "title": "Phase",
+              "type": "string"
+            },
+            "process_id": {
+              "anyOf": [
+                {
+                  "maximum": 2147483648,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Process Id"
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Reason"
+            },
+            "reason_code": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Reason Code"
+            },
+            "refs": {
+              "$ref": "#/$defs/BlackboxRefs"
+            },
+            "seq": {
+              "maximum": 1000000000000000,
+              "minimum": 1,
+              "title": "Seq",
+              "type": "integer"
+            },
+            "session_id": {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "title": "Session Id",
+              "type": "string"
+            },
+            "severity": {
+              "enum": [
+                "DEBUG",
+                "INFO",
+                "WARNING",
+                "ERROR",
+                "CRITICAL"
+              ],
+              "title": "Severity",
+              "type": "string"
+            },
+            "state_after": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State After"
+            },
+            "state_before": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State Before"
+            },
+            "ts_utc": {
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+              "title": "Ts Utc",
+              "type": "string"
+            },
+            "values_after": {
+              "anyOf": [
+                {
+                  "maxProperties": 32,
+                  "patternProperties": {
+                    "^[a-z][a-z0-9_.]{0,63}$": {
+                      "anyOf": [
+                        {
+                          "maxLength": 256,
+                          "type": "string"
+                        },
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "maximum": 1000000000000000,
+                          "minimum": -1000000000000000,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Values After"
+            },
+            "values_before": {
+              "anyOf": [
+                {
+                  "maxProperties": 32,
+                  "patternProperties": {
+                    "^[a-z][a-z0-9_.]{0,63}$": {
+                      "anyOf": [
+                        {
+                          "maxLength": 256,
+                          "type": "string"
+                        },
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "maximum": 1000000000000000,
+                          "minimum": -1000000000000000,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Values Before"
+            }
+          },
+          "required": [
+            "seq",
+            "event_id",
+            "ts_utc",
+            "session_id",
+            "process_id",
+            "component",
+            "origin",
+            "category",
+            "event_type",
+            "severity",
+            "phase",
+            "outcome",
+            "state_before",
+            "state_after",
+            "values_before",
+            "values_after",
+            "reason",
+            "reason_code",
+            "correlation_id",
+            "causation_id",
+            "refs",
+            "not_recorded"
+          ],
+          "title": "BlackboxEvent",
+          "type": "object"
+        },
+        "BlackboxRefs": {
+          "additionalProperties": false,
+          "properties": {
+            "bet_id": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9]{1,20}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Bet Id"
+            },
+            "market_id": {
+              "anyOf": [
+                {
+                  "maxLength": 20,
+                  "pattern": "^[0-9]{1,4}\\.[0-9]{1,15}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Market Id"
+            },
+            "order_id": {
+              "anyOf": [
+                {
+                  "maximum": 1000000000000000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Order Id"
+            },
+            "strategy": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-z][a-z0-9_]{0,31}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Strategy"
+            },
+            "table_id": {
+              "anyOf": [
+                {
+                  "maximum": 9999,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Table Id"
+            }
+          },
+          "required": [
+            "table_id",
+            "market_id",
+            "order_id",
+            "bet_id",
+            "strategy"
+          ],
+          "title": "BlackboxRefs",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "chain": {
+          "items": {
+            "$ref": "#/$defs/BlackboxEvent"
+          },
+          "maxItems": 32,
+          "title": "Chain",
+          "type": "array"
+        },
+        "chain_broken_at": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{32}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Chain Broken At"
+        },
+        "chain_truncated": {
+          "title": "Chain Truncated",
+          "type": "boolean"
+        },
+        "consistency": {
+          "const": "SINGLE_READ_SNAPSHOT",
+          "title": "Consistency",
+          "type": "string"
+        },
+        "event": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BlackboxEvent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "event_id": {
+          "pattern": "^[0-9a-f]{32}$",
+          "title": "Event Id",
+          "type": "string"
+        },
+        "observed_at": {
+          "exclusiveMaximum": 100000000000.0,
+          "exclusiveMinimum": 0,
+          "title": "Observed At",
+          "type": "number"
+        },
+        "redacted": {
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Redacted",
+          "type": "integer"
+        },
+        "source": {
+          "enum": [
+            "core",
+            "simulated"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "OK",
+            "NOT_FOUND",
+            "UNAVAILABLE"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "observed_at",
+        "consistency",
+        "event_id",
+        "state",
+        "event",
+        "chain",
+        "chain_truncated",
+        "chain_broken_at",
+        "redacted"
+      ],
+      "title": "BlackboxEventResponse",
+      "type": "object"
+    },
+    "blackbox_events": {
+      "$defs": {
+        "BlackboxEvent": {
+          "additionalProperties": false,
+          "properties": {
+            "category": {
+              "pattern": "^[A-Z][A-Z0-9_]{0,31}$",
+              "title": "Category",
+              "type": "string"
+            },
+            "causation_id": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9a-f]{32}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Causation Id"
+            },
+            "component": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-z][a-z0-9_.]{0,63}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Component"
+            },
+            "correlation_id": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Correlation Id"
+            },
+            "event_id": {
+              "pattern": "^[0-9a-f]{32}$",
+              "title": "Event Id",
+              "type": "string"
+            },
+            "event_type": {
+              "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+              "title": "Event Type",
+              "type": "string"
+            },
+            "not_recorded": {
+              "items": {
+                "enum": [
+                  "state_before",
+                  "state_after",
+                  "values_before",
+                  "values_after",
+                  "reason",
+                  "reason_code",
+                  "correlation_id",
+                  "causation_id",
+                  "process_id",
+                  "component"
+                ],
+                "type": "string"
+              },
+              "maxItems": 10,
+              "title": "Not Recorded",
+              "type": "array",
+              "uniqueItems": true
+            },
+            "origin": {
+              "enum": [
+                "USER",
+                "SYSTEM",
+                "MCP",
+                "CONTROL_API",
+                "STRATEGY",
+                "EXCHANGE"
+              ],
+              "title": "Origin",
+              "type": "string"
+            },
+            "outcome": {
+              "enum": [
+                "VERIFIED",
+                "PENDING",
+                "UNKNOWN",
+                "REJECTED",
+                "FAILED",
+                "NOT_APPLICABLE"
+              ],
+              "title": "Outcome",
+              "type": "string"
+            },
+            "phase": {
+              "enum": [
+                "ATTEMPT",
+                "RESULT",
+                "OBSERVATION"
+              ],
+              "title": "Phase",
+              "type": "string"
+            },
+            "process_id": {
+              "anyOf": [
+                {
+                  "maximum": 2147483648,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Process Id"
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Reason"
+            },
+            "reason_code": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Reason Code"
+            },
+            "refs": {
+              "$ref": "#/$defs/BlackboxRefs"
+            },
+            "seq": {
+              "maximum": 1000000000000000,
+              "minimum": 1,
+              "title": "Seq",
+              "type": "integer"
+            },
+            "session_id": {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "title": "Session Id",
+              "type": "string"
+            },
+            "severity": {
+              "enum": [
+                "DEBUG",
+                "INFO",
+                "WARNING",
+                "ERROR",
+                "CRITICAL"
+              ],
+              "title": "Severity",
+              "type": "string"
+            },
+            "state_after": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State After"
+            },
+            "state_before": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State Before"
+            },
+            "ts_utc": {
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+              "title": "Ts Utc",
+              "type": "string"
+            },
+            "values_after": {
+              "anyOf": [
+                {
+                  "maxProperties": 32,
+                  "patternProperties": {
+                    "^[a-z][a-z0-9_.]{0,63}$": {
+                      "anyOf": [
+                        {
+                          "maxLength": 256,
+                          "type": "string"
+                        },
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "maximum": 1000000000000000,
+                          "minimum": -1000000000000000,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Values After"
+            },
+            "values_before": {
+              "anyOf": [
+                {
+                  "maxProperties": 32,
+                  "patternProperties": {
+                    "^[a-z][a-z0-9_.]{0,63}$": {
+                      "anyOf": [
+                        {
+                          "maxLength": 256,
+                          "type": "string"
+                        },
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "maximum": 1000000000000000,
+                          "minimum": -1000000000000000,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Values Before"
+            }
+          },
+          "required": [
+            "seq",
+            "event_id",
+            "ts_utc",
+            "session_id",
+            "process_id",
+            "component",
+            "origin",
+            "category",
+            "event_type",
+            "severity",
+            "phase",
+            "outcome",
+            "state_before",
+            "state_after",
+            "values_before",
+            "values_after",
+            "reason",
+            "reason_code",
+            "correlation_id",
+            "causation_id",
+            "refs",
+            "not_recorded"
+          ],
+          "title": "BlackboxEvent",
+          "type": "object"
+        },
+        "BlackboxGap": {
+          "additionalProperties": false,
+          "properties": {
+            "from_seq": {
+              "maximum": 1000000000000000,
+              "minimum": 1,
+              "title": "From Seq",
+              "type": "integer"
+            },
+            "kind": {
+              "enum": [
+                "LOST",
+                "CORRUPT",
+                "RETENTION"
+              ],
+              "title": "Kind",
+              "type": "string"
+            },
+            "to_seq": {
+              "maximum": 1000000000000000,
+              "minimum": 1,
+              "title": "To Seq",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "from_seq",
+            "to_seq",
+            "kind"
+          ],
+          "title": "BlackboxGap",
+          "type": "object"
+        },
+        "BlackboxRefs": {
+          "additionalProperties": false,
+          "properties": {
+            "bet_id": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9]{1,20}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Bet Id"
+            },
+            "market_id": {
+              "anyOf": [
+                {
+                  "maxLength": 20,
+                  "pattern": "^[0-9]{1,4}\\.[0-9]{1,15}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Market Id"
+            },
+            "order_id": {
+              "anyOf": [
+                {
+                  "maximum": 1000000000000000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Order Id"
+            },
+            "strategy": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-z][a-z0-9_]{0,31}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Strategy"
+            },
+            "table_id": {
+              "anyOf": [
+                {
+                  "maximum": 9999,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Table Id"
+            }
+          },
+          "required": [
+            "table_id",
+            "market_id",
+            "order_id",
+            "bet_id",
+            "strategy"
+          ],
+          "title": "BlackboxRefs",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "as_of_seq": {
+          "anyOf": [
+            {
+              "maximum": 1000000000000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "As Of Seq"
+        },
+        "consistency": {
+          "const": "SINGLE_READ_SNAPSHOT",
+          "title": "Consistency",
+          "type": "string"
+        },
+        "events": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/BlackboxEvent"
+              },
+              "maxItems": 500,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Events"
+        },
+        "gaps_in_range": {
+          "items": {
+            "$ref": "#/$defs/BlackboxGap"
+          },
+          "maxItems": 64,
+          "title": "Gaps In Range",
+          "type": "array"
+        },
+        "next_after_seq": {
+          "maximum": 1000000000000000,
+          "minimum": 0,
+          "title": "Next After Seq",
+          "type": "integer"
+        },
+        "observed_at": {
+          "exclusiveMaximum": 100000000000.0,
+          "exclusiveMinimum": 0,
+          "title": "Observed At",
+          "type": "number"
+        },
+        "redacted": {
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Redacted",
+          "type": "integer"
+        },
+        "source": {
+          "enum": [
+            "core",
+            "simulated"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "truncated": {
+          "title": "Truncated",
+          "type": "boolean"
+        },
+        "unavailable": {
+          "items": {
+            "enum": [
+              "events",
+              "as_of_seq"
+            ],
+            "type": "string"
+          },
+          "maxItems": 2,
+          "title": "Unavailable",
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "source",
+        "observed_at",
+        "consistency",
+        "events",
+        "next_after_seq",
+        "truncated",
+        "as_of_seq",
+        "gaps_in_range",
+        "redacted",
+        "unavailable"
+      ],
+      "title": "BlackboxEventsResponse",
+      "type": "object"
+    },
+    "blackbox_sessions": {
+      "$defs": {
+        "BlackboxSession": {
+          "additionalProperties": false,
+          "properties": {
+            "end_reason": {
+              "enum": [
+                "RUNNING",
+                "CLEAN_STOP",
+                "CRASH_DETECTED",
+                "UNRECORDED"
+              ],
+              "title": "End Reason",
+              "type": "string"
+            },
+            "ended_at": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ended At"
+            },
+            "first_seq": {
+              "anyOf": [
+                {
+                  "maximum": 1000000000000000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "First Seq"
+            },
+            "last_seq": {
+              "anyOf": [
+                {
+                  "maximum": 1000000000000000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Last Seq"
+            },
+            "process_id": {
+              "anyOf": [
+                {
+                  "maximum": 2147483648,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Process Id"
+            },
+            "session_id": {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "title": "Session Id",
+              "type": "string"
+            },
+            "started_at": {
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+              "title": "Started At",
+              "type": "string"
+            }
+          },
+          "required": [
+            "session_id",
+            "process_id",
+            "started_at",
+            "ended_at",
+            "end_reason",
+            "first_seq",
+            "last_seq"
+          ],
+          "title": "BlackboxSession",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "consistency": {
+          "const": "SINGLE_READ_SNAPSHOT",
+          "title": "Consistency",
+          "type": "string"
+        },
+        "observed_at": {
+          "exclusiveMaximum": 100000000000.0,
+          "exclusiveMinimum": 0,
+          "title": "Observed At",
+          "type": "number"
+        },
+        "sessions": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/BlackboxSession"
+              },
+              "maxItems": 256,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sessions"
+        },
+        "source": {
+          "enum": [
+            "core",
+            "simulated"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "truncated": {
+          "title": "Truncated",
+          "type": "boolean"
+        },
+        "unavailable": {
+          "items": {
+            "const": "sessions",
+            "type": "string"
+          },
+          "maxItems": 1,
+          "title": "Unavailable",
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "source",
+        "observed_at",
+        "consistency",
+        "sessions",
+        "truncated",
+        "unavailable"
+      ],
+      "title": "BlackboxSessionsResponse",
+      "type": "object"
+    },
+    "blackbox_status": {
+      "$defs": {
+        "BlackboxGap": {
+          "additionalProperties": false,
+          "properties": {
+            "from_seq": {
+              "maximum": 1000000000000000,
+              "minimum": 1,
+              "title": "From Seq",
+              "type": "integer"
+            },
+            "kind": {
+              "enum": [
+                "LOST",
+                "CORRUPT",
+                "RETENTION"
+              ],
+              "title": "Kind",
+              "type": "string"
+            },
+            "to_seq": {
+              "maximum": 1000000000000000,
+              "minimum": 1,
+              "title": "To Seq",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "from_seq",
+            "to_seq",
+            "kind"
+          ],
+          "title": "BlackboxGap",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "available": {
+          "title": "Available",
+          "type": "boolean"
+        },
+        "consistency": {
+          "const": "PER_FIELD_NON_ATOMIC",
+          "title": "Consistency",
+          "type": "string"
+        },
+        "corrupt_records": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Corrupt Records"
+        },
+        "current_session_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Current Session Id"
+        },
+        "first_seq": {
+          "anyOf": [
+            {
+              "maximum": 1000000000000000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "First Seq"
+        },
+        "gaps": {
+          "items": {
+            "$ref": "#/$defs/BlackboxGap"
+          },
+          "maxItems": 64,
+          "title": "Gaps",
+          "type": "array"
+        },
+        "gaps_truncated": {
+          "title": "Gaps Truncated",
+          "type": "boolean"
+        },
+        "last_durable_write_at": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Durable Write At"
+        },
+        "last_seq": {
+          "anyOf": [
+            {
+              "maximum": 1000000000000000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Seq"
+        },
+        "last_write_error_code": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Write Error Code"
+        },
+        "not_reported": {
+          "items": {
+            "enum": [
+              "seq_range",
+              "corrupt_records",
+              "sessions",
+              "last_durable_write_at",
+              "retention_days"
+            ],
+            "type": "string"
+          },
+          "maxItems": 5,
+          "title": "Not Reported",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "observed_at": {
+          "exclusiveMaximum": 100000000000.0,
+          "exclusiveMinimum": 0,
+          "title": "Observed At",
+          "type": "number"
+        },
+        "requests_unrecorded": {
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Requests Unrecorded",
+          "type": "integer"
+        },
+        "retained_from_seq": {
+          "anyOf": [
+            {
+              "maximum": 1000000000000000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Retained From Seq"
+        },
+        "retention_days": {
+          "anyOf": [
+            {
+              "maximum": 36500,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Retention Days"
+        },
+        "sessions": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sessions"
+        },
+        "source": {
+          "enum": [
+            "core",
+            "simulated"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "observed_at",
+        "consistency",
+        "available",
+        "first_seq",
+        "last_seq",
+        "retained_from_seq",
+        "gaps",
+        "gaps_truncated",
+        "corrupt_records",
+        "sessions",
+        "current_session_id",
+        "last_write_error_code",
+        "last_durable_write_at",
+        "retention_days",
+        "requests_unrecorded",
+        "not_reported"
+      ],
+      "title": "BlackboxStatusResponse",
+      "type": "object"
+    },
     "config": {
       "$defs": {
         "BoolSetting": {
@@ -7271,12 +11029,19 @@
               "enum": [
                 "BAD_HOST",
                 "BAD_REQUEST",
+                "BLACKBOX_UNAVAILABLE",
                 "BODY_NOT_ALLOWED",
                 "CONTRACT_SELF_CHECK",
                 "INTERNAL",
                 "METHOD_NOT_ALLOWED",
                 "NOT_FOUND",
                 "NOT_IMPLEMENTED",
+                "QUERY_ENCODING",
+                "QUERY_PARAM",
+                "QUERY_PARAM_REPEATED",
+                "QUERY_RANGE",
+                "QUERY_TOO_LONG",
+                "QUERY_VALUE",
                 "UNAUTHORIZED"
               ]
             }

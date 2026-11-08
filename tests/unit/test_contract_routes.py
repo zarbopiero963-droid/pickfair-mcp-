@@ -1,4 +1,6 @@
-"""La tabella delle route è la copia fedele delle 25 route approvate in pickfair-mcp- #1.
+"""La tabella delle route è la copia fedele delle 25 route approvate in pickfair-mcp- #1, più le 4
+di
+sola lettura della scatola nera (decisione owner PF-BLACKBOX-01 del 08/11/2026).
 
 L'insieme atteso è scritto qui in modo indipendente dal codice: aggiungere, togliere
 o rinominare una route deve far fallire questo test.
@@ -25,6 +27,11 @@ EXPECTED_READ = {
     "GET /v1/operations?status=pending",
     "GET /v1/reconciliation/status",
     "GET /v1/audit/{correlation_id}",
+    # PF-BLACKBOX-01: solo lettura.
+    "GET /v1/blackbox/status",
+    "GET /v1/blackbox/sessions",
+    "GET /v1/blackbox/events",
+    "GET /v1/blackbox/events/{event_id}",
 }
 EXPECTED_COMMAND = {
     "POST /v1/preview",
@@ -41,13 +48,21 @@ EXPECTED_COMMAND = {
 }
 
 
-def test_exactly_the_25_approved_routes() -> None:
+def test_exactly_the_29_approved_routes() -> None:
     reads = {route_key(r) for r in APPROVED_ROUTES if r.kind is RouteKind.READ}
     commands = {route_key(r) for r in APPROVED_ROUTES if r.kind is RouteKind.COMMAND}
     assert reads == EXPECTED_READ
     assert commands == EXPECTED_COMMAND
-    assert len(APPROVED_ROUTES) == 25
-    assert len({route_key(r) for r in APPROVED_ROUTES}) == 25
+    assert len(APPROVED_ROUTES) == 29
+    assert len({route_key(r) for r in APPROVED_ROUTES}) == 29
+
+
+def test_blackbox_routes_are_read_only() -> None:
+    # La scatola nera non si modifica, cancella o falsifica via API: nessun comando sotto
+    # /v1/blackbox.
+    for route in APPROVED_ROUTES:
+        if route.path.startswith("/v1/blackbox"):
+            assert (route.kind, route.method) == (RouteKind.READ, "GET"), route_key(route)
 
 
 def test_read_routes_are_get_and_commands_are_not() -> None:
@@ -109,6 +124,11 @@ EXPECTED_PURPOSE = {
         "Config patch via contract; non POST config né MM/risk endpoint paralleli"
     ),
     "POST /v1/mode": "Switch SOLO su comando owner, tutti i gate restano",
+    # PF-BLACKBOX-01 (owner, 08/11/2026), §4 «Lettura tramite MCP».
+    "GET /v1/blackbox/status": "Stato del registro cronologico, lacune, integrità",
+    "GET /v1/blackbox/sessions": "Sessioni di avvio registrate",
+    "GET /v1/blackbox/events": "Eventi per seq con filtri in whitelist chiusa",
+    "GET /v1/blackbox/events/{event_id}": "Un evento e la sua catena causale",
 }
 
 

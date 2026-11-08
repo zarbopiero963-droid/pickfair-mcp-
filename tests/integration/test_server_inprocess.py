@@ -62,6 +62,10 @@ async def test_list_tools_exposes_only_read_tools_with_strict_schemas() -> None:
         "get_config",
         "list_markets",
         "get_market_book",
+        "get_blackbox_status",
+        "list_blackbox_sessions",
+        "list_blackbox_events",
+        "get_blackbox_event",
     ]
     tool = tools[0]
     assert tool.inputSchema["type"] == "object"

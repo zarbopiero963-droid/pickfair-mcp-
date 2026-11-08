@@ -5,7 +5,9 @@ Sottoinsieme di JSON Schema usato dal descrittore canonico. Regole:
 - `pattern` con `$` finale non accetta un a capo finale (in Python `$` lo ammetterebbe);
 - `True`/`False` non sono numeri; i numeri non finiti non sono ammessi;
 - controllo semantico aggiuntivo: in un oggetto con `unavailable`, un campo è null se e solo
-  se è elencato (invariante che JSON Schema non sa esprimere).
+  se è elencato (invariante che JSON Schema non sa esprimere);
+- `patternProperties` (MCP-01o): ogni chiave non dichiarata in `properties` deve rispettare uno dei
+  pattern, altrimenti è una violazione (più severo di JSON Schema, che la lascerebbe passare).
 """
 
 from __future__ import annotations
@@ -28,10 +30,12 @@ HANDLED: Final = frozenset(
         "items",
         "maxItems",
         "maxLength",
+        "maxProperties",
         "maximum",
         "minItems",
         "minimum",
         "pattern",
+        "patternProperties",
         "properties",
         "required",
         "title",
@@ -142,9 +146,19 @@ def _check(value: Any, schema: dict[str, Any], root: dict[str, Any], path: str) 
                 raise SchemaViolation(f"{path}.{name}")
         if schema.get("additionalProperties") is False and set(value) - set(props):
             raise SchemaViolation(path)
+        if "maxProperties" in schema and len(value) > schema["maxProperties"]:
+            raise SchemaViolation(path)
         for name, sub in props.items():
             if name in value:
                 _check(value[name], sub, root, f"{path}.{name}")
+        if "patternProperties" in schema:
+            for name in set(value) - set(props):
+                matched = [sub for pat, sub in schema["patternProperties"].items()
+                           if type(name) is str and _compiled(pat).search(name)]
+                if not matched:
+                    raise SchemaViolation(path)  # mai il nome della chiave nel messaggio
+                for sub in matched:
+                    _check(value[name], sub, root, f"{path}.*")
         if "unavailable" in props and "unavailable" in value:
             _check_unavailable(value, props, path)
 

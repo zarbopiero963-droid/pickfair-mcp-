@@ -25,6 +25,7 @@ from __future__ import annotations
 import re
 
 import http.client
+import secrets
 import socket
 import threading
 from typing import Final
@@ -43,6 +44,15 @@ from pickfair_mcp.auth.token_file import LocalTokenFile, TokenFileError
 from pickfair_mcp.contract.parsing import MAX_UPSTREAM_BYTES
 
 _MARKET_ID_RE = re.compile(r"[0-9]{1,4}\.[0-9]{1,15}")
+# MCP-01o: whitelist dei filtri di GET /v1/blackbox/events (la stessa del server, controllata da un
+# test).
+_BLACKBOX_PARAMS: Final = frozenset({
+    "since", "until", "after_seq", "limit", "session_id", "table_id", "market_id", "order_id",
+    "bet_id", "strategy", "correlation_id", "category", "origin", "severity_min", "event_type",
+    "outcome", "q",
+})
+_BLACKBOX_VALUE_RE = re.compile(r"[A-Za-z0-9 _.:-]{1,64}")
+_EVENT_ID_RE = re.compile(r"[0-9a-f]{32}")
 
 LOOPBACK_HOST: Final = "127.0.0.1"
 EXPECTED_CONTENT_TYPE: Final = "application/json; charset=utf-8"
@@ -88,6 +98,7 @@ class HttpControlApiAdapter:
         self._epoch = 1
         self._token: str | None = None
         self.requests = 0
+        self.last_request_id: str | None = None
 
     @property
     def kind(self) -> AdapterKind:
@@ -117,13 +128,16 @@ class HttpControlApiAdapter:
                     raise UpstreamUnauthorized from None
             return self._token
 
-    def _request(self, path: str, token: str) -> tuple[int, str, bytes]:
+    def _request(self, path: str, token: str, request_id: str) -> tuple[int, str, bytes]:
         conn = _LoopbackConnection(self._port, self._timeout_s)
         try:
             conn.request(
                 "GET",
                 path,
-                headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
+                headers={"Authorization": f"Bearer {token}", "Accept": "application/json",
+                         # PF-BLACKBOX-01: collega la richiesta MCP al suo record nella scatola
+                         # nera.
+                         "X-Request-Id": request_id},
             )
             resp = conn.getresponse()
             body = resp.read(self._max + 1)
@@ -139,15 +153,23 @@ class HttpControlApiAdapter:
 
     def _get_blocking(self, path: str) -> bytes:
         self.requests += 1
-        status, content_type, body = self._request(path, self._current_token(reload=False))
+        # Stesso id anche per il nuovo tentativo dopo un 401: è la stessa richiesta logica.
+        request_id = "mcp-" + secrets.token_hex(12)
+        self.last_request_id = request_id
+        token = self._current_token(reload=False)
+        status, content_type, body = self._request(path, token, request_id)
         if status == 401:
             # Rotazione: rilettura del token e un solo nuovo tentativo, poi fail-closed.
             self._bump()
-            status, content_type, body = self._request(path, self._current_token(reload=True))
+            fresh = self._current_token(reload=True)
+            status, content_type, body = self._request(path, fresh, request_id)
             if status == 401:
                 raise UpstreamUnauthorized
         if status == 501:
             raise UpstreamNotImplemented
+        if status == 503:
+            # PF-BLACKBOX-01: il core non ha potuto registrare la richiesta e non ha dato dati.
+            raise UpstreamUnavailable
         if status != 200:
             raise UpstreamProtocolError(f"HTTP_{status}")
         if content_type != EXPECTED_CONTENT_TYPE:
@@ -189,3 +211,24 @@ class HttpControlApiAdapter:
         if not isinstance(market_id, str) or not _MARKET_ID_RE.fullmatch(market_id):
             raise ValueError("market_id")
         return await self._get(f"/v1/markets/{market_id}/book")
+
+    async def get_blackbox_status_raw(self) -> bytes:
+        return await self._get("/v1/blackbox/status")
+
+    async def get_blackbox_sessions_raw(self) -> bytes:
+        return await self._get("/v1/blackbox/sessions")
+
+    async def get_blackbox_events_raw(self, query: tuple[tuple[str, str], ...]) -> bytes:
+        # Seconda barriera: solo nomi della whitelist e valori nel loro alfabeto; '+' per lo spazio
+        # di `q`.
+        parts = []
+        for name, value in query:
+            if name not in _BLACKBOX_PARAMS or not _BLACKBOX_VALUE_RE.fullmatch(value):
+                raise ValueError("blackbox query")
+            parts.append(f"{name}={value.replace(' ', '+')}")
+        return await self._get("/v1/blackbox/events" + ("?" + "&".join(parts) if parts else ""))
+
+    async def get_blackbox_event_raw(self, event_id: str) -> bytes:
+        if not isinstance(event_id, str) or not _EVENT_ID_RE.fullmatch(event_id):
+            raise ValueError("event_id")
+        return await self._get(f"/v1/blackbox/events/{event_id}")
