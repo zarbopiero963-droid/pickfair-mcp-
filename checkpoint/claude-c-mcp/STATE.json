@@ -1,15 +1,15 @@
 {
  "schema": "pf-checkpoint/3",
  "repository": "zarbopiero963-droid/pickfair-mcp-",
- "seq": 9,
+ "seq": 10,
  "agent": "claude-c",
  "agent_identity": "Claude C — MCP + Control API (sessione session_013X2mCaF4fE5YMWGVrM8LtR)",
- "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02",
- "previous_checkpoint_sha": "d6d1cda05308b479fdff259b496258f09451f848",
+ "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01",
+ "previous_checkpoint_sha": "17b5abe041a277c5f5967496bf565e3886a5e61a",
  "code": {
-  "branch": "ccr-edf04c7d-e7vtj1-g8-provenance",
-  "sha": "a5333571d4ac6b9c5063bffc2f2deeee8628ac88",
-  "tree": "c5377e5260b646567bc6cfb80dcb38f248867c4a"
+  "branch": "ccr-edf04c7d-e7vtj1-mcp01o-blackbox-read",
+  "sha": "2350850d9f38774bfa842c00425fdb21b0a1b8e0",
+  "tree": "b5893678b99e45ac396ecd0af70529b841645535"
  },
  "published_branches": {
   "ccr-edf04c7d-e7vtj1": "647d5e8d269952af975ec01df7be27abf2ff3c1e",
@@ -30,7 +30,8 @@
   "ccr-edf04c7d-e7vtj1-mcp-load-flake": "4174561d73f329477f1638da58f66d336fdfd24c",
   "ccr-edf04c7d-e7vtj1-mcp-integration-prep": "fcde366",
   "ccr-edf04c7d-e7vtj1-mcp-win-token": "0251937",
-  "ccr-edf04c7d-e7vtj1-g8-provenance": "a5333571d4ac6b9c5063bffc2f2deeee8628ac88"
+  "ccr-edf04c7d-e7vtj1-g8-provenance": "a5333571d4ac6b9c5063bffc2f2deeee8628ac88",
+  "ccr-edf04c7d-e7vtj1-mcp01o-blackbox-read": "2350850d9f38774bfa842c00425fdb21b0a1b8e0"
  },
  "integration_chain": [
   "MCP-01d",
@@ -49,9 +50,10 @@
   "g8 fuso nella catena (e0014ef)",
   "matrice d'integrazione (fcde366)",
   "token Windows MCP (0251937)",
-  "G8 provenienza (a5333571)"
+  "G8 provenienza (a5333571)",
+  "MCP-01o lettura della scatola nera (dopo l'interfaccia di lettura di B)"
  ],
- "lotto_corrente": "sviluppo MCP/Control API; handoff 12/12 DURABLE; patch 13 in attesa di pubblicazione da B",
+ "lotto_corrente": "MCP-01o offline completo; vista del ponte nel core in attesa dell'interfaccia di B (§7)",
  "lotti_completati": [
   "MCP-01j get_config (305b843)",
   "MCP-01k compatibilità P0/F-16 (4cd3e75)",
@@ -72,9 +74,10 @@
   "patch 13 f16-compat consegnata (ddc8a4f4, DELIVERED)",
   "token MCP su Windows: codice dichiarato (0251937)",
   "G8: provenienza nel rapporto, PASS solo attribuibile (a5333571)",
-  "campagna G8 all PASS 6/6, 1923 test, codice a5333571 + core ddc8a4f4 puliti"
+  "campagna G8 all PASS 6/6, 1923 test, codice a5333571 + core ddc8a4f4 puliti",
+  "MCP-01o: lettura della scatola nera offline, contratto 1.13.0, mutanti B 15/15 (2350850)"
  ],
- "next_atomic_action": "patch 13: DURABLE quando B la pubblica; sviluppo MCP read-only (nessuna nuova route), CONTROL-API-WIN-TOKEN al prossimo bump",
+ "next_atomic_action": "alla risposta di B: vista del ponte nel core sull'interfaccia di lettura (provider + request_hook), E2E crossrepo; intanto riallineare i 9 mutanti critici preesistenti inapplicabili",
  "dependencies": {
   "F-04 su main": "MCP-01i r2",
   "F-03 su main (con F-02, F-04)": "MCP-01m",
@@ -84,7 +87,8 @@
   "hardening pfckpt.py (Claude B)": "protezione squash merge / branch cancellati per questa catena",
   "claude/d-market-book-age su main": "MCP-01n",
   "hardening pfckpt.py cross-repo (Claude B)": "prova INTEGRATED_VERIFIED degli handoff del core nella catena C",
-  "integrazione su main tramite PR e gate (Claude B)": "INTEGRATED_VERIFIED dei 12 handoff"
+  "integrazione su main tramite PR e gate (Claude B)": "INTEGRATED_VERIFIED dei 12 handoff",
+  "interfaccia di lettura della scatola nera (Claude B, PF-BLACKBOX-01)": "vista del ponte MCP-01o e suite crossrepo 1.13.0"
  },
  "blocks": [],
  "open_defects": [
@@ -102,9 +106,20 @@
    "id": "CONTROL-API-WIN-TOKEN",
    "owner": "Claude C",
    "descrizione": "pickfair_control_api.tokens su Windows: AttributeError (O_NOFOLLOW) catturato dal launcher del core (fail-closed, CONTROL_API_NOT_STARTED: AttributeError); codice dichiarato al prossimo cambio di versione del package"
+  },
+  {
+   "id": "MCP-MUTANTS-STALE",
+   "owner": "Claude C",
+   "descrizione": "9 mutanti critici inapplicabili da incrementi precedenti (M20, A10, C01, C05, C06, K07, O07, O08, O11): codice cambiato senza riallineamento"
+  },
+  {
+   "id": "MCP01O-CROSSREPO-BLOCKED",
+   "owner": "Claude C (dopo B)",
+   "descrizione": "crossrepo con il core reale BLOCKED sulla 1.13.0 finché il ponte non ha i provider della scatola nera e request_hook"
   }
  ],
  "github_evidence": [
+  "https://github.com/zarbopiero963-droid/pickfair-mcp-/issues/37#issuecomment-6728479301",
   "https://github.com/zarbopiero963-droid/pickfair-mcp-/issues/37#issuecomment-6663115366",
   "https://github.com/zarbopiero963-droid/pickfair-mcp-/issues/37",
   "https://github.com/zarbopiero963-droid/pickfair-mcp-/issues/37#issuecomment-6662905066",
@@ -117,7 +132,8 @@
  "owner_authorizations": {
   "05/11/2026 sviluppo autonomo": "offline; branch separati; nessuna PR concorrente; nessun merge, VPS, LIVE, ordini reali, nuova infrastruttura",
   "05/11/2026 PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS": "checkpoint obbligatori con pfckpt.py, catena propria, nessuna scrittura su catene di altri agenti, DURABLE solo su commit pubblicati",
-  "05/11/2026 PF-MCP-CROSS-REPO-HANDOFF-01": "opzione A: branch di handoff durevole su Pickfair-nogui pubblicato da Claude B dopo verifica SHA256; conservato fino alla riconciliazione; integrazione su main solo con PR e gate; non recuperabile => NEEDS_RECONCILIATION; distinguere DELIVERED, DURABLE, INTEGRATED_VERIFIED"
+  "05/11/2026 PF-MCP-CROSS-REPO-HANDOFF-01": "opzione A: branch di handoff durevole su Pickfair-nogui pubblicato da Claude B dopo verifica SHA256; conservato fino alla riconciliazione; integrazione su main solo con PR e gate; non recuperabile => NEEDS_RECONCILIATION; distinguere DELIVERED, DURABLE, INTEGRATED_VERIFIED",
+  "08/11/2026 PF-BLACKBOX-01": "scatola nera universale: B architettura e scrittura nel motore, C lettura sicura via MCP/Control API (4 route di sola lettura ratificate), D test finanziari; nessuna VPS, nessun LIVE, nessuna operazione reale"
  },
  "tests_executed": [
   {
@@ -210,6 +226,12 @@
    "status": "PASS",
    "sha": "a5333571d4ac6b9c5063bffc2f2deeee8628ac88",
    "artifact": "results/evidence-g8-campaign-all-a5333571.json"
+  },
+  {
+   "name": "MCP-01o: suite 2098 + e2e/guards 178, mutanti B01-B14+H04 15/15",
+   "status": "PASS",
+   "sha": "2350850d9f38774bfa842c00425fdb21b0a1b8e0",
+   "artifact": "results/evidence-01o.txt"
   }
  ],
  "tests_missing": [],

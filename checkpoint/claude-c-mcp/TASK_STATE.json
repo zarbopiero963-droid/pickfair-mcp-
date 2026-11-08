@@ -9,6 +9,7 @@
   "hardening pfckpt.py cross-repo (Claude B)": "prova INTEGRATED_VERIFIED degli handoff del core nella catena C",
   "integrazione patch (Claude B)": "MCP-01d...SEC-01",
   "integrazione su main tramite PR e gate (Claude B)": "INTEGRATED_VERIFIED dei 12 handoff",
+  "interfaccia di lettura della scatola nera (Claude B, PF-BLACKBOX-01)": "vista del ponte MCP-01o e suite crossrepo 1.13.0",
   "ratifica owner K3": "RC-10/11/12"
  },
  "gate_a": "N/A (repository MCP)",
@@ -32,11 +33,12 @@
   "patch 13 f16-compat consegnata (ddc8a4f4, DELIVERED)",
   "token MCP su Windows: codice dichiarato (0251937)",
   "G8: provenienza nel rapporto, PASS solo attribuibile (a5333571)",
-  "campagna G8 all PASS 6/6, 1923 test, codice a5333571 + core ddc8a4f4 puliti"
+  "campagna G8 all PASS 6/6, 1923 test, codice a5333571 + core ddc8a4f4 puliti",
+  "MCP-01o: lettura della scatola nera offline, contratto 1.13.0, mutanti B 15/15 (2350850)"
  ],
- "lotto_corrente": "sviluppo MCP/Control API; handoff 12/12 DURABLE; patch 13 in attesa di pubblicazione da B",
- "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02",
- "next_atomic_action": "patch 13: DURABLE quando B la pubblica; sviluppo MCP read-only (nessuna nuova route), CONTROL-API-WIN-TOKEN al prossimo bump",
+ "lotto_corrente": "MCP-01o offline completo; vista del ponte nel core in attesa dell'interfaccia di B (\u00a77)",
+ "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01",
+ "next_atomic_action": "alla risposta di B: vista del ponte nel core sull'interfaccia di lettura (provider + request_hook), E2E crossrepo; intanto riallineare i 9 mutanti critici preesistenti inapplicabili",
  "pr_505": "N/A (repository MCP)",
  "schema": "pf-task-state/1",
  "tests_missing": []

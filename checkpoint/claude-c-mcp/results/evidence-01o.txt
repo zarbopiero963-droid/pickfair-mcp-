@@ -1,0 +1,5 @@
+MCP-01o (2350850), contratto 1.13.0
+unit/control_api/integration/guards + e2e: 2098 passed 1 skipped; e2e+guards 178 passed
+mutanti B01-B14 + H04: 15/15 KILLED
+lint: 0 nuovi errori ruff; mypy invariato (10 preesistenti)
+crossrepo: BLOCKED (ponte del core dopo l interfaccia di B)
