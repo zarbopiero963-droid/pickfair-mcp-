@@ -92,7 +92,10 @@ nemmeno se il motore ne avesse registrato uno per errore.
 - Il server Control API invoca un **hook** del ponte (`request_hook`, obbligatorio: senza, il server non parte)
   per ogni richiesta HTTP, mai per evento restituito: un record `ATTEMPT` prima della lettura e un record `RESULT`
   dopo l'invio, con `route` (modello, mai il percorso grezzo), `params` (solo valori già validati), `status`,
-  `code`, `request_id` (l'`X-Request-Id` dell'MCP), `duration_ms` e `coalesced_before`. Una richiesta rifiutata
+  `code`, `request_id` (l'`X-Request-Id` dell'MCP), `duration_ms`, `returned` (quanti eventi, sessioni
+  o anelli della catena sono stati letti: il «conteggio» del `READ_REQUEST` di B, mai il contenuto) e
+  `coalesced_before`. Il cliente è uno solo per costruzione (token unico, solo loopback): il limite di ritmo è
+  quindi per server. Una richiesta rifiutata
   (401, 400, 404, 405) produce il solo `RESULT`. Il ponte scrive il record nella scatola nera con
   `origin = CONTROL_API`.
 - Gli strumenti MCP mandano `X-Request-Id` (`^[A-Za-z0-9-]{8,64}$`), così il comando MCP e la sua registrazione

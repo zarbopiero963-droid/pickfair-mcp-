@@ -243,3 +243,15 @@ def test_sensitive_lists_are_the_same_on_both_sides() -> None:
     from pickfair_mcp.contract.models import BLACKBOX_SENSITIVE_FRAGMENTS
 
     assert SENSITIVE_FRAGMENTS == BLACKBOX_SENSITIVE_FRAGMENTS
+
+
+def test_result_record_carries_the_count_never_the_content(api: Any) -> None:
+    prov = api[3]
+    prov.bb_events = lambda f: bodies.bb_events([bodies.bb_event(i) for i in range(1, 8)])
+    get(api, "/v1/blackbox/events")
+    get(api, f"/v1/blackbox/events/{'a' * 32}")
+    get(api, "/v1/status")
+    results = [r for r in wait_records(prov, 6) if r["phase"] == "RESULT"]
+    # 7 eventi; evento + 1 causa; non applicabile allo stato del runtime.
+    assert [r["returned"] for r in results] == [7, 2, None]
+    assert all("events" not in r and "event" not in r for r in prov.records)

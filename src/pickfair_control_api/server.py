@@ -90,6 +90,18 @@ RECORD_RATE_PER_S: Final = 20.0
 RECORD_BURST: Final = 40.0
 
 
+def _returned_count(body: Any) -> int | None:
+    """Numero di elementi letti in una risposta già validata (per il record della richiesta)."""
+    if not isinstance(body, dict):
+        return None
+    for key in ("events", "sessions"):
+        if isinstance(body.get(key), list):
+            return len(body[key])
+    if isinstance(body.get("chain"), list):
+        return len(body["chain"]) + (1 if isinstance(body.get("event"), dict) else 0)
+    return None
+
+
 def _public_params(filters: dict[str, object]) -> dict[str, object]:
     """Filtri già validati in forma serializzabile per il record (nessun valore grezzo)."""
     out: dict[str, object] = {}
@@ -172,6 +184,8 @@ class _Handler(BaseHTTPRequestHandler):
             "status": status,
             "code": code,
             "duration_ms": None if started is None else int((time.monotonic() - started) * 1000),
+            # Quanti elementi ha restituito una lettura servita; mai il contenuto.
+            "returned": getattr(self, "_returned", None),
         }
         if not self.server.app.record(record):
             self._mark_unrecorded()
@@ -270,6 +284,7 @@ class _Handler(BaseHTTPRequestHandler):
         if size > MAX_RESPONSE_BYTES:
             return self._error(500, "CONTRACT_SELF_CHECK")
         app.count("OK")
+        self._returned = _returned_count(body)
         self._send(200, body)
         self._record_result(200, "OK")
 
