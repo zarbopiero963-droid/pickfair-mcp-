@@ -743,6 +743,16 @@
         "tests/guards/test_g8_suites.py"
       ],
       "max_files": 4
+    },
+    "mcp01o-blackbox-read": {
+      "issue": "direttiva owner PF-BLACKBOX-01 del 08/11/2026, punto 4",
+      "scheda": "MCP-01o — lettura della scatola nera via MCP e Control API (sola lettura)",
+      "description": "Contratto di lettura per l'allineamento con Claude B (architettura e scrittura nel motore); poi route /v1/blackbox/*, hook per richiesta senza ricorsione, X-Request-Id, strumenti MCP read-only.",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "docs/design/BLACKBOX_READ_CONTRACT.md"
+      ],
+      "max_files": 2
     }
   }
 }
