@@ -192,12 +192,12 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant(
         "M20",
-        "input del tool non validato",
+        'input del tool non validato',
         (
             (
-                S,
-                "spec.input_model.model_validate(arguments if arguments is not None else {})",
-                "pass",
+                'src/pickfair_mcp/server.py',
+                '                validated = spec.input_model.model_validate(\n                    arguments if arguments is not None else {}\n                )\n',
+                '                validated = spec.input_model.model_construct(**(arguments or {}))\n',
             ),
         ),
     ),
@@ -612,21 +612,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "validazione input prima dell'autorizzazione",
         (
             (
-                SRV,
-                "            try:\n                authorize(self._principal, spec.name)\n"
-                "            except AuthorizationDenied as denied:\n"
-                "                raise denied.to_tool_error() from None\n"
-                "            try:\n"
-                "                spec.input_model.model_validate(arguments if arguments is not None else {})\n"
-                "            except ValidationError:\n"
-                '                raise ToolError(ErrorCode.INVALID_REQUEST, reasons=("INPUT_SCHEMA",)) from None\n',
-                "            try:\n"
-                "                spec.input_model.model_validate(arguments if arguments is not None else {})\n"
-                "            except ValidationError:\n"
-                '                raise ToolError(ErrorCode.INVALID_REQUEST, reasons=("INPUT_SCHEMA",)) from None\n'
-                "            try:\n                authorize(self._principal, spec.name)\n"
-                "            except AuthorizationDenied as denied:\n"
-                "                raise denied.to_tool_error() from None\n",
+                'src/pickfair_mcp/server.py',
+                '            try:\n                authorize(self._principal, spec.name)\n            except AuthorizationDenied as denied:\n                raise denied.to_tool_error() from None\n            try:\n                validated = spec.input_model.model_validate(\n                    arguments if arguments is not None else {}\n                )\n            except ValidationError:\n                raise ToolError(ErrorCode.INVALID_REQUEST, reasons=("INPUT_SCHEMA",)) from None\n',
+                '            try:\n                validated = spec.input_model.model_validate(\n                    arguments if arguments is not None else {}\n                )\n            except ValidationError:\n                raise ToolError(ErrorCode.INVALID_REQUEST, reasons=("INPUT_SCHEMA",)) from None\n            try:\n                authorize(self._principal, spec.name)\n            except AuthorizationDenied as denied:\n                raise denied.to_tool_error() from None\n',
             ),
         ),
     ),
@@ -868,12 +856,12 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant(
         "C01",
-        "risposta del core inviata senza auto-verifica del contratto",
+        'risposta del core inviata senza auto-verifica del contratto',
         (
             (
-                CS,
-                "            validate(body, response_schema(ROUTE_SCHEMAS[route]))",
-                "            response_schema(ROUTE_SCHEMAS[route])",
+                'src/pickfair_control_api/server.py',
+                '            validate(body, response_schema(schema_name))',
+                '            response_schema(schema_name)',
             ),
         ),
     ),
@@ -900,23 +888,23 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant(
         "C05",
-        "rotazione senza doppia accettazione",
+        'rotazione senza doppia accettazione',
         (
             (
-                CT,
-                '            self._valid = (old, new.encode("ascii"))',
-                "            self._valid = (old,)",
+                'src/pickfair_control_api/tokens.py',
+                '            self._valid = (old, new_bytes)',
+                '            self._valid = (old,)',
             ),
         ),
     ),
     Mutant(
         "C06",
-        "vecchio token non revocato dopo la rotazione",
+        'vecchio token non revocato dopo la rotazione',
         (
             (
-                CT,
-                '            self._valid = (new.encode("ascii"),)\n            self.rotations += 1',
-                '            self._valid = (old, new.encode("ascii"))\n            self.rotations += 1',
+                'src/pickfair_control_api/tokens.py',
+                '            self._valid = (new_bytes,)\n            self.rotations += 1',
+                '            self._valid = (old, new_bytes)\n            self.rotations += 1',
             ),
         ),
     ),
@@ -1096,12 +1084,12 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant(
         "K07",
-        "impostazioni nulle senza dichiarazione in unavailable accettate",
+        'impostazioni nulle senza dichiarazione in unavailable accettate',
         (
             (
-                MO,
-                '        _check_unavailable({"settings": self.settings}, self.unavailable)',
-                "        pass",
+                'src/pickfair_mcp/contract/models.py',
+                '        _check_unavailable(\n            {"settings": self.settings, "invalid_persisted": self.invalid_persisted}, self.unavailable\n        )',
+                '        pass',
             ),
         ),
     ),
@@ -1623,6 +1611,39 @@ MUTANTS: tuple[Mutant, ...] = (
         ),
     ),
     Mutant(
+        "P01",
+        'chiusure SL/TP OK con righe omesse accettate',
+        (
+            (
+                'src/pickfair_mcp/contract/models.py',
+                '        if self.state == "OK" and (self.reason or self.omitted or self.truncated):\n            raise ValueError("OK closes with omissions or a reason")',
+                '        if self.state == "OK" and self.reason:\n            raise ValueError("OK closes with omissions or a reason")',
+            ),
+        ),
+    ),
+    Mutant(
+        "P02",
+        'chiusure SL/TP PARTIAL senza dire cosa manca accettate',
+        (
+            (
+                'src/pickfair_mcp/contract/models.py',
+                '        if self.state == "PARTIAL" and not (self.reason and (self.omitted or self.truncated)):\n            raise ValueError("PARTIAL closes must say what is missing")',
+                '        if False:\n            raise ValueError("PARTIAL closes must say what is missing")',
+            ),
+        ),
+    ),
+    Mutant(
+        "P03",
+        'chiusure SL/TP non lette senza motivo accettate',
+        (
+            (
+                'src/pickfair_mcp/contract/models.py',
+                'class SlTpClosesMissing(StrictModel):\n    """UNAVAILABLE (core senza F-04: CORE_PENDING_F04, o DB non leggibile) o UNKNOWN (DB occupato)."""\n\n    state: Literal["UNKNOWN", "UNAVAILABLE"]\n    reason: Code\n',
+                'class SlTpClosesMissing(StrictModel):\n    """UNAVAILABLE (core senza F-04: CORE_PENDING_F04, o DB non leggibile) o UNKNOWN (DB occupato)."""\n\n    state: Literal["UNKNOWN", "UNAVAILABLE"]\n    reason: Code | None\n',
+            ),
+        ),
+    ),
+    Mutant(
         "O01",
         "ordine AMBIGUOUS accettato come FAILED",
         (
@@ -1684,23 +1705,23 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant(
         "O07",
-        "snapshot OK con righe omesse accettato",
+        'snapshot OK con righe omesse accettato',
         (
             (
-                MO,
-                '        if self.state == "OK" and (self.reason or self.omitted or self.truncated):',
-                '        if self.state == "OK" and self.reason:',
+                'src/pickfair_mcp/contract/models.py',
+                '        if self.state == "OK" and (self.reason or self.omitted or self.truncated):\n            raise ValueError("OK snapshot with omissions or a reason")',
+                '        if self.state == "OK" and self.reason:\n            raise ValueError("OK snapshot with omissions or a reason")',
             ),
         ),
     ),
     Mutant(
         "O08",
-        "snapshot PARTIAL senza dire cosa manca accettato",
+        'snapshot PARTIAL senza dire cosa manca accettato',
         (
             (
-                MO,
-                '        if self.state == "PARTIAL" and not (self.reason and (self.omitted or self.truncated)):',
-                "        if False:",
+                'src/pickfair_mcp/contract/models.py',
+                '        if self.state == "PARTIAL" and not (self.reason and (self.omitted or self.truncated)):\n            raise ValueError("PARTIAL snapshot must say what is missing")',
+                '        if False:\n            raise ValueError("PARTIAL snapshot must say what is missing")',
             ),
         ),
     ),
@@ -1728,12 +1749,12 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant(
         "O11",
-        "snapshot non letto senza motivo accettato",
+        'snapshot non letto senza motivo accettato',
         (
             (
-                MO,
-                '    state: Literal["UNKNOWN", "UNAVAILABLE"]\n    reason: Code\n',
-                '    state: Literal["UNKNOWN", "UNAVAILABLE"]\n    reason: Code | None\n',
+                'src/pickfair_mcp/contract/models.py',
+                'class OrdersSnapshotMissing(StrictModel):\n    """Lettura non riuscita: UNKNOWN (database occupato) o UNAVAILABLE (non leggibile)."""\n\n    state: Literal["UNKNOWN", "UNAVAILABLE"]\n    reason: Code\n',
+                'class OrdersSnapshotMissing(StrictModel):\n    """Lettura non riuscita: UNKNOWN (database occupato) o UNAVAILABLE (non leggibile)."""\n\n    state: Literal["UNKNOWN", "UNAVAILABLE"]\n    reason: Code | None\n',
             ),
         ),
     ),

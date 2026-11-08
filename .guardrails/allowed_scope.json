@@ -793,6 +793,17 @@
         "tests/unit/test_registry_guard.py"
       ],
       "max_files": 42
+    },
+    "mcp-mutants-realign": {
+      "issue": "difetto aperto MCP-MUTANTS-STALE (checkpoint C seq 10)",
+      "scheda": "riallineamento dei 9 mutanti critici inapplicabili, gemelli per le chiusure SL/TP, guardia di applicabilità",
+      "description": "M20, A10, C01, C05, C06, K07, O07, O08, O11 riallineati al codice attuale; P01-P03 coprono la copia delle regole nelle chiusure SL/TP (01i); guardia: ogni originale compare esattamente una volta.",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "scripts/critical_mutations.py",
+        "tests/guards/test_mutation_catalog.py"
+      ],
+      "max_files": 3
     }
   }
 }
