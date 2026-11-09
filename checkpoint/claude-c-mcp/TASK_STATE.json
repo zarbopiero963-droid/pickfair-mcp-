@@ -38,9 +38,9 @@
   "MCP-01o: record RESULT con `returned` (READ_REQUEST di B), contratto accettato da B (6580f91)",
   "mutanti critici: 9 riallineati, P01-P03, guardia di applicabilit\u00e0; 12/12 KILLED (40c34c4)"
  ],
- "lotto_corrente": "MCP-01o accettato da B; attesa BB-1 per la vista del ponte; catalogo mutanti sano",
+ "lotto_corrente": "MCP-01q: contratto 1.15.0 sulla forma normativa di BB-1, mappature verificate sulle fixture reali di B (sha256 c11e4108\u20262766c0); campagna mutanti finale in corso su df044fc",
  "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01",
- "next_atomic_action": "alla consegna delle firme di BB-1 da B: vista del ponte (provider blackbox_* + request_hook) e crossrepo 1.13.0",
+ "next_atomic_action": "raccogliere la campagna 239 mutanti su df044fc, versionare esiti e rapporto nel repo MCP; alla risposta di B su returned/ATTEMPT/request_id aggiornare la compatibilit\u00e0; alla integrazione di BB-1 (#615) eseguire check_reader e i contract test sulla classe reale",
  "pr_505": "N/A (repository MCP)",
  "schema": "pf-task-state/1",
  "tests_missing": []

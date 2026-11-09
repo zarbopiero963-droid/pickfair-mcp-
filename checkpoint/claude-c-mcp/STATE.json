@@ -1,15 +1,15 @@
 {
  "schema": "pf-checkpoint/3",
  "repository": "zarbopiero963-droid/pickfair-mcp-",
- "seq": 11,
+ "seq": 12,
  "agent": "claude-c",
  "agent_identity": "Claude C — MCP + Control API (sessione session_013X2mCaF4fE5YMWGVrM8LtR)",
  "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01",
- "previous_checkpoint_sha": "36a987b9a8ad5b2f4b653e2be6dfac9942eca67e",
+ "previous_checkpoint_sha": "96d78d1368c785ab42fa8c61365ffc384f4c7614",
  "code": {
-  "branch": "ccr-edf04c7d-e7vtj1-mcp-mutants-realign",
-  "sha": "40c34c4fdeebec786b244a05515675e3c5a5e238",
-  "tree": "d253b42aaf3c77d41d40e7767a5fd7b07fa6b1d5"
+  "branch": "ccr-edf04c7d-e7vtj1-mcp01p-bb1-ready",
+  "sha": "df044fc2f055335034b020dbeb879cefdb267361",
+  "tree": "91752aed7cc4758fbb2d4bcf2cd524f92e32d4f4"
  },
  "published_branches": {
   "ccr-edf04c7d-e7vtj1": "647d5e8d269952af975ec01df7be27abf2ff3c1e",
@@ -23,16 +23,17 @@
   "ccr-edf04c7d-e7vtj1-mcp-sec01": "79490abcfb3083461d277dfebce43fdbf5c75461",
   "ccr-edf04c7d-e7vtj1-mcp01i-sltp-close": "3b25f96f5682c988b57cb5d6d793e0c3fb6bce30",
   "ccr-edf04c7d-e7vtj1-mcp01i-r2": "06e9eda4ea60768314d25d2f47846c000df6ee30",
-  "ccr-edf04c7d-e7vtj1-mcp01m-trailing": "ac65cc7399038badb9ee3e8d75d2d6c02530c50d",
+  "ccr-edf04c7d-e7vtj1-mcp01m-trailing": "9958c751dd0c9842b51a91eaddb1b761da1d6067",
   "ccr-edf04c7d-e7vtj1-g8-suites": "e029363e361b311488b09e7253e715fd6fd36e51",
   "ccr-edf04c7d-e7vtj1-k3-specs": "bad873b8262679f7b0f291ac9d508c55ff1fd70b",
   "ccr-edf04c7d-e7vtj1-mcp01n-book-age": "f1b4b6492dcf4637c8cfc1e2b0cd2312e3ed5c79",
   "ccr-edf04c7d-e7vtj1-mcp-load-flake": "4174561d73f329477f1638da58f66d336fdfd24c",
-  "ccr-edf04c7d-e7vtj1-mcp-integration-prep": "fcde366",
-  "ccr-edf04c7d-e7vtj1-mcp-win-token": "0251937",
+  "ccr-edf04c7d-e7vtj1-mcp-integration-prep": "fcde366013be6922714ac3edda8fff8141be70eb",
+  "ccr-edf04c7d-e7vtj1-mcp-win-token": "0251937a948466d7c8f25222e336ee18864ee596",
   "ccr-edf04c7d-e7vtj1-g8-provenance": "a5333571d4ac6b9c5063bffc2f2deeee8628ac88",
-  "ccr-edf04c7d-e7vtj1-mcp01o-blackbox-read": "6580f91",
-  "ccr-edf04c7d-e7vtj1-mcp-mutants-realign": "40c34c4fdeebec786b244a05515675e3c5a5e238"
+  "ccr-edf04c7d-e7vtj1-mcp01o-blackbox-read": "6580f91eaeaa5a6288304325c400947442f2b0fc",
+  "ccr-edf04c7d-e7vtj1-mcp-mutants-realign": "40c34c4fdeebec786b244a05515675e3c5a5e238",
+  "ccr-edf04c7d-e7vtj1-mcp01p-bb1-ready": "df044fc2f055335034b020dbeb879cefdb267361"
  },
  "integration_chain": [
   "MCP-01d",
@@ -55,7 +56,7 @@
   "MCP-01o lettura della scatola nera (dopo l'interfaccia di lettura di B)",
   "MCP-MUTANTS-REALIGN (solo catalogo e guardia, sopra 01o)"
  ],
- "lotto_corrente": "MCP-01o accettato da B; attesa BB-1 per la vista del ponte; catalogo mutanti sano",
+ "lotto_corrente": "MCP-01q: contratto 1.15.0 sulla forma normativa di BB-1, mappature verificate sulle fixture reali di B (sha256 c11e4108…2766c0); campagna mutanti finale in corso su df044fc",
  "lotti_completati": [
   "MCP-01j get_config (305b843)",
   "MCP-01k compatibilità P0/F-16 (4cd3e75)",
@@ -81,7 +82,7 @@
   "MCP-01o: record RESULT con `returned` (READ_REQUEST di B), contratto accettato da B (6580f91)",
   "mutanti critici: 9 riallineati, P01-P03, guardia di applicabilità; 12/12 KILLED (40c34c4)"
  ],
- "next_atomic_action": "alla consegna delle firme di BB-1 da B: vista del ponte (provider blackbox_* + request_hook) e crossrepo 1.13.0",
+ "next_atomic_action": "raccogliere la campagna 239 mutanti su df044fc, versionare esiti e rapporto nel repo MCP; alla risposta di B su returned/ATTEMPT/request_id aggiornare la compatibilità; alla integrazione di BB-1 (#615) eseguire check_reader e i contract test sulla classe reale",
  "dependencies": {
   "F-04 su main": "MCP-01i r2",
   "F-03 su main (con F-02, F-04)": "MCP-01m",
@@ -256,7 +257,7 @@
   "artifact": "results/evidence-ckpt-restore-seq2.txt",
   "limite": "i code.sha restano raggiungibili finché esistono i branch ccr-edf04c7d-e7vtj1-* (mai mergiati: consegna via patch); protezione contro cancellazione/squash dipende dall'hardening di pfckpt.py coordinato con Claude B"
  },
- "core_handoffs_verdict": "DURABLE 12/12, provato dallo strumento (pfckpt-squash-durable @ de40d0cd): digest canonico ricalcolato nel target == patch_sha256, tree(handoff_sha) == handoff_tree, base e handoff raggiungibili da handoff/claude-c/mcp-core-20261105 (Pickfair-nogui). Nessun artefatto: niente codice del motore nel repo MCP. Prova negativa di C su check_handoff: 5/5 alterazioni rifiutate (results/evidence-durable-proof.txt). Nessuna integrazione su main: INTEGRATED_VERIFIED solo dopo PR e gate.",
+ "core_handoffs_verdict": "DURABLE 13/13 (patch 13 f16-compat compresa), provato dallo strumento: digest canonico ricalcolato nel target == patch_sha256, tree(handoff_sha) == handoff_tree, base e handoff raggiungibili da handoff/claude-c/mcp-core-20261105. Nessuna integrazione su main: INTEGRATED_VERIFIED solo dopo PR e gate.",
  "checkpoint_tool": "pfckpt.py di Pickfair-nogui pfckpt-squash-durable @ de40d0cde4a07a3e7cd07e0c563837b6f5465f85 (non ancora su main)",
  "handoffs": [
   {
@@ -438,16 +439,62 @@
    "handoff_branch": "handoff/claude-c/mcp-core-20261105",
    "handoff_sha": "f22d6bfb521c742cbf08bbfc9895dd635b885e09",
    "handoff_tree": "dd759ec1f3e42f41341b948b3d27e47b54586118"
+  },
+  {
+   "checkpoint_repo": "zarbopiero963-droid/pickfair-mcp-",
+   "source_repo": "zarbopiero963-droid/Pickfair-nogui",
+   "source_branch": "handoff/claude-c/mcp-core-20261105",
+   "source_sha": "0a529035abed0300155c0091100503d23d8ff7c3",
+   "source_published": true,
+   "patch_sha256": "be5c095b802687ee981c57139c8b4bacf10c642adb08f5b7b19b5f6a61105cf7",
+   "target_repo": "zarbopiero963-droid/Pickfair-nogui",
+   "handoff_ref": "patch 13 f16-compat (bundle 50a7896c-bc4a-4471-9812-97ca01dbc252); pubblicata da B su handoff/claude-c/mcp-core-20261105; commit locale originale di C ddc8a4f4 (mai spinto, stesso tree)",
+   "status": "DURABLE",
+   "base_sha": "f22d6bfb521c742cbf08bbfc9895dd635b885e09",
+   "handoff_branch": "handoff/claude-c/mcp-core-20261105",
+   "handoff_sha": "0a529035abed0300155c0091100503d23d8ff7c3",
+   "handoff_tree": "cd917d8f4667496410f1e6c43ff367cff3100a60"
   }
  ],
- "handoffs_extra_delivered": [
-  {
-   "id": "f16-compat",
-   "source_sha": "ddc8a4f42e7b35751e057c5bd70f2bde5a70d3de",
-   "base_sha": "f22d6bfb521c742cbf08bbfc9895dd635b885e09",
-   "tree": "cd917d8f4667496410f1e6c43ff367cff3100a60",
-   "patch_sha256": "be5c095b802687ee981c57139c8b4bacf10c642adb08f5b7b19b5f6a61105cf7",
-   "stato": "DELIVERED (bundle all'owner, id 50a7896c-bc4a-4471-9812-97ca01dbc252); non ancora pubblicato: non dichiarato recuperabile"
+ "handoffs_extra_delivered": [],
+ "blackbox_bb1": {
+  "contract": "1.15.0",
+  "schema_hash": "0c7a3d6b1f564f603c6a6165853cfff87d3322a355af815b1f3ff52fd7ab389c",
+  "commits": {
+   "907423e": "MCP-01q forma normativa (filtri, request_hook, external)",
+   "df044fc": "mappature sulle fixture reali"
+  },
+  "fixture": {
+   "sha256": "c11e4108f074e8a64d18ce0dcd2eca3a2bda68f034e2e9bf0d149efb5e2766c0",
+   "bytes": 16543,
+   "source": "pfab-b-20261109-bb1-fixtures-001, BlackBoxReader BB-1 locale 0df7a411"
+  },
+  "verdict_fixture": "VERIFIED (RED 7 su 907423e -> GREEN 10 su df044fc)",
+  "verdict_real_class": "NOT_RUN (check_reader e scenari sulla classe integrata, dopo #615)",
+  "requests_to_b": [
+   "returned nel data di CONTROL_API_REQUEST",
+   "registrazione dell'ATTEMPT",
+   "normalizzazione di request_id mcp-<24 hex>"
+  ]
+ },
+ "mutant_campaigns": {
+  "40c34c4": {
+   "mutants": 216,
+   "KILLED": 215,
+   "TIMEOUT": 1,
+   "note": "J09 TIMEOUT poi corretto con fail_after(5)",
+   "jsonl": "results/evidence-mut-campaign-40c34c4.jsonl"
+  },
+  "90e7d45": {
+   "mutants": 226,
+   "KILLED": 226,
+   "baseline": "3/3 PASS",
+   "jsonl_sha256": "b35711f8cdae1418ab31d5e99816e0b3610d6fbf1b0eebb57b4412b429a53847",
+   "jsonl": "results/evidence-mut-campaign-90e7d45.jsonl"
+  },
+  "df044fc": {
+   "mutants": 239,
+   "stato": "IN CORSO"
   }
- ]
+ }
 }

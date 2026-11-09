@@ -2,12 +2,12 @@
  "certification_verdict": "NOT VERIFIED",
  "checkpoint_commit": null,
  "code": {
-  "branch": "ccr-edf04c7d-e7vtj1-mcp-mutants-realign",
-  "sha": "40c34c4fdeebec786b244a05515675e3c5a5e238"
+  "branch": "ccr-edf04c7d-e7vtj1-mcp01p-bb1-ready",
+  "sha": "df044fc2f055335034b020dbeb879cefdb267361"
  },
  "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01",
- "next_atomic_action": "alla consegna delle firme di BB-1 da B: vista del ponte (provider blackbox_* + request_hook) e crossrepo 1.13.0",
- "previous_checkpoint_sha": "36a987b9a8ad5b2f4b653e2be6dfac9942eca67e",
+ "next_atomic_action": "raccogliere la campagna 239 mutanti su df044fc, versionare esiti e rapporto nel repo MCP; alla risposta di B su returned/ATTEMPT/request_id aggiornare la compatibilit\u00e0; alla integrazione di BB-1 (#615) eseguire check_reader e i contract test sulla classe reale",
+ "previous_checkpoint_sha": "96d78d1368c785ab42fa8c61365ffc384f4c7614",
  "schema": "pf-current/1",
- "seq": 11
+ "seq": 12
 }

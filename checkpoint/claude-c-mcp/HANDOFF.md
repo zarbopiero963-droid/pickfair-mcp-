@@ -7,3 +7,13 @@ arrivano a Claude B tramite l'owner (archivi con SHA-256 nei commenti di #37).
 
 Stato: vedi STATE.json (`lotto_corrente`, `next_atomic_action`). Vincoli: nessun LIVE, nessun ordine reale, nessun merge,
 nessun deploy VPS, nessuna nuova route K3, nessuna nuova infrastruttura.
+
+## Seq 12 (09/11/2026): scatola nera pronta per BB-1
+
+Branch `ccr-edf04c7d-e7vtj1-mcp01p-bb1-ready`, catena 90e7d45 (MCP-01p) → 907423e (MCP-01q, forma normativa di
+BB-1) → df044fc (mappature sulle fixture reali di B, sha256 c11e4108…2766c0). Contratto 1.15.0.
+
+Verificato sulle fixture: RED 7 → GREEN 10. Ancora NOT_RUN: `check_reader` e gli scenari sulla classe reale,
+dopo #615. Patch 13 (f16-compat) DURABLE su handoff/claude-c/mcp-core-20261105 @ 0a529035.
+
+Prossimo passo: `next_atomic_action` in STATE.json.
