@@ -939,6 +939,7 @@ _SIM_SESSION = "sim-session-1"
 def _bb_event(seq: int, **over: Any) -> dict[str, Any]:
     data: dict[str, Any] = {
         "seq": seq, "event_id": f"{seq:032x}", "ts_utc": "2026-11-07T15:00:00.000Z",
+        "exchange_ts": None,
         "session_id": _SIM_SESSION, "process_id": 1000, "component": "sim.engine",
         "origin": "SYSTEM", "category": "SESSION", "event_type": "SIM_EVENT", "severity": "INFO",
         "phase": "OBSERVATION", "outcome": "NOT_APPLICABLE", "state_before": None,
@@ -954,13 +955,16 @@ def _bb_event(seq: int, **over: Any) -> dict[str, Any]:
     return data
 
 
+_SIM_ORDER = "ord_" + "7" * 32  # alias opaco fittizio (BB-1 D1)
+
+
 def _bb_sim_events() -> list[dict[str, Any]]:
     """Ciclo fittizio di un ordine: tentativo, poi esito confermato, con la sua causa."""
     attempt = _bb_event(2, ts_utc="2026-11-07T15:00:01.250Z", origin="STRATEGY", category="ORDER",
                         event_type="ORDER_PLACE_ATTEMPT", phase="ATTEMPT", outcome="PENDING",
                         correlation_id="sim-corr-1", values_after={"stake": "2.00", "price": "3.1"},
                         refs={"table_id": 1, "market_id": _SIM_MARKET, "selection_id": 101,
-                              "order_id": 7, "bet_id": None, "strategy": "roserpina"},
+                              "order_id": _SIM_ORDER, "bet_id": None, "strategy": "roserpina"},
                         data={"bankroll_verified": "100.00", "mm_pct": "2",
                               "stake_theoretical": "2.00", "stake_authorized": "2.00",
                               "currency": "EUR"})
@@ -970,7 +974,7 @@ def _bb_sim_events() -> list[dict[str, Any]]:
                        correlation_id="sim-corr-1",
                        causation_id=attempt["event_id"],
                        refs={"table_id": 1, "market_id": _SIM_MARKET, "selection_id": 101,
-                             "order_id": 7, "bet_id": "1001", "strategy": "roserpina"})
+                             "order_id": _SIM_ORDER, "bet_id": "1001", "strategy": "roserpina"})
     start = _bb_event(1, event_type="SESSION_STARTED", values_after={"api_key": "[REDACTED]"})
     return [start, attempt, result]
 

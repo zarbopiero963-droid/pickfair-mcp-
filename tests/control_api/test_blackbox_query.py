@@ -27,23 +27,23 @@ def test_the_owner_question_from_15_to_17() -> None:
 
 def test_every_filter_is_validated_and_typed() -> None:
     f = parse_events_query(
-        "after_seq=0&session_id=s-1&table_id=3&market_id=1.234567&order_id=42&bet_id=31415"
+        "after_seq=0&session_id=s-1&table_id=3&market_id=1.234567&order_id=ord_0123456789abcdef0123456789abcdef&bet_id=31415"
         "&strategy=roserpina&correlation_id=c_9&category=ORDER&event_type=ORDER_PLACED"
         "&origin=MCP&severity=WARNING&outcome=UNKNOWN&phase=RESULT&selection_id=47972"
         "&causation_id=0123456789abcdef0123456789abcdef"
     )
-    assert (f["after_seq"], f["table_id"], f["order_id"], f["selection_id"]) == (0, 3, 42, 47972)
+    assert (f["after_seq"], f["table_id"], f["selection_id"]) == (0, 3, 47972)
+    assert f["order_id"] == "ord_0123456789abcdef0123456789abcdef"  # resta testo: alias opaco
     assert (f["origin"], f["severity"], f["outcome"], f["phase"]) == (
         "MCP", "WARNING", "UNKNOWN", "RESULT"
     )
     assert f["causation_id"] == "0123456789abcdef0123456789abcdef"
 
 
-def test_order_id_is_a_ledger_integer_or_the_engine_uuid() -> None:
-    """BB-1: id del ledger, oppure str(uuid4()) del motore col DB degradato (resta stringa)."""
-    uid = "0f8fad5b-d9cb-469f-a165-70867728950e"
-    assert parse_events_query("order_id=" + uid)["order_id"] == uid
-    assert parse_events_query("order_id=7")["order_id"] == 7
+def test_order_id_is_only_the_opaque_alias() -> None:
+    """BB-1 (D1): l'ordine si filtra solo con l'alias ord_<32 hex>; l'id interno non è un filtro."""
+    alias = "ord_0123456789abcdef0123456789abcdef"
+    assert parse_events_query("order_id=" + alias)["order_id"] == alias
 
 
 @pytest.mark.parametrize(
@@ -68,8 +68,10 @@ def test_order_id_is_a_ledger_integer_or_the_engine_uuid() -> None:
         ("causation_id=0123456789ABCDEF0123456789ABCDEF", "QUERY_VALUE"),  # minuscolo
         # 32 hex, senza trattini
         ("causation_id=01234567-89ab-cdef-0123-456789abcdef", "QUERY_VALUE"),
-        ("order_id=0f8fad5bd9cb469fa16570867728950e", "QUERY_VALUE"),  # uuid senza trattini
-        ("order_id=0F8FAD5B-D9CB-469F-A165-70867728950E", "QUERY_VALUE"),  # maiuscolo
+        ("order_id=42", "QUERY_VALUE"),  # id interno del ledger: mai un filtro esterno
+        ("order_id=0f8fad5b-d9cb-469f-a165-70867728950e", "QUERY_VALUE"),  # uuid interno
+        ("order_id=ord_0123", "QUERY_VALUE"),  # alias troncato
+        ("order_id=ORD_0123456789ABCDEF0123456789ABCDEF", "QUERY_VALUE"),  # maiuscolo
         ("outcome=FAILED_OR_NOT", "QUERY_VALUE"),
         ("since=2026-11-07 15:00:00Z", "QUERY_ENCODING"),  # spazio letterale
         ("since=2026-11-07T15:00:00", "QUERY_VALUE"),  # senza Z: mai un'ora locale ambigua

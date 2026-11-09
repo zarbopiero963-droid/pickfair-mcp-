@@ -1,8 +1,9 @@
-"""Contract test sulle forme REALI di BB-1: fixture di Claude B (pfab-b-20261109-bb1-fixtures-002).
+"""Contract test sulle forme REALI di BB-1: fixture di B (pfab-b-20261109-bb1-schema-d1d3-001).
 
-`fixtures/bb1_reader_b275d7ea.json` è l'output di `core.blackbox_query.BlackBoxReader` (BB-1 locale
-46e722b, `external=True`, dati sintetici, orologio sintetico del 2025) generato da B; sostituisce
-la prima fixture (c11e4108…, 0df7a411): aggiunge TRACE, l'ATTEMPT dell'hook e `returned`. Il file è
+`fixtures/bb1_reader_74be0f92.json` è l'output di `core.blackbox_query.BlackBoxReader` (BB-1 locale
+9626f95, `external=True`, dati sintetici, orologio sintetico del 2025) generato da B. Sostituisce
+c11e4108… (0df7a411) e b275d7ea… (46e722b): TRACE, ATTEMPT dell'hook, `returned`, e lo schema D1-D2
+(order_id come alias opaco ord_<32 hex>, `exchange_ts` distinto da `ts_utc`). Il file è
 salvato byte per byte com'è stato dichiarato (JSON minificato a chiavi ordinate): lo sha256 qui
 sotto è quello dichiarato da B. Se B rigenera la fixture, cambiano file e hash insieme.
 
@@ -32,8 +33,8 @@ from tests.integration.test_market_tools import call, session_for
 
 pytestmark = [pytest.mark.anyio, pytest.mark.loopback]
 
-FIXTURE = Path(__file__).parent / "fixtures" / "bb1_reader_b275d7ea.json"
-FIXTURE_SHA256 = "b275d7eaa39b07515b2ec26542ea6670e747d79b748b4e6f9ae7439682321288"
+FIXTURE = Path(__file__).parent / "fixtures" / "bb1_reader_74be0f92.json"
+FIXTURE_SHA256 = "74be0f92274b5dda252061148c82a0c54329be2d50e1d1ddd23e31691a36f6df"
 REAL = json.loads(FIXTURE.read_bytes())
 
 
@@ -83,7 +84,7 @@ class FixtureReader:
 
 def test_the_fixture_is_the_one_b_declared() -> None:
     data = FIXTURE.read_bytes()
-    assert hashlib.sha256(data).hexdigest() == FIXTURE_SHA256 and len(data) == 19546
+    assert hashlib.sha256(data).hexdigest() == FIXTURE_SHA256 and len(data) == 20484
     assert REAL["source"].startswith("core.blackbox_query.BlackBoxReader")
 
 
@@ -111,10 +112,19 @@ async def test_the_real_page_through_control_api_and_mcp(tmp_path: Path) -> None
         {"seq": 6, "from_ts": "2025-11-09T12:00:07.000Z", "to_ts": "2025-11-09T12:01:08.000Z",
          "reason_code": "UNCLEAN_TERMINATION"}
     ]
-    # id del motore come testo: ledger -> intero; uuid del DB degradato -> uuid.
-    assert (by_seq[4]["refs"]["order_id"], by_seq[4]["refs"]["table_id"]) == (42, 3)
-    assert by_seq[4]["refs"]["selection_id"] == 123456
-    assert by_seq[11]["refs"]["order_id"] == "0b6c3e7e-1c2a-4f6e-9b6a-3f1d2c4b5a69"
+    # D1: l'ordine è un alias opaco, uguale fra tentativo, risposta ed abbinamento; anche col DB
+    # degradato (seq 11). Nessun id interno nella vista.
+    assert by_seq[4]["refs"]["order_id"] == "ord_9554703cbbc9a3793d578c15d4633758"
+    assert {by_seq[n]["refs"]["order_id"] for n in (8, 9, 10)} == {
+        "ord_3b505fdff4e2c84910d6f14005edc427"
+    }
+    assert by_seq[11]["refs"]["order_id"] == "ord_181b6b06be617c8c929805943837dbb6"
+    assert (by_seq[4]["refs"]["table_id"], by_seq[4]["refs"]["selection_id"]) == (3, 123456)
+    # D2: ora dell'exchange solo dove dichiarata, distinta da quella osservata; altrove null.
+    assert (by_seq[10]["exchange_ts"], by_seq[10]["ts_utc"]) == (
+        "2025-11-09T12:01:10.500Z", "2025-11-09T12:01:11.000Z"
+    )
+    assert by_seq[9]["exchange_ts"] is None and "exchange_ts" in by_seq[9]["not_recorded"]
     assert by_seq[11]["reason_code"] == "DB_DEGRADED_LOCAL_ID"
     # Eccezione di un thread: componente e nome dell'eccezione come registrati.
     assert (by_seq[12]["component"], by_seq[12]["reason_code"]) == ("thread:worker-x", "KeyError")
@@ -142,7 +152,7 @@ async def test_the_real_causal_chain(tmp_path: Path) -> None:
     with engine_api(tmp_path, reader) as (server, token_path):  # type: ignore[arg-type]
         async with session_for(adapter_for(server, token_path)) as s:
             ok, out = await call(
-                s, "get_blackbox_event", {"event_id": "8bbf0aeff499457b9c75265607dc6854"}
+                s, "get_blackbox_event", {"event_id": "b10b3bd7864e4f82b94e0147088a2c58"}
             )
             ok2, missing = await call(s, "get_blackbox_event", {"event_id": "0" * 32})
     assert ok is False, out
@@ -157,9 +167,9 @@ def test_a_real_missing_link_breaks_the_chain() -> None:
     reader = FixtureReader()
     chain = reader.real["b_get_with_chain_2"]["causation_chain"]
     chain[1] = {"event_id": chain[1]["event_id"], "missing": True}
-    body = make_providers(reader)["blackbox_event"]("8bbf0aeff499457b9c75265607dc6854")
+    body = make_providers(reader)["blackbox_event"]("b10b3bd7864e4f82b94e0147088a2c58")
     assert [c["seq"] for c in body["chain"]] == [9]
-    assert body["chain_broken_at"] == "89c474d06aa14b449a6f1215ccaeb30e"
+    assert body["chain_broken_at"] == "f43c3d6ced674f0b91175f2335f686ed"
 
 
 def test_the_real_healthy_status() -> None:

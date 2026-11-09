@@ -27,7 +27,14 @@ from pickfair_control_api.server import ControlApiServer
 from pickfair_control_api.tokens import TokenStore, issue_token_file
 from pickfair_mcp.adapters.http import HttpControlApiAdapter
 from pickfair_mcp.auth.token_file import LocalTokenFile
-from tests.contract.fake_engine_blackbox import SESSION, FakeBlackboxQuery, record, uid
+from tests.contract.fake_engine_blackbox import (
+    ORDER_ALIAS,
+    ORDER_ALIAS_2,
+    SESSION,
+    FakeBlackboxQuery,
+    record,
+    uid,
+)
 from tests.control_api.servers import SHA, Providers, secure_dir
 from tests.integration.test_market_tools import call, session_for
 
@@ -97,7 +104,7 @@ def test_engine_record_mapping() -> None:
             order_ref="cref-x",
             reason_code="AMBIGUOUS",
             causation_id=uid(5),
-            order_id=42,
+            order_id=ORDER_ALIAS,
         )
     )
     assert view["event_id"] == uid(6).replace("-", "") and view["causation_id"] == uid(5).replace(
@@ -111,11 +118,11 @@ def test_engine_record_mapping() -> None:
     )
     assert view["outcome"] == "UNKNOWN" and view["reason_code"] == "AMBIGUOUS"
     assert "order_ref" not in view and "cref-x" not in str(view)
-    assert view["refs"]["order_id"] == 42
+    assert view["refs"]["order_id"] == ORDER_ALIAS
     # BB-1: ogni colonna a null è «non registrata» (not_recorded del motore, campi della vista)
     assert view["not_recorded"] == [
         "state_before", "state_after", "values_before", "values_after", "reason",
-        "correlation_id", "data",
+        "correlation_id", "data", "exchange_ts",
     ]
 
 
@@ -158,6 +165,10 @@ def test_engine_not_recorded_never_hides_a_value(not_recorded: Any) -> None:
         {"bet_id": "abc"},
         {"session_id": ""},
         {"causation_id": uid(1)},
+        {"order_id": "42"},  # id interno del ledger: mai nella vista (BB-1 D1)
+        {"order_id": "0f8fad5b-d9cb-469f-a165-70867728950e"},  # uuid interno
+        {"order_id": 42},
+        {"exchange_ts": "2026-11-08T16:00:00+01:00"},  # ora dell'exchange non UTC
     ],
 )
 def test_unmappable_records_are_refused_never_adjusted(over: dict[str, Any]) -> None:
@@ -244,7 +255,7 @@ async def test_roserpina_stake_decision_is_readable_for_g7(tmp_path: Path) -> No
     }
     assert (
         decision["omitted_values"] == 1
-        and decision["refs"]["correlation_id" if False else "order_id"] == 42
+        and decision["refs"]["order_id"] == ORDER_ALIAS
     )
     assert decision["correlation_id"] == "corr-1"
     assert reader.queries[-1][0] == {"strategy": "roserpina", "category": "MONEY"}
@@ -273,29 +284,29 @@ async def test_filters_use_the_engine_names(tmp_path: Path) -> None:
 async def test_new_bb1_filters_reach_the_reader_in_the_engine_text_form(tmp_path: Path) -> None:
     """BB-1 confronta per uguale con il testo registrato: 3 != "3" sarebbe una pagina vuota muta."""
     reader = FakeBlackboxQuery()
-    uuid_order = "0f8fad5b-d9cb-469f-a165-70867728950e"
+    alias_order = ORDER_ALIAS_2
     with engine_api(tmp_path, reader) as (server, token_path):
         async with session_for(adapter_for(server, token_path)) as s:
             ok, page = await call(
                 s,
                 "list_blackbox_events",
-                {"table_id": 2, "selection_id": 47973, "order_id": uuid_order, "phase": "ATTEMPT"},
+                {"table_id": 2, "selection_id": 47973, "order_id": alias_order, "phase": "ATTEMPT"},
             )
             ok2, page2 = await call(
                 s, "list_blackbox_events", {"severity": "ERROR", "causation_id": uid(5)}
             )
-            ok3, page3 = await call(s, "list_blackbox_events", {"order_id": 42})
+            ok3, page3 = await call(s, "list_blackbox_events", {"order_id": ORDER_ALIAS})
     assert reader.queries[0][0] == {
-        "table_id": "2", "selection_id": "47973", "order_id": uuid_order, "phase": "ATTEMPT"
+        "table_id": "2", "selection_id": "47973", "order_id": alias_order, "phase": "ATTEMPT"
     }
     assert ok is False and [e["seq"] for e in page["data"]["events"]["events"]] == [11]
     (event,) = page["data"]["events"]["events"]
     assert event["refs"]["table_id"] == 2 and event["refs"]["selection_id"] == 47973
-    assert event["refs"]["order_id"] == uuid_order
+    assert event["refs"]["order_id"] == alias_order
     assert reader.queries[1][0] == {"severity": "ERROR", "causation_id": uid(5)}
     # Il seq 6 (causato da 5) è INFO, non ERROR.
     assert ok2 is False and page2["data"]["events"]["events"] == []
-    assert reader.queries[2][0] == {"order_id": "42"}
+    assert reader.queries[2][0] == {"order_id": ORDER_ALIAS}
     assert ok3 is False and [e["seq"] for e in page3["data"]["events"]["events"]] == [4, 5, 6]
 
 

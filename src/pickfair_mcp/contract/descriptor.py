@@ -172,7 +172,7 @@ SEMANTICS: Final = {
         "are UTC with milliseconds; local time is the viewer's job. Values of sensitive names "
         "are always [REDACTED]. Filters only on GET /v1/blackbox/events, from a closed "
         "whitelist (since, until, after_seq, limit 1-500, session_id, table_id, market_id, "
-        "order_id (integer or uuid), bet_id, selection_id, strategy, correlation_id, "
+        "order_id (opaque alias ord_<32 hex>), bet_id, selection_id, strategy, correlation_id, "
         "causation_id, category, origin, severity, phase, event_type, outcome: the filters of "
         "the engine's BB-1 reader); an unknown or repeated parameter, a value out of pattern or a "
         "range over 31 days is 400 without calling the core. Every Control API request is "

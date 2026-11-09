@@ -1610,13 +1610,8 @@ ReasonCode = Annotated[str, StringConstraints(pattern=r"^[A-Za-z][A-Za-z0-9_]{0,
 BlackboxCategory = Annotated[str, StringConstraints(pattern=r"^[A-Z][A-Z0-9_]{0,31}$")]
 # ASCII stampabile: BB-1 registra anche `thread:<nome del thread>` per le eccezioni dei thread.
 BlackboxComponent = Annotated[str, StringConstraints(pattern=r"^[ -~]{1,64}$")]
-# Id dell'ordine: intero del ledger, o uuid (str(uuid4()) del motore con il DB degradato).
-OrderUuid = Annotated[
-    str,
-    StringConstraints(
-        pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-    ),
-]
+# Ordine nella scatola nera: alias opaco di BB-1 (HMAC dell'id interno), mai l'id interno.
+OrderAlias = Annotated[str, StringConstraints(pattern=r"^ord_[0-9a-f]{32}$")]
 SessionKey = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{1,64}$")]
 ValueName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_.]{0,63}$")]
 ShortText = Annotated[str, StringConstraints(max_length=256)]
@@ -1628,7 +1623,7 @@ BetIdText = Annotated[str, StringConstraints(pattern=r"^[0-9]{1,20}$")]
 
 BlackboxRecordedField = Literal[
     "state_before", "state_after", "values_before", "values_after", "reason", "reason_code",
-    "correlation_id", "causation_id", "process_id", "component", "data",
+    "correlation_id", "causation_id", "process_id", "component", "data", "exchange_ts",
 ]
 
 
@@ -1660,7 +1655,7 @@ class BlackboxRefs(StrictModel):
     table_id: Annotated[int, Field(ge=1, le=9999)] | None
     market_id: MarketId | None
     selection_id: Annotated[int, Field(ge=1, le=10**12)] | None
-    order_id: Annotated[int, Field(ge=1, le=10**15)] | OrderUuid | None
+    order_id: OrderAlias | None
     bet_id: BetIdText | None
     strategy: StrategyName | None
 
@@ -1668,7 +1663,10 @@ class BlackboxRefs(StrictModel):
 class BlackboxEvent(StrictModel):
     seq: BlackboxSeq
     event_id: BlackboxEventId
+    # Ora osservata da Pickfair; l'ordine fa fede su seq.
     ts_utc: UtcMillis
+    # Ora dichiarata dall'exchange, se c'è (mai inventata).
+    exchange_ts: UtcMillis | None
     session_id: SessionKey
     process_id: Annotated[int, Field(ge=1, le=2**31)] | None
     component: BlackboxComponent | None
@@ -1699,7 +1697,7 @@ class BlackboxEvent(StrictModel):
     omitted_values: Count
     not_recorded: Annotated[
         tuple[BlackboxRecordedField, ...],
-        Field(max_length=11, json_schema_extra={"uniqueItems": True}),
+        Field(max_length=12, json_schema_extra={"uniqueItems": True}),
     ]
 
     @model_validator(mode="after")
@@ -1716,6 +1714,7 @@ class BlackboxEvent(StrictModel):
             "reason": self.reason, "reason_code": self.reason_code,
             "correlation_id": self.correlation_id, "causation_id": self.causation_id,
             "process_id": self.process_id, "component": self.component, "data": self.data,
+            "exchange_ts": self.exchange_ts,
         }
         for name in self.not_recorded:
             if recorded[name] is not None:

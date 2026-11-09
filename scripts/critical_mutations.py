@@ -1788,12 +1788,12 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant(
         "R14",
-        "order_id uuid accettato senza trattini (il lettore non lo troverebbe)",
+        "alias dell'ordine troncato accettato come filtro (il lettore non lo troverebbe)",
         (
             (
                 'src/pickfair_control_api/blackbox_query.py',
-                '_UUID: Final = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"',
-                '_UUID: Final = r"[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}"',
+                '_ORDER_ALIAS: Final = r"ord_[0-9a-f]{32}"',
+                '_ORDER_ALIAS: Final = r"ord_[0-9a-f]{1,32}"',
             ),
         ),
     ),
@@ -1893,6 +1893,28 @@ MUTANTS: tuple[Mutant, ...] = (
                 'src/pickfair_control_api/blackbox_bridge.py',
                 '            view[name] = _opt(record, "reason_code", _REASON)',
                 '            view[name] = _opt(record, "reason_code", _UPPER)',
+            ),
+        ),
+    ),
+    Mutant(
+        "R24",
+        "id interno dell'ordine (ledger) mostrato nella vista invece dell'alias",
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                '_ORDER_ALIAS = re.compile(r"\\Aord_[0-9a-f]{32}\\Z")',
+                '_ORDER_ALIAS = re.compile(r"\\A(?:ord_[0-9a-f]{32}|[0-9]+)\\Z")',
+            ),
+        ),
+    ),
+    Mutant(
+        "R25",
+        "ora dichiarata dall'exchange persa",
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                '            view[name] = None if value is None else ts_ms(value)',
+                '            view[name] = None',
             ),
         ),
     ),

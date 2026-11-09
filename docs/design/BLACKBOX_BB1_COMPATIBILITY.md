@@ -9,15 +9,13 @@ decisione C/B pfab-c-20261109-bb1-normative-001.
 La vista esterna resta quella del contratto MCP (1.15.0).
 
 **Nessun PASS end-to-end sul motore reale finché BB-1 non è integrata.** Due livelli di prova:
-- **fixture reali di B**: output di `BlackBoxReader` (BB-1 locale 46e722b, `external=True`, dati sintetici),
-  salvati in `tests/contract/fixtures/bb1_reader_b275d7ea.json`, sha256
-  `b275d7eaa39b07515b2ec26542ea6670e747d79b748b4e6f9ae7439682321288` (19.546 byte, uguale a quello dichiarato da
-  B). Il file è stato ricostruito dal testo del messaggio di B e verificato con l'hash: il testo aveva due
-  scostamenti dal file, una `}` in più e `strategy`/`table_id` del seq 8 nella catena a null, e solo il
-  contenuto che riproduce l'hash è stato salvato. `tests/contract/test_blackbox_bb1_fixture.py` lo fa passare
-  per adapter, Control API reale e MCP. Esito: **VERIFIED sulle fixture**. La prima fixture (c11e4108…,
-  0df7a411) dava RED 7 su 907423e → GREEN 10 su df044fc ed è sostituita da questa, che aggiunge TRACE,
-  l'ATTEMPT dell'hook e `returned`;
+- **fixture reali di B**: output di `BlackBoxReader` (BB-1 locale 9626f95, `external=True`, dati sintetici),
+  salvati in `tests/contract/fixtures/bb1_reader_74be0f92.json`, sha256
+  `74be0f92274b5dda252061148c82a0c54329be2d50e1d1ddd23e31691a36f6df` (20.484 byte, uguale a quello dichiarato da
+  B). Il JSON è estratto parola per parola dal messaggio di B; il testo del messaggio ha una `}` in più prima di
+  `"e_request_hook_return"`, la stessa nei due invii, e tolta quella riproduce l'hash. Esito: **VERIFIED sulle
+  fixture**. Storia: c11e4108… (0df7a411) dava RED 7 su 907423e → GREEN 10 su df044fc; b275d7ea… (46e722b) ha
+  aggiunto TRACE, ATTEMPT dell'hook e `returned`; questa aggiunge lo schema D1–D2;
 - **lettore finto** (`tests/contract/fake_engine_blackbox.py`), nelle stesse forme, per gli scenari che la
   fixture non copre: filtri, paginazione, record non mappabili, hook rifiutato.
 
@@ -78,7 +76,8 @@ Il lettore **non** espone `record`, `delete`, `update`, `write`, `purge` o `trun
 | `reason_code` | uguale | `^[A-Za-z][A-Za-z0-9_]{0,63}$`: anche il nome di un'eccezione (`KeyError`) |
 | `values_before`, `values_after`, `data` (dict o JSON) | mappe piatte con nomi puntati | vedi nota sotto |
 | `table_id`, `selection_id` (testo di cifre in BB-1, o int) | `refs`, come interi | testo non di cifre = record non mappabile |
-| `order_id` | `refs.order_id` | id del ledger (int o testo di cifre → int) oppure uuid canonico con trattini (`str(uuid4())` col DB degradato) |
+| `order_id` | `refs.order_id` | solo l'alias opaco `ord_<32 hex>` (D1); un id interno (intero o uuid) rende il record non mappabile |
+| `exchange_ts` | `exchange_ts` | ora dichiarata dall'exchange (D2), al ms come `ts_utc`; null = non registrata |
 | `market_id`, `bet_id`, `strategy` | `refs` | |
 | `order_ref` / `customer_ref` | — | **mai** nella vista; `external=True` li esclude già, la vista li ignora comunque; in `data` diventano `[REDACTED]` |
 | `mono`, `session_seq`, `prev_hash`, `hash` | — | interni |
@@ -106,7 +105,7 @@ quello finto lo fa.
 | `since`, `until` | `from_ts`, `to_ts` | `YYYY-MM-DDTHH:MM:SS.mmmZ` |
 | `origin`, `event_type` | `source`, `type` | testo |
 | `table_id`, `selection_id` | uguali | **testo di cifre**: BB-1 confronta per uguale con il testo registrato, e un intero darebbe una pagina vuota senza errore |
-| `order_id` | uguale | testo: cifre, oppure uuid canonico minuscolo con trattini |
+| `order_id` | uguale | alias `ord_<32 hex>`: l'id interno non è un filtro esterno |
 | `session_id`, `market_id`, `bet_id`, `strategy`, `correlation_id`, `causation_id`, `category`, `severity`, `outcome`, `phase` | uguali | testo |
 
 `severity` e `phase` sono uguaglianze esatte. `severity_min` e `q` non esistono in BB-1: dal 1.15.0 il server li
@@ -170,7 +169,8 @@ stato del guasto resta raggiungibile anche via MCP.
 | `not_recorded` del motore (fixture) | usato; mai un valore nascosto | fixture, mutanti R17 e R18 |
 | `reason_code` `KeyError` (fixture): prima diventava un record CORRUPT | pattern anche minuscolo | fixture, mutante R23 |
 | `table_id`/`selection_id` come testo di cifre | vista: testo → int; filtro: int → testo | RED (0 righe invece di 3) → GREEN, mutante R11 |
-| `order_id` uuid | vista e filtro: int oppure uuid canonico | test dei filtri, mutante R14 |
+| `order_id` alias opaco (D1) | vista e filtro solo `ord_<32 hex>` | fixture, test dei filtri, mutanti R14 e R24 |
+| `exchange_ts` (D2) | nuovo campo dell'evento | fixture, mutante R25 |
 | `component` `thread:<nome>` | pattern ASCII stampabile 1–64 | test `thread_component…` |
 | filtri: 17 di BB-1, senza `severity_min` e `q` | whitelist 1.15.0 (19 parametri con `after_seq` e `limit`) | test di query e di route |
 
@@ -196,3 +196,11 @@ nell'MCP.
 - **TRACE**: presente nella fixture (seq 13, `API_REQUEST`, categoria `BETFAIR`).
 - Nota di B: la vista esterna di BB-1 toglie `order_ref`, `customer_ref`, `customerOrderRef` e varianti a ogni
   profondità di `data` e `values_*`. La vista MCP li ignora e redige comunque.
+
+## 12. Schema D1–D3 (pfab-b-20261109-bb1-schema-d1d3-001, BB-1 9626f95)
+
+B lo riporta come concordato dall'owner (PF-BB1-IDENTITY-TIMESTAMP-SESSION-20261109). C non ha trovato la
+decisione su GitHub: la adotta perché la forma di BB-1 è normativa e la vista risulta più prudente.
+- **D1**: alias opaco dell'ordine. Il campo interno `order_alias` non esce mai.
+- **D2**: `exchange_ts`, con lo stesso formato RFC 3339 UTC di `ts_utc`.
+- **D3**: lock di runtime unico. Riguarda solo chi scrive: il ponte Control API/MCP legge e non apre sessioni.

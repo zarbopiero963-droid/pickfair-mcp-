@@ -1,5 +1,5 @@
 """MCP-01p/01q: dalla scatola nera del motore (Claude B, `core/blackbox_query`) alla vista del
-contratto. Forme del lettore: quelle REALI di BB-1 (fixture di B, sha256 b275d7ea…321288).
+contratto. Forme del lettore: quelle REALI di BB-1 (fixture di B, sha256 74be0f92…36f6df).
 
 Funzioni pure, solo stdlib. Il ponte del core collega l'interfaccia di lettura di B (pf_blackbox_01
 §4-bis):
@@ -60,6 +60,7 @@ RECORDABLE: Final = (
     "process_id",
     "component",
     "data",
+    "exchange_ts",
 )
 # Nomi dei filtri della vista => nomi del motore (pf_blackbox_01 §3).
 # BB-1: il tempo si filtra con from_ts/to_ts e un filtro sconosciuto è un errore del lettore.
@@ -181,15 +182,12 @@ def _opt_int(record: Mapping[str, Any], name: str, low: int, high: int) -> int |
     return value
 
 
-_ORDER_UUID = re.compile(r"\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\Z")
+# BB-1 (D1): alias opaco dell'ordine, mai l'id interno (né intero né uuid del DB degradato).
+_ORDER_ALIAS = re.compile(r"\Aord_[0-9a-f]{32}\Z")
 
 
-def _order_id(record: Mapping[str, Any]) -> int | str | None:
-    """Id del ledger (intero o cifre) oppure uuid (str(uuid4()) del motore con il DB degradato)."""
-    value = record.get("order_id")
-    if isinstance(value, str) and _ORDER_UUID.fullmatch(value):
-        return value
-    return _opt_int(record, "order_id", 1, 10**15)
+def _order_id(record: Mapping[str, Any]) -> object:
+    return _opt(record, "order_id", _ORDER_ALIAS)
 
 
 _REF_COLUMNS: Final = frozenset(
@@ -269,6 +267,8 @@ def event_view(record: Mapping[str, Any]) -> dict[str, Any]:
             view[name] = _opt_int(record, "pid", 1, 2**31)
         elif name == "component":
             view[name] = _opt(record, "component", _COMPONENT)
+        elif name == "exchange_ts":  # ora dichiarata dall'exchange (D2), distinta da ts_utc
+            view[name] = None if value is None else ts_ms(value)
         elif name == "reason_code":
             view[name] = _opt(record, "reason_code", _REASON)
         elif name == "correlation_id":
@@ -355,7 +355,7 @@ def engine_filters(filters: Mapping[str, object]) -> tuple[dict[str, object], in
         if isinstance(value, datetime):  # già validato dalla whitelist
             value = value.strftime("%Y-%m-%dT%H:%M:%S.") + f"{value.microsecond // 1000:03d}Z"
         elif name in _TEXT_IDS:
-            # BB-1 registra questi id come testo (cifre, o uuid per order_id) e confronta per
+            # BB-1 registra questi id come testo (cifre; per order_id l'alias) e confronta per
             # uguale: un intero non troverebbe nulla, senza errore. Si passa la forma del motore.
             value = str(value)
         out[FILTER_NAMES.get(name, name)] = value

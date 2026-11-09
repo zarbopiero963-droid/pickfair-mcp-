@@ -1,7 +1,7 @@
 """Lettore finto della scatola nera, fedele a pf_blackbox_01 §3 e §4-bis (Claude B), per i contract
 test.
 
-Forme REALI di BB-1 (fixture di Claude B, sha256 b275d7ea…321288, in `fixtures/`): record con
+Forme REALI di BB-1 (fixture di Claude B, sha256 74be0f92…36f6df, in `fixtures/`): record con
 `source`, `type`, `pid`, `ts_utc` al microsecondo, id in 32 hex, `not_recorded` (i campi a null),
 `data` annidato con float; `get` con la catena in `causation_chain`; `status` {ok, degraded, …};
 `sessions` {started, last_ts, clean_shutdown, …}. Nessuna scrittura esposta oltre a `request_hook`.
@@ -16,6 +16,10 @@ from typing import Any
 SESSION = "s-20261108-1"
 
 
+ORDER_ALIAS = "ord_" + uuid.UUID(int=42).hex  # alias opaco di BB-1 (HMAC dell'id interno)
+ORDER_ALIAS_2 = "ord_" + uuid.UUID(int=43).hex
+
+
 def uid(n: int) -> str:
     """Id nella forma di BB-1: uuid in 32 hex minuscoli senza trattini (event, causation)."""
     return uuid.UUID(int=n).hex
@@ -23,7 +27,8 @@ def uid(n: int) -> str:
 
 # Colonne che BB-1 elenca in `not_recorded` quando sono null.
 NULLABLE = (
-    "bet_id", "causation_id", "correlation_id", "data", "market_id", "order_id", "reason",
+    "bet_id", "causation_id", "correlation_id", "data", "exchange_ts", "market_id", "order_id",
+    "reason",
     "reason_code", "selection_id", "state_after", "state_before", "strategy", "table_id",
     "values_after", "values_before",
 )
@@ -34,6 +39,7 @@ def record(seq: int, **over: Any) -> dict[str, Any]:
         "seq": seq,
         "event_id": uid(seq),
         "ts_utc": f"2026-11-08T15:00:{seq % 60:02d}.123456Z",
+        "exchange_ts": None,
         "mono": 1000.0 + seq,
         "session_id": SESSION,
         "session_seq": seq,
@@ -72,12 +78,12 @@ def record(seq: int, **over: Any) -> dict[str, Any]:
 
 def scenario() -> list[dict[str, Any]]:
     """Sessione con impostazione cambiata, comando MCP, decisione di Roserpina, ordine AMBIGUOUS."""
-    order = {  # BB-1: table_id, selection_id e order_id come testo del motore (cifre o uuid)
+    order = {  # BB-1: table_id e selection_id come testo di cifre; order_id alias opaco (D1)
         "table_id": "1",
         "market_id": "1.234567",
         "selection_id": "47972",
         "order_ref": "cref-secret-1",
-        "order_id": "42",
+        "order_id": ORDER_ALIAS,
         "strategy": "roserpina",
         "correlation_id": "corr-1",
     }
@@ -161,7 +167,7 @@ def scenario() -> list[dict[str, Any]]:
                severity="ERROR"),
         record(11, source="STRATEGY", category="ORDER", type="ORDER_PLACE", phase="ATTEMPT",
                outcome="PENDING", table_id="2", selection_id="47973",
-               order_id="0f8fad5b-d9cb-469f-a165-70867728950e"),  # BB-1: cifre come stringhe; uuid
+               order_id=ORDER_ALIAS_2),  # BB-1: cifre come stringhe; alias dell'ordine
     ]
 
 

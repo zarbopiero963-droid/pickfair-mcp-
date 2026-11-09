@@ -529,7 +529,7 @@ La forma del lettore reale di Claude B (`core.blackbox_query.BlackBoxReader`) è
 - filtri di `list_blackbox_events` / `GET /v1/blackbox/events`: quelli di BB-1;
   - nuovi: `severity` (uguaglianza), `phase`, `selection_id`, `causation_id`;
   - tolti: `severity_min` e `q`, che il lettore del motore non ha: ora sono rifiutati con `QUERY_PARAM`;
-- `order_id`, nei filtri e in `refs`: id del ledger (intero) oppure uuid canonico minuscolo con trattini;
+- `order_id`, nei filtri e in `refs`: alias opaco `ord_<32 hex>` di BB-1 (schema D1, vedi sotto);
 - `component`: ASCII stampabile, 1–64 caratteri (`thread:<nome>`);
 - `not_reported` dello stato può comprendere `gaps`: una lista vuota non riportata dal motore non significa
   «nessuna lacuna».
@@ -542,7 +542,7 @@ Adapter:
 - dà errore, mai una risposta parziale, su lacune per tempo, `get` in forma dict e qualunque forma non ancora
   mappata.
 
-Dalle fixture reali di B (sha256 `b275d7ea…321288`, in `tests/contract/fixtures/`), cosa cambia nella vista:
+Dalle fixture reali di B (sha256 `74be0f92…36f6df`, in `tests/contract/fixtures/`), cosa cambia nella vista:
 - eventi:
   - `not_recorded` è quello del motore (in BB-1 ogni null è «non registrato»);
   - `reason_code` può essere il nome di un'eccezione (`KeyError`);
@@ -557,3 +557,13 @@ Dalle fixture reali di B (sha256 `b275d7ea…321288`, in `tests/contract/fixture
 
 Mappature verificate sulle fixture (RED 7 → GREEN 10). La prova sulla classe reale integrata resta NOT_RUN
 (`docs/design/BLACKBOX_BB1_COMPATIBILITY.md` §10).
+
+Schema BB-1 D1-D3. B lo riporta come concordato dall'owner (PF-BB1-IDENTITY-TIMESTAMP-SESSION-20261109); la
+decisione non è stata trovata su GitHub da C.
+- **D1**: `refs.order_id` e il filtro `order_id` accettano solo l'alias opaco `ord_<32 hex>` (HMAC dell'id
+  interno, stabile e non enumerabile). Un id interno, intero o uuid, in un record lo rende non mappabile (lacuna
+  CORRUPT): mai mostrato.
+- **D2**: nuovo `exchange_ts`, cioè l'ora dichiarata dall'exchange, distinta da `ts_utc` (ora osservata da
+  Pickfair). Se manca è null e figura in `not_recorded`. L'ordine fa fede su `seq`.
+- **D3**: un solo runtime per registro (lock del motore). Il lettore non apre sessioni: nessun cambiamento nella
+  vista.

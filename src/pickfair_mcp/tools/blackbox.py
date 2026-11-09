@@ -33,7 +33,7 @@ from pickfair_mcp.contract.models import (
     BlackboxSessionsResponse,
     BlackboxStatusResponse,
     MarketId,
-    OrderUuid,
+    OrderAlias,
     SessionKey,
     StrategyName,
     StrictModel,
@@ -96,7 +96,8 @@ EVENTS_DESCRIPTION = (
     "Read-only. Events from Pickfair's black box in seq order (GET /v1/blackbox/events). Filters: "
     "since/until (UTC, YYYY-MM-DDTHH:MM:SS[.mmm]Z, at most 31 days), session_id (a session's "
     "history), "
-    "table_id (a table's history), order_id (ledger integer or uuid) or bet_id (an order's "
+    "table_id (a table's history), order_id (opaque alias ord_<32 hex> from an event's refs) "
+    "or bet_id (an order's "
     "lifecycle), market_id, selection_id, strategy, correlation_id, causation_id, category, "
     "origin (USER, SYSTEM, MCP, CONTROL_API, STRATEGY, EXCHANGE, TELEGRAM, CLI), severity "
     "(exact), phase, event_type, outcome. No free-text search: filter by type, category or "
@@ -139,7 +140,7 @@ class ListBlackboxEventsInput(StrictModel):
     session_id: SessionKey | None = None
     table_id: Annotated[int, Field(ge=1, le=9999)] | None = None
     market_id: MarketId | None = None
-    order_id: Annotated[int, Field(ge=1, le=10**15)] | OrderUuid | None = None
+    order_id: OrderAlias | None = None
     bet_id: BetIdText | None = None
     strategy: StrategyName | None = None
     correlation_id: SessionKey | None = None

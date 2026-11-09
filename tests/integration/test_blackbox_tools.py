@@ -71,7 +71,8 @@ async def test_simulated_blackbox_tools_are_read_only_and_valid() -> None:
         ("list_blackbox_events", {"q": "risk"}),  # non è un filtro di BB-1
         ("list_blackbox_events", {"severity_min": "WARNING"}),  # idem
         ("list_blackbox_events", {"phase": "DONE"}),
-        ("list_blackbox_events", {"order_id": "0f8fad5bd9cb469fa16570867728950e"}),
+        ("list_blackbox_events", {"order_id": 42}),  # id interno: mai un filtro esterno
+        ("list_blackbox_events", {"order_id": "0f8fad5b-d9cb-469f-a165-70867728950e"}),
         ("list_blackbox_events", {"customer_ref": "c"}),
         ("get_blackbox_event", {"event_id": "../x"}),
         ("get_blackbox_event", {}),
@@ -134,14 +135,14 @@ async def test_real_control_api_round_trip_records_the_mcp_request(tmp_path: Pat
                     "until": "2026-11-07T17:00:00Z",
                     "severity": "WARNING",
                     "phase": "RESULT",
-                    "order_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+                    "order_id": "ord_0123456789abcdef0123456789abcdef",
                 },
             )
         assert ok[0] is False, ok
         (filters,) = providers.bb_queries
         assert (
             (filters["severity"], filters["phase"]) == ("WARNING", "RESULT")
-            and filters["order_id"] == "0f8fad5b-d9cb-469f-a165-70867728950e"
+            and filters["order_id"] == "ord_0123456789abcdef0123456789abcdef"
             and filters["since"].hour == 15
             and filters["until"].hour == 17
         )

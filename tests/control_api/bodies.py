@@ -455,13 +455,14 @@ def sl_tp_closes(*closes: dict[str, Any], **overrides: Any) -> dict[str, Any]:
 def bb_event(seq: int = 1, **overrides: Any) -> dict[str, Any]:
     data: dict[str, Any] = {
         "seq": seq, "event_id": f"{seq:032x}", "ts_utc": "2026-11-07T15:00:00.123Z",
+        "exchange_ts": None,
         "session_id": "s-20261107-1", "process_id": 4242, "component": "core.order_manager",
         "origin": "STRATEGY", "category": "ORDER", "event_type": "ORDER_PLACE_RESULT",
         "severity": "INFO", "phase": "RESULT", "outcome": "VERIFIED", "state_before": "INFLIGHT",
         "state_after": "SUBMITTED",
         "values_before": None, "values_after": {"stake": "2.50", "price": "3.1"},
         "reason": None, "reason_code": None, "correlation_id": "corr-1", "causation_id": None,
-        "refs": {"table_id": 1, "market_id": "1.234567", "selection_id": 47972, "order_id": 42,
+        "refs": {"table_id": 1, "market_id": "1.234567", "selection_id": 47972, "order_id": "ord_" + "a" * 32,
                  "bet_id": "31415", "strategy": "roserpina"},
         "data": None, "omitted_values": 0,
         "not_recorded": [],

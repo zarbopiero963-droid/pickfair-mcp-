@@ -920,6 +920,36 @@
         "tests/contract/test_blackbox_bb1_fixture.py"
       ],
       "max_files": 8
+    },
+    "mcp01q-bb1-schema-d1d3": {
+      "issue": "mandato owner PF-CLAUDE-C-MCP-BLACKBOX-INTEGRATION-20261109 §3; schema BB-1 D1-D3 riportato da B (pfab-b-20261109-bb1-schema-d1d3-001)",
+      "scheda": "MCP-01q — schema BB-1 D1-D2: order_id alias opaco ord_<32 hex>, exchange_ts; fixture 74be0f92",
+      "description": "order_id in vista e filtri solo come alias opaco (un id interno rende il record non mappabile); nuovo campo exchange_ts (ora dell'exchange, null = non registrata); fixture 74be0f92 verificata con l'hash; mutanti R14 riallineato, R24-R25 nuovi; D3 senza effetti sul lettore.",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "docs/contract_v1.md",
+        "docs/design/BLACKBOX_BB1_COMPATIBILITY.md",
+        "docs/design/BLACKBOX_READ_CONTRACT.md",
+        "scripts/critical_mutations.py",
+        "src/pickfair_control_api/blackbox_bridge.py",
+        "src/pickfair_control_api/blackbox_query.py",
+        "src/pickfair_control_api/contract_v1.json",
+        "src/pickfair_mcp/adapters/simulated.py",
+        "src/pickfair_mcp/contract/descriptor.py",
+        "src/pickfair_mcp/contract/descriptor_v1.json",
+        "src/pickfair_mcp/contract/models.py",
+        "src/pickfair_mcp/tools/blackbox.py",
+        "tests/contract/fake_engine_blackbox.py",
+        "tests/contract/fixtures/bb1_reader_74be0f92.json",
+        "tests/contract/fixtures/bb1_reader_b275d7ea.json",
+        "tests/contract/test_blackbox_bb1_contract.py",
+        "tests/contract/test_blackbox_bb1_fixture.py",
+        "tests/control_api/bodies.py",
+        "tests/control_api/test_blackbox_query.py",
+        "tests/integration/test_blackbox_tools.py",
+        "tests/unit/test_contract_version.py"
+      ],
+      "max_files": 22
     }
   }
 }

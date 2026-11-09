@@ -33,7 +33,7 @@ che il validatore del server applica a ogni oggetto: per questo l'evento usa `no
 | `values_before`, `values_after` | oggetto piatto \| null | solo scalari già redatti dal motore; il lettore li ri-redige (§5) |
 | `reason`, `reason_code` | stringa \| null | `reason_code` `^[A-Z][A-Z0-9_]{0,63}$` |
 | `correlation_id`, `causation_id` | stringa \| null | `causation_id` = `event_id` dell'evento che ha causato questo |
-| `refs` | oggetto | `table_id`, `market_id`, `order_id` (id locale del ledger), `bet_id`, `strategy`; mai `customer_ref` né segreti |
+| `refs` | oggetto | `table_id`, `market_id`, `order_id` (alias opaco `ord_<32 hex>` di BB-1, mai l'id interno), `bet_id`, `strategy`; mai `customer_ref` né segreti |
 | `not_recorded` | lista di nomi di campo | campi non registrati dal motore |
 
 ## 2. Route Control API (GET, sola lettura)
@@ -61,7 +61,7 @@ resta «nessuna query».
 | `after_seq` | intero ≥ 0 (cursore) |
 | `limit` | 1–500, default 200 |
 | `session_id`, `table_id`, `market_id`, `selection_id`, `bet_id`, `strategy`, `correlation_id` | pattern dei rispettivi campi |
-| `order_id` | id del ledger (intero) oppure uuid canonico minuscolo con trattini |
+| `order_id` | alias opaco `ord_<32 hex>` (l'id interno non è un filtro esterno) |
 | `causation_id` | 32 hex minuscoli |
 | `category`, `origin`, `severity`, `event_type`, `outcome`, `phase` | vocabolari del §1 (uguaglianza esatta) |
 

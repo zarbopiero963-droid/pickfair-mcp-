@@ -30,8 +30,9 @@ OUTCOMES: Final = frozenset(
 )
 
 _TS = re.compile(r"\A(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{3}))?Z\Z")
-# uuid canonico, minuscolo e con trattini: la forma di str(uuid4()), confrontata per uguale.
-_UUID: Final = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+# BB-1 (D1): l'ordine esce solo come alias opaco ord_<32 hex> (HMAC dell'id interno); l'id interno
+# non è un filtro esterno.
+_ORDER_ALIAS: Final = r"ord_[0-9a-f]{32}"
 _PATTERNS: Final = {
     "after_seq": re.compile(r"\A(0|[1-9][0-9]{0,15})\Z"),
     "limit": re.compile(r"\A[1-9][0-9]{0,2}\Z"),
@@ -39,7 +40,7 @@ _PATTERNS: Final = {
     "table_id": re.compile(r"\A[1-9][0-9]{0,3}\Z"),
     "market_id": re.compile(r"\A[0-9]{1,4}\.[0-9]{1,15}\Z"),
     # Id del ledger (intero) oppure uuid (con il DB degradato il motore usa str(uuid4())).
-    "order_id": re.compile(r"\A(?:[1-9][0-9]{0,15}|" + _UUID + r")\Z"),
+    "order_id": re.compile(r"\A" + _ORDER_ALIAS + r"\Z"),
     "selection_id": re.compile(r"\A[1-9][0-9]{0,11}\Z"),
     "causation_id": re.compile(r"\A[0-9a-f]{32}\Z"),
     "bet_id": re.compile(r"\A[0-9]{1,20}\Z"),
@@ -123,9 +124,7 @@ def parse_events_query(raw: str) -> dict[str, object]:
             filters[name] = value
         elif not _PATTERNS[name].fullmatch(value):
             raise QueryRejected("QUERY_VALUE")
-        elif name in ("after_seq", "limit", "table_id", "selection_id") or (
-            name == "order_id" and value.isdigit()
-        ):
+        elif name in ("after_seq", "limit", "table_id", "selection_id"):
             filters[name] = int(value)
         else:
             filters[name] = value
