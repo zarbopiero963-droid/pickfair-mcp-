@@ -22,7 +22,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 COPY = ("src", "tests", "docs", "scripts", "catalog", "pyproject.toml", "AGENTS.md", ".guardrails", ".github")
-TEST_ARGS = ("tests/unit", "tests/integration", "tests/control_api", "tests/guards")
+TEST_ARGS = ("tests/unit", "tests/integration", "tests/contract", "tests/control_api", "tests/guards")
 
 
 @dataclass(frozen=True)
@@ -1462,7 +1462,7 @@ MUTANTS: tuple[Mutant, ...] = (
         (
             (
                 'src/pickfair_control_api/server.py',
-                '            if route != BLACKBOX_STATUS_ROUTE:\n                return self._error(503, "BLACKBOX_UNAVAILABLE")',
+                '            if route not in UNRECORDED_ALLOWED_ROUTES:\n                return self._error(503, "BLACKBOX_UNAVAILABLE")',
                 '            if False:\n                return self._error(503, "BLACKBOX_UNAVAILABLE")',
             ),
         ),
@@ -1640,6 +1640,116 @@ MUTANTS: tuple[Mutant, ...] = (
                 'src/pickfair_mcp/contract/models.py',
                 'class SlTpClosesMissing(StrictModel):\n    """UNAVAILABLE (core senza F-04: CORE_PENDING_F04, o DB non leggibile) o UNKNOWN (DB occupato)."""\n\n    state: Literal["UNKNOWN", "UNAVAILABLE"]\n    reason: Code\n',
                 'class SlTpClosesMissing(StrictModel):\n    """UNAVAILABLE (core senza F-04: CORE_PENDING_F04, o DB non leggibile) o UNKNOWN (DB occupato)."""\n\n    state: Literal["UNKNOWN", "UNAVAILABLE"]\n    reason: Code | None\n',
+            ),
+        ),
+    ),
+    Mutant(
+        "R01",
+        'order_ref (customer_order_ref) esposto nella vista',
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                '        "bet_id": _opt(record, "bet_id", _BET),',
+                '        "bet_id": _opt(record, "bet_id", _BET),\n        "order_ref": record.get("order_ref"),',
+            ),
+        ),
+    ),
+    Mutant(
+        "R02",
+        'record non mappabile saltato in silenzio invece che lacuna CORRUPT',
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                '                corrupt.append({"from_seq": seq, "to_seq": seq, "kind": "CORRUPT"})',
+                '                continue',
+            ),
+        ),
+    ),
+    Mutant(
+        "R03",
+        'campo assente non dichiarato in not_recorded',
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                '            not_recorded.append(name)\n            continue',
+                '            continue',
+            ),
+        ),
+    ),
+    Mutant(
+        "R04",
+        'hook accettato con una risposta solo truthy',
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                '        return reader.record_control_api_request(dict(record)) is True',
+                '        return bool(reader.record_control_api_request(dict(record)))',
+            ),
+        ),
+    ),
+    Mutant(
+        "R05",
+        'filtri passati al motore con i nomi della vista',
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                '        out[FILTER_NAMES.get(name, name)] = value',
+                '        out[name] = value',
+            ),
+        ),
+    ),
+    Mutant(
+        "R06",
+        'handshake /v1/meta rifiutato con il registro guasto (stato irraggiungibile via MCP)',
+        (
+            (
+                'src/pickfair_control_api/contract.py',
+                'UNRECORDED_ALLOWED_ROUTES: Final = frozenset({BLACKBOX_STATUS_ROUTE, "/v1/meta"})',
+                'UNRECORDED_ALLOWED_ROUTES: Final = frozenset({BLACKBOX_STATUS_ROUTE})',
+            ),
+        ),
+    ),
+    Mutant(
+        "R07",
+        "tentativo non PENDING accettato dall'adapter",
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                '    if phase == "ATTEMPT" and outcome != "PENDING":',
+                '    if False:',
+            ),
+        ),
+    ),
+    Mutant(
+        "R08",
+        'voci non rappresentabili non contate',
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                '            if not ok or not _NAME.fullmatch(name) or len(out) >= MAX_VALUES:\n                omitted += 1',
+                '            if not ok or not _NAME.fullmatch(name) or len(out) >= MAX_VALUES:\n                pass',
+            ),
+        ),
+    ),
+    Mutant(
+        "R09",
+        'tempo esteso con le cifre sbagliate invece che troncato al ms',
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                '    return f"{m.group(1)}.{(m.group(2) or \'\').ljust(3, \'0\')[:3]}Z"',
+                '    return f"{m.group(1)}.{(m.group(2) or \'\').ljust(3, \'0\')[-3:]}Z"',
+            ),
+        ),
+    ),
+    Mutant(
+        "R10",
+        'ora non UTC accettata',
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                '_TS = re.compile(r"\\A(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})(?:\\.(\\d{1,9}))?(?:Z|\\+00:00)\\Z")',
+                '_TS = re.compile(r"\\A(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})(?:\\.(\\d{1,9}))?(?:Z|[+-]\\d{2}:\\d{2})\\Z")',
             ),
         ),
     ),

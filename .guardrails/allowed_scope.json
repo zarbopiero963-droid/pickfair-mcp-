@@ -804,6 +804,44 @@
         "tests/guards/test_mutation_catalog.py"
       ],
       "max_files": 3
+    },
+    "mcp01p-bb1-ready": {
+      "issue": "mandato owner PF-CLAUDE-C-MCP-BLACKBOX-INTEGRATION-20261109 §2-§3, §6",
+      "scheda": "MCP-01p — lettura della scatola nera pronta per BB-1 (contratto 1.14.0)",
+      "description": "Adapter puro motore->vista (pf_blackbox_01 §3): rinomine, µs->ms, uuid->hex, order_ref mai esposto, not_recorded, valori piatti esatti e omessi contati, record non mappabile = lacuna CORRUPT; vocabolario TELEGRAM/CLI/TRACE, selection_id, data per Roserpina/G7; /v1/meta servito anche col registro guasto; redazione precisa (stake_authorized non è un segreto); lettore finto fedele al §7 e contract test end-to-end; check_reader per la classe reale di B.",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "catalog/g8/pf-mcp-suites.json",
+        "docs/contract_v1.md",
+        "docs/design/BLACKBOX_BB1_COMPATIBILITY.md",
+        "scripts/critical_mutations.py",
+        "src/pickfair_control_api/__init__.py",
+        "src/pickfair_control_api/blackbox_bridge.py",
+        "src/pickfair_control_api/blackbox_query.py",
+        "src/pickfair_control_api/blackbox_redact.py",
+        "src/pickfair_control_api/contract.py",
+        "src/pickfair_control_api/contract_v1.json",
+        "src/pickfair_control_api/server.py",
+        "src/pickfair_mcp/adapters/simulated.py",
+        "src/pickfair_mcp/contract/descriptor.py",
+        "src/pickfair_mcp/contract/descriptor_v1.json",
+        "src/pickfair_mcp/contract/models.py",
+        "src/pickfair_mcp/contract/version.py",
+        "src/pickfair_mcp/tools/blackbox.py",
+        "tests/contract/__init__.py",
+        "tests/contract/fake_engine_blackbox.py",
+        "tests/contract/test_blackbox_bb1_contract.py",
+        "tests/control_api/bodies.py",
+        "tests/control_api/test_blackbox_routes.py",
+        "tests/e2e/test_stdio_subprocess.py",
+        "tests/unit/test_blackbox_models.py",
+        "tests/unit/test_contract_descriptor.py",
+        "tests/unit/test_contract_version.py",
+        "tests/unit/test_control_api_distribution.py",
+        "tests/unit/test_handshake.py",
+        "tests/unit/test_journal.py"
+      ],
+      "max_files": 30
     }
   }
 }

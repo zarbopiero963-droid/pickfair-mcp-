@@ -1,6 +1,6 @@
 {
   "contract_name": "pickfair-control-api",
-  "contract_version": "1.13.0",
+  "contract_version": "1.14.0",
   "error_codes": {
     "control_api": [
       "BAD_HOST",
@@ -182,7 +182,7 @@
     ]
   ],
   "semantics": {
-    "blackbox": "PF-BLACKBOX-01, read-only. The engine's permanent chronological register; the reader never invents: a field the engine did not record is null and listed in the event's `unavailable`. seq is the persistent progressive number: missing seq are reported as gaps (LOST, CORRUPT, or RETENTION when removed by the configured retention), never repaired. phase ATTEMPT is what Pickfair tried (outcome always PENDING), RESULT what actually happened; an exchange AMBIGUOUS is outcome UNKNOWN, never FAILED. Timestamps are UTC with milliseconds; local time is the viewer's job. Values of sensitive names are always [REDACTED]. Filters only on GET /v1/blackbox/events, from a closed whitelist (since, until, after_seq, limit 1-500, session_id, table_id, market_id, order_id, bet_id, strategy, correlation_id, category, origin, severity_min, event_type, outcome, q); an unknown or repeated parameter, a value out of pattern or a range over 31 days is 400 without calling the core. Every Control API request is recorded once in the register (never once per returned event); a request that cannot be recorded is refused 503 BLACKBOX_UNAVAILABLE, except /v1/blackbox/status.",
+    "blackbox": "PF-BLACKBOX-01, read-only. The engine's permanent chronological register; the reader never invents: a field the engine did not record is null and listed in the event's `unavailable`. seq is the persistent progressive number: missing seq are reported as gaps (LOST, CORRUPT, or RETENTION when removed by the configured retention), never repaired. phase ATTEMPT is what Pickfair tried (outcome always PENDING), RESULT what actually happened; an exchange AMBIGUOUS is outcome UNKNOWN, never FAILED. Timestamps are UTC with milliseconds; local time is the viewer's job. Values of sensitive names are always [REDACTED]. Filters only on GET /v1/blackbox/events, from a closed whitelist (since, until, after_seq, limit 1-500, session_id, table_id, market_id, order_id, bet_id, strategy, correlation_id, category, origin, severity_min, event_type, outcome, q); an unknown or repeated parameter, a value out of pattern or a range over 31 days is 400 without calling the core. Every Control API request is recorded once in the register (never once per returned event); a request that cannot be recorded is refused 503 BLACKBOX_UNAVAILABLE, except /v1/blackbox/status and /v1/meta (the handshake, no Pickfair data), so the register's failure stays visible.",
     "codes": "Codes and reasons match ^[A-Z][A-Z0-9_]{0,63}$; free text from the core becomes UNSTRUCTURED and never crosses the API.",
     "config": {
       "keys": {
@@ -885,6 +885,39 @@
                 ],
                 "title": "Correlation Id"
               },
+              "data": {
+                "anyOf": [
+                  {
+                    "maxProperties": 32,
+                    "patternProperties": {
+                      "^[a-z][a-z0-9_.]{0,63}$": {
+                        "anyOf": [
+                          {
+                            "maxLength": 256,
+                            "type": "string"
+                          },
+                          {
+                            "type": "boolean"
+                          },
+                          {
+                            "maximum": 1000000000000000,
+                            "minimum": -1000000000000000,
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Data"
+              },
               "event_id": {
                 "pattern": "^[0-9a-f]{32}$",
                 "title": "Event Id",
@@ -907,14 +940,21 @@
                     "correlation_id",
                     "causation_id",
                     "process_id",
-                    "component"
+                    "component",
+                    "data"
                   ],
                   "type": "string"
                 },
-                "maxItems": 10,
+                "maxItems": 11,
                 "title": "Not Recorded",
                 "type": "array",
                 "uniqueItems": true
+              },
+              "omitted_values": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Omitted Values",
+                "type": "integer"
               },
               "origin": {
                 "enum": [
@@ -923,7 +963,9 @@
                   "MCP",
                   "CONTROL_API",
                   "STRATEGY",
-                  "EXCHANGE"
+                  "EXCHANGE",
+                  "TELEGRAM",
+                  "CLI"
                 ],
                 "title": "Origin",
                 "type": "string"
@@ -1002,6 +1044,7 @@
               },
               "severity": {
                 "enum": [
+                  "TRACE",
                   "DEBUG",
                   "INFO",
                   "WARNING",
@@ -1129,6 +1172,8 @@
               "correlation_id",
               "causation_id",
               "refs",
+              "data",
+              "omitted_values",
               "not_recorded"
             ],
             "title": "BlackboxEvent",
@@ -1291,6 +1336,19 @@
                 ],
                 "title": "Order Id"
               },
+              "selection_id": {
+                "anyOf": [
+                  {
+                    "maximum": 1000000000000,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Selection Id"
+              },
               "strategy": {
                 "anyOf": [
                   {
@@ -1320,6 +1378,7 @@
             "required": [
               "table_id",
               "market_id",
+              "selection_id",
               "order_id",
               "bet_id",
               "strategy"
@@ -6357,7 +6416,9 @@
                   "MCP",
                   "CONTROL_API",
                   "STRATEGY",
-                  "EXCHANGE"
+                  "EXCHANGE",
+                  "TELEGRAM",
+                  "CLI"
                 ],
                 "type": "string"
               },
@@ -6418,6 +6479,7 @@
             "anyOf": [
               {
                 "enum": [
+                  "TRACE",
                   "DEBUG",
                   "INFO",
                   "WARNING",
@@ -6536,6 +6598,39 @@
                 ],
                 "title": "Correlation Id"
               },
+              "data": {
+                "anyOf": [
+                  {
+                    "maxProperties": 32,
+                    "patternProperties": {
+                      "^[a-z][a-z0-9_.]{0,63}$": {
+                        "anyOf": [
+                          {
+                            "maxLength": 256,
+                            "type": "string"
+                          },
+                          {
+                            "type": "boolean"
+                          },
+                          {
+                            "maximum": 1000000000000000,
+                            "minimum": -1000000000000000,
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Data"
+              },
               "event_id": {
                 "pattern": "^[0-9a-f]{32}$",
                 "title": "Event Id",
@@ -6558,14 +6653,21 @@
                     "correlation_id",
                     "causation_id",
                     "process_id",
-                    "component"
+                    "component",
+                    "data"
                   ],
                   "type": "string"
                 },
-                "maxItems": 10,
+                "maxItems": 11,
                 "title": "Not Recorded",
                 "type": "array",
                 "uniqueItems": true
+              },
+              "omitted_values": {
+                "maximum": 1000000,
+                "minimum": 0,
+                "title": "Omitted Values",
+                "type": "integer"
               },
               "origin": {
                 "enum": [
@@ -6574,7 +6676,9 @@
                   "MCP",
                   "CONTROL_API",
                   "STRATEGY",
-                  "EXCHANGE"
+                  "EXCHANGE",
+                  "TELEGRAM",
+                  "CLI"
                 ],
                 "title": "Origin",
                 "type": "string"
@@ -6653,6 +6757,7 @@
               },
               "severity": {
                 "enum": [
+                  "TRACE",
                   "DEBUG",
                   "INFO",
                   "WARNING",
@@ -6780,6 +6885,8 @@
               "correlation_id",
               "causation_id",
               "refs",
+              "data",
+              "omitted_values",
               "not_recorded"
             ],
             "title": "BlackboxEvent",
@@ -6986,6 +7093,19 @@
                 ],
                 "title": "Order Id"
               },
+              "selection_id": {
+                "anyOf": [
+                  {
+                    "maximum": 1000000000000,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Selection Id"
+              },
               "strategy": {
                 "anyOf": [
                   {
@@ -7015,6 +7135,7 @@
             "required": [
               "table_id",
               "market_id",
+              "selection_id",
               "order_id",
               "bet_id",
               "strategy"
@@ -9233,6 +9354,39 @@
               ],
               "title": "Correlation Id"
             },
+            "data": {
+              "anyOf": [
+                {
+                  "maxProperties": 32,
+                  "patternProperties": {
+                    "^[a-z][a-z0-9_.]{0,63}$": {
+                      "anyOf": [
+                        {
+                          "maxLength": 256,
+                          "type": "string"
+                        },
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "maximum": 1000000000000000,
+                          "minimum": -1000000000000000,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Data"
+            },
             "event_id": {
               "pattern": "^[0-9a-f]{32}$",
               "title": "Event Id",
@@ -9255,14 +9409,21 @@
                   "correlation_id",
                   "causation_id",
                   "process_id",
-                  "component"
+                  "component",
+                  "data"
                 ],
                 "type": "string"
               },
-              "maxItems": 10,
+              "maxItems": 11,
               "title": "Not Recorded",
               "type": "array",
               "uniqueItems": true
+            },
+            "omitted_values": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Omitted Values",
+              "type": "integer"
             },
             "origin": {
               "enum": [
@@ -9271,7 +9432,9 @@
                 "MCP",
                 "CONTROL_API",
                 "STRATEGY",
-                "EXCHANGE"
+                "EXCHANGE",
+                "TELEGRAM",
+                "CLI"
               ],
               "title": "Origin",
               "type": "string"
@@ -9350,6 +9513,7 @@
             },
             "severity": {
               "enum": [
+                "TRACE",
                 "DEBUG",
                 "INFO",
                 "WARNING",
@@ -9477,6 +9641,8 @@
             "correlation_id",
             "causation_id",
             "refs",
+            "data",
+            "omitted_values",
             "not_recorded"
           ],
           "title": "BlackboxEvent",
@@ -9523,6 +9689,19 @@
               ],
               "title": "Order Id"
             },
+            "selection_id": {
+              "anyOf": [
+                {
+                  "maximum": 1000000000000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Selection Id"
+            },
             "strategy": {
               "anyOf": [
                 {
@@ -9552,6 +9731,7 @@
           "required": [
             "table_id",
             "market_id",
+            "selection_id",
             "order_id",
             "bet_id",
             "strategy"
@@ -9697,6 +9877,39 @@
               ],
               "title": "Correlation Id"
             },
+            "data": {
+              "anyOf": [
+                {
+                  "maxProperties": 32,
+                  "patternProperties": {
+                    "^[a-z][a-z0-9_.]{0,63}$": {
+                      "anyOf": [
+                        {
+                          "maxLength": 256,
+                          "type": "string"
+                        },
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "maximum": 1000000000000000,
+                          "minimum": -1000000000000000,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Data"
+            },
             "event_id": {
               "pattern": "^[0-9a-f]{32}$",
               "title": "Event Id",
@@ -9719,14 +9932,21 @@
                   "correlation_id",
                   "causation_id",
                   "process_id",
-                  "component"
+                  "component",
+                  "data"
                 ],
                 "type": "string"
               },
-              "maxItems": 10,
+              "maxItems": 11,
               "title": "Not Recorded",
               "type": "array",
               "uniqueItems": true
+            },
+            "omitted_values": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Omitted Values",
+              "type": "integer"
             },
             "origin": {
               "enum": [
@@ -9735,7 +9955,9 @@
                 "MCP",
                 "CONTROL_API",
                 "STRATEGY",
-                "EXCHANGE"
+                "EXCHANGE",
+                "TELEGRAM",
+                "CLI"
               ],
               "title": "Origin",
               "type": "string"
@@ -9814,6 +10036,7 @@
             },
             "severity": {
               "enum": [
+                "TRACE",
                 "DEBUG",
                 "INFO",
                 "WARNING",
@@ -9941,6 +10164,8 @@
             "correlation_id",
             "causation_id",
             "refs",
+            "data",
+            "omitted_values",
             "not_recorded"
           ],
           "title": "BlackboxEvent",
@@ -10020,6 +10245,19 @@
               ],
               "title": "Order Id"
             },
+            "selection_id": {
+              "anyOf": [
+                {
+                  "maximum": 1000000000000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Selection Id"
+            },
             "strategy": {
               "anyOf": [
                 {
@@ -10049,6 +10287,7 @@
           "required": [
             "table_id",
             "market_id",
+            "selection_id",
             "order_id",
             "bet_id",
             "strategy"

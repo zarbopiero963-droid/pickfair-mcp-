@@ -231,7 +231,7 @@ class SimulatedControlApiAdapter:
 _SCENARIO_BODIES: dict[Scenario, bytes] = {
     Scenario.COMPATIBLE: _encode(_meta()),
     Scenario.INCOMPATIBLE_MAJOR: _encode(_meta(contract_version="2.0.0")),
-    Scenario.UNSUPPORTED_MINOR: _encode(_meta(contract_version="1.14.0")),
+    Scenario.UNSUPPORTED_MINOR: _encode(_meta(contract_version="1.15.0")),
     Scenario.SCHEMA_HASH_MISMATCH: _encode(_meta(schema_hash="0" * 64)),
     Scenario.MISSING_META_CAPABILITY: _encode(_meta(capabilities=["GET /v1/status"])),
     Scenario.META_ONLY: _encode(_meta(capabilities=["GET /v1/meta"])),
@@ -945,8 +945,9 @@ def _bb_event(seq: int, **over: Any) -> dict[str, Any]:
         "state_after": None, "values_before": None,
         "values_after": None, "reason": None, "reason_code": None, "correlation_id": None,
         "causation_id": None,
-        "refs": {"table_id": None, "market_id": None, "order_id": None, "bet_id": None,
-                 "strategy": None},
+        "refs": {"table_id": None, "market_id": None, "selection_id": None, "order_id": None,
+                 "bet_id": None, "strategy": None},
+        "data": None, "omitted_values": 0,
         "not_recorded": [],
     }
     data.update(over)
@@ -958,15 +959,18 @@ def _bb_sim_events() -> list[dict[str, Any]]:
     attempt = _bb_event(2, ts_utc="2026-11-07T15:00:01.250Z", origin="STRATEGY", category="ORDER",
                         event_type="ORDER_PLACE_ATTEMPT", phase="ATTEMPT", outcome="PENDING",
                         correlation_id="sim-corr-1", values_after={"stake": "2.00", "price": "3.1"},
-                        refs={"table_id": 1, "market_id": _SIM_MARKET, "order_id": 7,
-                              "bet_id": None, "strategy": "roserpina"})
+                        refs={"table_id": 1, "market_id": _SIM_MARKET, "selection_id": 101,
+                              "order_id": 7, "bet_id": None, "strategy": "roserpina"},
+                        data={"bankroll_verified": "100.00", "mm_pct": "2",
+                              "stake_theoretical": "2.00", "stake_authorized": "2.00",
+                              "currency": "EUR"})
     result = _bb_event(3, ts_utc="2026-11-07T15:00:01.900Z", origin="EXCHANGE", category="ORDER",
                        event_type="ORDER_PLACE_RESULT", phase="RESULT", outcome="VERIFIED",
                        state_before="INFLIGHT", state_after="SUBMITTED",
                        correlation_id="sim-corr-1",
                        causation_id=attempt["event_id"],
-                       refs={"table_id": 1, "market_id": _SIM_MARKET, "order_id": 7,
-                             "bet_id": "1001", "strategy": "roserpina"})
+                       refs={"table_id": 1, "market_id": _SIM_MARKET, "selection_id": 101,
+                             "order_id": 7, "bet_id": "1001", "strategy": "roserpina"})
     start = _bb_event(1, event_type="SESSION_STARTED", values_after={"api_key": "[REDACTED]"})
     return [start, attempt, result]
 

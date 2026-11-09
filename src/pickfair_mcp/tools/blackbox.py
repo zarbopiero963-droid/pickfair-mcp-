@@ -95,7 +95,8 @@ EVENTS_DESCRIPTION = (
     "since/until (UTC, YYYY-MM-DDTHH:MM:SS[.mmm]Z, at most 31 days), session_id (a session's "
     "history), "
     "table_id (a table's history), order_id or bet_id (an order's lifecycle), market_id, strategy, "
-    "correlation_id, category, origin (USER, SYSTEM, MCP, CONTROL_API, STRATEGY, EXCHANGE), "
+    "correlation_id, category, origin (USER, SYSTEM, MCP, CONTROL_API, STRATEGY, EXCHANGE, "
+    "TELEGRAM, CLI), "
     "severity_min, event_type, outcome, q (text search). Pages of up to 500 events: if truncated, "
     "call "
     "again with after_seq = next_after_seq. To answer 'what happened between 15:00 and 17:00', "
@@ -140,7 +141,7 @@ class ListBlackboxEventsInput(StrictModel):
     correlation_id: SessionKey | None = None
     category: BlackboxCategory | None = None
     origin: BlackboxOrigin | None = None
-    severity_min: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] | None = None
+    severity_min: Literal["TRACE", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] | None = None
     event_type: UpperCode | None = None
     outcome: BlackboxOutcome | None = None
     q: SearchText | None = None

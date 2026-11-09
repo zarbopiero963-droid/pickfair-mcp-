@@ -57,6 +57,7 @@ from pickfair_control_api.contract import (
     PROVIDER_NAMES,
     QUERY_ROUTE_SCHEMAS,
     ROUTE_SCHEMAS,
+    UNRECORDED_ALLOWED_ROUTES,
     response_schema,
     schema_hash,
     unserved_read_routes,
@@ -262,7 +263,7 @@ class _Handler(BaseHTTPRequestHandler):
         }
         if not app.record(attempt):
             self._mark_unrecorded()
-            if route != BLACKBOX_STATUS_ROUTE:
+            if route not in UNRECORDED_ALLOWED_ROUTES:
                 return self._error(503, "BLACKBOX_UNAVAILABLE")
         try:
             body = read()

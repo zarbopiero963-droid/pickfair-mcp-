@@ -130,6 +130,35 @@
       "allowed_skips": []
     },
     {
+      "id": "mcp-contract",
+      "component": "pickfair_mcp",
+      "behaviour": "contract test BB-1 della scatola nera: lettore nella forma del motore (pf_blackbox_01 §3) -> adapter -> Control API reale -> MCP; nessun PASS sul motore reale",
+      "category": "contract",
+      "runner": "pytest",
+      "args": [
+        "tests/contract"
+      ],
+      "environment": "OFFLINE",
+      "risk": "LOW",
+      "timeout_seconds": 900,
+      "resources": {
+        "cpu": 2,
+        "memory_mb": 2048
+      },
+      "datasets": [],
+      "evidence": [
+        "junit",
+        "log"
+      ],
+      "requires": [],
+      "criteria": {
+        "PASS": "exit 0, nessun test fallito o in errore e nessun test saltato fuori da allowed_skips",
+        "FAIL": "almeno un test fallito o in errore",
+        "BLOCKED": "prerequisito assente (es. checkout del core) o test saltato fuori da allowed_skips: mai PASS"
+      },
+      "allowed_skips": []
+    },
+    {
       "id": "mcp-e2e",
       "component": "pickfair_mcp",
       "behaviour": "processo stdio reale: protocollo MCP, journal, kill, raw stdio",
@@ -197,6 +226,7 @@
       "mcp-guards",
       "mcp-control-api",
       "mcp-integration",
+      "mcp-contract",
       "mcp-e2e"
     ],
     "all": [
@@ -204,6 +234,7 @@
       "mcp-guards",
       "mcp-control-api",
       "mcp-integration",
+      "mcp-contract",
       "mcp-e2e",
       "mcp-crossrepo"
     ]

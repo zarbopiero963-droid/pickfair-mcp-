@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import itertools
+import re
 from decimal import Decimal
 from typing import Annotated, Literal
 
@@ -1585,15 +1586,22 @@ BLACKBOX_REDACTED = "[REDACTED]"
 # Nomi di campo i cui valori non escono mai in chiaro (seconda redazione, difesa in profondità).
 BLACKBOX_SENSITIVE_FRAGMENTS: tuple[str, ...] = (
     "token", "secret", "password", "passwd", "bearer", "credential", "cookie", "ssoid", "private",
-    "api_key", "apikey", "application", "auth", "customer_ref", "certificate", "pem",
+    "api_key", "apikey", "application", "customer_ref", "certificate",
 )
+# Frammenti brevi: sensibili solo come segmento intero del nome (separato da _ . -), così
+# `auth_header` è redatto e `stake_authorized` (diagnosi di Roserpina, G7) no.
+BLACKBOX_SENSITIVE_SEGMENTS: tuple[str, ...] = ("auth", "authorization", "pem", "otp")
 
 BlackboxSeq = Annotated[int, Field(ge=1, le=10**15)]
 BlackboxEventId = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{32}$")]
 _UTC_MILLIS = r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$"
 UtcMillis = Annotated[str, StringConstraints(pattern=_UTC_MILLIS)]
-BlackboxOrigin = Literal["USER", "SYSTEM", "MCP", "CONTROL_API", "STRATEGY", "EXCHANGE"]
-BlackboxSeverity = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+# Vocabolario del motore (pf_blackbox_01 §3): anche TELEGRAM e CLI; livelli di
+# event_journal.LEVELS.
+BlackboxOrigin = Literal[
+    "USER", "SYSTEM", "MCP", "CONTROL_API", "STRATEGY", "EXCHANGE", "TELEGRAM", "CLI"
+]
+BlackboxSeverity = Literal["TRACE", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 BlackboxPhase = Literal["ATTEMPT", "RESULT", "OBSERVATION"]
 BlackboxOutcome = Literal["VERIFIED", "PENDING", "UNKNOWN", "REJECTED", "FAILED", "NOT_APPLICABLE"]
 UpperCode = Annotated[str, StringConstraints(pattern=r"^[A-Z][A-Z0-9_]{0,63}$")]
@@ -1610,13 +1618,15 @@ BetIdText = Annotated[str, StringConstraints(pattern=r"^[0-9]{1,20}$")]
 
 BlackboxRecordedField = Literal[
     "state_before", "state_after", "values_before", "values_after", "reason", "reason_code",
-    "correlation_id", "causation_id", "process_id", "component",
+    "correlation_id", "causation_id", "process_id", "component", "data",
 ]
 
 
 def _is_sensitive_name(name: str) -> bool:
     lowered = name.lower()
-    return any(fragment in lowered for fragment in BLACKBOX_SENSITIVE_FRAGMENTS)
+    if any(fragment in lowered for fragment in BLACKBOX_SENSITIVE_FRAGMENTS):
+        return True
+    return any(part in BLACKBOX_SENSITIVE_SEGMENTS for part in re.split(r"[_.\-]", lowered))
 
 
 def _redacted_values(
@@ -1639,6 +1649,7 @@ BlackboxValues = Annotated[
 class BlackboxRefs(StrictModel):
     table_id: Annotated[int, Field(ge=1, le=9999)] | None
     market_id: MarketId | None
+    selection_id: Annotated[int, Field(ge=1, le=10**12)] | None
     order_id: Annotated[int, Field(ge=1, le=10**15)] | None
     bet_id: BetIdText | None
     strategy: StrategyName | None
@@ -1668,9 +1679,17 @@ class BlackboxEvent(StrictModel):
     correlation_id: SessionKey | None
     causation_id: BlackboxEventId | None
     refs: BlackboxRefs
+    # Dettagli redatti dell'evento (es. la decisione di stake di Roserpina: bankroll, percentuale
+    # MM,
+    # stake teorico e autorizzato, riserve, commissioni, valuta), appiattiti con nomi puntati.
+    data: BlackboxValues | None
+    # Voci di values_before/values_after/data non rappresentabili (liste, valori oltre 256
+    # caratteri,
+    # oltre 32 voci, nomi fuori pattern): non mostrate e contate qui, mai troncate in silenzio.
+    omitted_values: Count
     not_recorded: Annotated[
         tuple[BlackboxRecordedField, ...],
-        Field(max_length=10, json_schema_extra={"uniqueItems": True}),
+        Field(max_length=11, json_schema_extra={"uniqueItems": True}),
     ]
 
     @model_validator(mode="after")
@@ -1686,7 +1705,7 @@ class BlackboxEvent(StrictModel):
             "values_before": self.values_before, "values_after": self.values_after,
             "reason": self.reason, "reason_code": self.reason_code,
             "correlation_id": self.correlation_id, "causation_id": self.causation_id,
-            "process_id": self.process_id, "component": self.component,
+            "process_id": self.process_id, "component": self.component, "data": self.data,
         }
         for name in self.not_recorded:
             if recorded[name] is not None:
@@ -1763,8 +1782,15 @@ class BlackboxEventsResponse(StrictModel):
             return self
         if self.truncated != (self.next_after_seq != 0):
             raise ValueError("truncated iff a next cursor is given")
-        if self.next_after_seq and (not self.events or self.next_after_seq != self.events[-1].seq):
-            raise ValueError("the cursor is the last returned seq")
+        # Il cursore è l'ultimo seq letto: almeno l'ultimo evento restituito (può superarlo se gli
+        # ultimi
+        # record della pagina erano corrotti e sono riportati come lacuna CORRUPT, mai riletti
+        # all'infinito).
+        if self.next_after_seq and self.events and self.next_after_seq < self.events[-1].seq:
+            raise ValueError("the cursor is behind the last returned event")
+        beyond = self.as_of_seq is not None and self.next_after_seq > self.as_of_seq
+        if self.next_after_seq and beyond:
+            raise ValueError("the cursor is beyond the reported write position")
         if self.as_of_seq is not None and self.events and self.events[-1].seq > self.as_of_seq:
             raise ValueError("event beyond the reported write position")
         return self

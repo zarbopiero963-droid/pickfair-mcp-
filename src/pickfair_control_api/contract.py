@@ -14,7 +14,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Final
 
-CONTRACT_VERSION: Final = "1.13.0"
+CONTRACT_VERSION: Final = "1.14.0"
 DESCRIPTOR_PATH: Final = Path(__file__).with_name("contract_v1.json")
 
 # Route servite in sola lettura. Nessuna route di comando.
@@ -36,6 +36,12 @@ ROUTE_SCHEMAS: Final = {
 # (blackbox_query.parse_events_query).
 QUERY_ROUTE_SCHEMAS: Final = {"/v1/blackbox/events": "blackbox_events"}
 BLACKBOX_STATUS_ROUTE: Final = "/v1/blackbox/status"
+# Servite anche se la richiesta non si può registrare (il mancato record è contato): lo stato del
+# registro
+# serve a vedere il guasto, e /v1/meta (solo versione e capacità, nessun dato) è l'handshake senza
+# cui
+# l'MCP non arriverebbe nemmeno allo stato.
+UNRECORDED_ALLOWED_ROUTES: Final = frozenset({BLACKBOX_STATUS_ROUTE, "/v1/meta"})
 # MCP-01l: route servite con UN parametro di percorso. Il parametro deve rispettare il proprio pattern
 # (mai «.» o «..»); fuori pattern la route risponde 404. Il provider riceve il valore validato.
 MARKET_ID_RE: Final = re.compile(r"[0-9]{1,4}\.[0-9]{1,15}")

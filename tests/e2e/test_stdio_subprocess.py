@@ -131,7 +131,7 @@ def test_contract_info_prints_version_and_hash() -> None:
     proc = run_cli("contract-info")
     assert proc.returncode == 0
     info = json.loads(proc.stdout)
-    assert info["supported_contract_version"] == "1.13.0"
+    assert info["supported_contract_version"] == "1.14.0"
     assert len(info["schema_hash"]) == 64
     assert info["routes"] == 29  # 25 + 4 di lettura della scatola nera (PF-BLACKBOX-01)
     assert info["tools"] == [

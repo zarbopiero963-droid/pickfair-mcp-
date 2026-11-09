@@ -143,9 +143,20 @@ def test_unrecordable_request_gets_no_data(api: Any, hook: Any) -> None:
         raise RuntimeError("disk full")
 
     prov.hook_accepts = failing if hook == "raise" else False
-    for path in ("/v1/status", "/v1/blackbox/events", f"/v1/blackbox/events/{'a' * 32}"):
+    for path in ("/v1/status", "/v1/blackbox/events", f"/v1/blackbox/events/{'a' * 32}",
+                 "/v1/blackbox/sessions", "/v1/config", "/v1/orders"):
         assert get(api, path) == (503, {"error": {"code": "BLACKBOX_UNAVAILABLE"}})
     assert prov.calls == 0  # nessun dato è uscito né è stato letto
+
+
+def test_meta_handshake_is_served_so_the_mcp_can_reach_the_status(api: Any) -> None:
+    prov = api[3]
+    prov.hook_accepts = False
+    status, body = get(api, "/v1/meta")
+    # Solo versione e capacità, nessun dato di Pickfair.
+    assert status == 200 and "contract_version" in body
+    assert prov.calls == 0
+    assert get(api, "/v1/blackbox/status")[1]["requests_unrecorded"] == 2  # meta + stato, contati
 
 
 def test_status_is_served_and_counts_the_unrecorded_requests(api: Any) -> None:
@@ -239,10 +250,14 @@ def test_detail_and_chain_are_redacted_too(api: Any) -> None:
 
 
 def test_sensitive_lists_are_the_same_on_both_sides() -> None:
-    from pickfair_control_api.blackbox_redact import SENSITIVE_FRAGMENTS
-    from pickfair_mcp.contract.models import BLACKBOX_SENSITIVE_FRAGMENTS
+    from pickfair_control_api.blackbox_redact import SENSITIVE_FRAGMENTS, SENSITIVE_SEGMENTS
+    from pickfair_mcp.contract.models import (
+        BLACKBOX_SENSITIVE_FRAGMENTS,
+        BLACKBOX_SENSITIVE_SEGMENTS,
+    )
 
     assert SENSITIVE_FRAGMENTS == BLACKBOX_SENSITIVE_FRAGMENTS
+    assert SENSITIVE_SEGMENTS == BLACKBOX_SENSITIVE_SEGMENTS
 
 
 def test_result_record_carries_the_count_never_the_content(api: Any) -> None:
@@ -255,3 +270,30 @@ def test_result_record_carries_the_count_never_the_content(api: Any) -> None:
     # 7 eventi; evento + 1 causa; non applicabile allo stato del runtime.
     assert [r["returned"] for r in results] == [7, 2, None]
     assert all("events" not in r and "event" not in r for r in prov.records)
+
+
+# Diagnosi di Roserpina / G7-COMP: i campi della decisione di stake non sono segreti.
+G7_FIELDS = ("bankroll_verified", "mm_pct", "stake_theoretical", "stake_authorized",
+             "stake_rejected",
+             "reserved_funds", "committed_funds", "pnl_realized", "commission", "currency",
+             "reject_reason", "author")
+SECRET_FIELDS = ("auth", "auth_header", "x.auth", "api_key", "app_apikey", "bot_token", "password",
+                 "customer_ref", "customer_ref_hash", "client_secret", "private_key", "otp",
+                 "cert.pem",
+                 "x_application", "ssoid", "cookie")
+
+
+@pytest.mark.parametrize("name", G7_FIELDS)
+def test_stake_diagnosis_fields_are_never_redacted(name: str) -> None:
+    from pickfair_control_api.blackbox_redact import is_sensitive
+    from pickfair_mcp.contract.models import _is_sensitive_name
+
+    assert not is_sensitive(name) and not _is_sensitive_name(name)
+
+
+@pytest.mark.parametrize("name", SECRET_FIELDS)
+def test_secret_fields_are_always_redacted(name: str) -> None:
+    from pickfair_control_api.blackbox_redact import is_sensitive
+    from pickfair_mcp.contract.models import _is_sensitive_name
+
+    assert is_sensitive(name) and _is_sensitive_name(name)

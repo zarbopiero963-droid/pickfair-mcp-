@@ -504,3 +504,20 @@ in `docs/design/BLACKBOX_READ_CONTRACT.md`.
 
 Stato: offline. Il ponte del core si scrive sopra l'interfaccia di lettura di Claude B (§7 del contratto di
 lettura); fino ad allora la suite crossrepo con il core reale è BLOCKED.
+
+## MCP-01p — lettura della scatola nera pronta per BB-1 (contratto 1.14.0)
+
+Allineamento al record reale del motore (`pf_blackbox_01.md` §3 di Claude B) prima dell'integrazione:
+- `origin` comprende anche `TELEGRAM` e `CLI`; `severity` anche `TRACE` (filtri compresi);
+- `refs.selection_id`; `data` (dettagli redatti dell'evento, per esempio la decisione di stake di Roserpina) e
+  `omitted_values` (voci non rappresentabili, contate e non mostrate);
+- il cursore di pagina può superare l'ultimo evento restituito quando gli ultimi record erano corrotti (lacuna
+  CORRUPT), mai oltre `as_of_seq`;
+- `/v1/meta` è servito anche se la richiesta non si può registrare (come `/v1/blackbox/status`): senza handshake
+  l'MCP non raggiungerebbe lo stato del registro guasto;
+- redazione precisa: i frammenti brevi (`auth`, `authorization`, `pem`, `otp`) contano solo come segmento intero
+  del nome, così `stake_authorized` (G7) resta leggibile e `auth_header` no.
+
+Adapter puro motore → vista `pickfair_control_api.blackbox_bridge` (`make_providers`, `make_request_hook`,
+`check_reader`); condizioni di compatibilità in `docs/design/BLACKBOX_BB1_COMPATIBILITY.md`; contract test in
+`tests/contract/` (suite G8 `mcp-contract`).

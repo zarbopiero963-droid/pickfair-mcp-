@@ -12,11 +12,11 @@ import copy
 
 from pickfair_mcp.contract import version as v
 
-GOLDEN_SCHEMA_HASH = "36be240bf0381e5fbbcf2158e644b41e20d27a4ebd3d7f0a86de0988fe430c66"
+GOLDEN_SCHEMA_HASH = "36cf700894ba513a151afe026a89dd15b10e10c51455077846b92e3f7ef08255"
 
 
 def test_supported_version_is_semver_1_5_0() -> None:
-    assert v.SUPPORTED_CONTRACT_VERSION == "1.13.0"
+    assert v.SUPPORTED_CONTRACT_VERSION == "1.14.0"
 
 
 def test_schema_hash_is_stable_golden_value() -> None:
@@ -43,7 +43,7 @@ def test_hash_is_independent_of_key_order() -> None:
 
 
 def test_compat_matrix_only_lists_the_supported_pair() -> None:
-    assert dict(v.COMPAT_MATRIX) == {"1.13.0": frozenset({v.contract_schema_hash()})}
+    assert dict(v.COMPAT_MATRIX) == {"1.14.0": frozenset({v.contract_schema_hash()})}
 
 
 def test_capabilities_are_route_keys() -> None:

@@ -461,8 +461,9 @@ def bb_event(seq: int = 1, **overrides: Any) -> dict[str, Any]:
         "state_after": "SUBMITTED",
         "values_before": None, "values_after": {"stake": "2.50", "price": "3.1"},
         "reason": None, "reason_code": None, "correlation_id": "corr-1", "causation_id": None,
-        "refs": {"table_id": 1, "market_id": "1.234567", "order_id": 42, "bet_id": "31415",
-                 "strategy": "roserpina"},
+        "refs": {"table_id": 1, "market_id": "1.234567", "selection_id": 47972, "order_id": 42,
+                 "bet_id": "31415", "strategy": "roserpina"},
+        "data": None, "omitted_values": 0,
         "not_recorded": [],
     }
     data.update(overrides)

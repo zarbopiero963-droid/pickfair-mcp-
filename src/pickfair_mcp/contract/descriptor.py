@@ -174,7 +174,8 @@ SEMANTICS: Final = {
         "event_type, outcome, q); an unknown or repeated parameter, a value out of pattern or a "
         "range over 31 days is 400 without calling the core. Every Control API request is "
         "recorded once in the register (never once per returned event); a request that cannot "
-        "be recorded is refused 503 BLACKBOX_UNAVAILABLE, except /v1/blackbox/status."
+        "be recorded is refused 503 BLACKBOX_UNAVAILABLE, except /v1/blackbox/status and /v1/meta "
+        "(the handshake, no Pickfair data), so the register's failure stays visible."
     ),
     "protections": (
         "Each protection is ACTIVE, INACTIVE, TRIGGERED, UNKNOWN or UNAVAILABLE; only ACTIVE has "

@@ -71,7 +71,8 @@ def ev(**over: Any) -> dict[str, Any]:
         bodies.bb_events([bodies.bb_event(1), bodies.bb_event(1)]),
         bodies.bb_events([bodies.bb_event(1), bodies.bb_event(2, event_id=f"{1:032x}")]),
         bodies.bb_events(truncated=True),  # troncato senza cursore
-        bodies.bb_events(next_after_seq=1, truncated=True),  # il cursore è l'ultimo seq
+        bodies.bb_events(next_after_seq=1, truncated=True),  # cursore dietro l'ultimo evento
+        bodies.bb_events(next_after_seq=9, truncated=True),  # cursore oltre la posizione scritta
         bodies.bb_events(next_after_seq=2),  # cursore senza troncamento
         bodies.bb_events(as_of_seq=None),  # nullo non dichiarato
         bodies.bb_events(as_of_seq=1),  # evento oltre la posizione scritta
@@ -178,3 +179,11 @@ def test_status_rejected(body: dict[str, Any]) -> None:
 def test_unavailable_register_with_its_reason() -> None:
     body = bodies.bb_status(available=False, last_write_error_code="DISK_FULL")
     assert parse_blackbox_status(raw(body)).last_write_error_code == "DISK_FULL"
+
+
+def test_cursor_may_skip_corrupt_records_at_the_end_of_the_page() -> None:
+    body = bodies.bb_events(
+        next_after_seq=4, truncated=True, as_of_seq=9,
+        gaps_in_range=[{"from_seq": 3, "to_seq": 4, "kind": "CORRUPT"}],
+    )
+    assert parse_blackbox_events(raw(body)).next_after_seq == 4
