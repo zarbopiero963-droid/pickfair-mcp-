@@ -44,7 +44,10 @@ from pickfair_control_api.blackbox_query import ORIGINS, OUTCOMES, SEVERITIES
 
 PHASES: Final = frozenset({"ATTEMPT", "RESULT", "OBSERVATION"})
 GAP_KINDS: Final = frozenset({"LOST", "CORRUPT", "RETENTION"})
-MAX_CHAIN: Final = 32
+# Profondità della catena chiesta al motore: il limite di BB-1 (`MAX_CHAIN_DEPTH = 20`,
+# confermato da B). Oltre, il lettore risponde con un errore e ogni lettura di un evento
+# fallirebbe. La vista ne ammette fino a 32.
+MAX_CHAIN: Final = 20
 MAX_VALUES: Final = 32
 MAX_TEXT: Final = 256
 # Campi del record che il motore può non aver registrato (assenti => not_recorded).

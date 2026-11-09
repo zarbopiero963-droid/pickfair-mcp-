@@ -270,7 +270,8 @@ async def test_why_an_order_is_ambiguous_follows_the_causal_chain(tmp_path: Path
     detail = out["data"]["event"]
     assert [c["event_type"] for c in detail["chain"]] == ["ORDER_PLACE", "STAKE_DECISION"]
     assert detail["chain_broken_at"] is None
-    assert reader.gets == [(uid(6), 32)]  # il motore riceve il suo formato di id (32 hex)
+    # Il motore riceve il suo formato di id (32 hex) e una profondità entro il suo limite (20).
+    assert reader.gets == [(uid(6), 20)]
 
 
 async def test_filters_use_the_engine_names(tmp_path: Path) -> None:

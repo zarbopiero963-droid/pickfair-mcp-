@@ -1919,6 +1919,17 @@ MUTANTS: tuple[Mutant, ...] = (
         ),
     ),
     Mutant(
+        "R26",
+        "catena chiesta oltre il limite di BB-1 (ogni get_blackbox_event fallirebbe)",
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                'MAX_CHAIN: Final = 20',
+                'MAX_CHAIN: Final = 32',
+            ),
+        ),
+    ),
+    Mutant(
         "O01",
         "ordine AMBIGUOUS accettato come FAILED",
         (

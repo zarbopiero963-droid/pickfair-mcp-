@@ -42,7 +42,7 @@ controllo di B è stato statico.
 | `status()` | — | `{ok, degraded, dropped_non_critical, as_of_seq, count, buffered, session_id, not_reported}` | mappato (§5), verificato sulla fixture |
 | `sessions()` | — | lista di `{session_id, pid, started, last_ts, first_seq, last_seq, clean_shutdown}` | mappato (§6), verificato sulla fixture |
 | `query(filters, after_seq, limit, *, external)` | filtri del motore (§4), cursore, 1–500; sempre `external=True` | `{records, next_after_seq, gaps_in_range, as_of_seq}` | mappato, verificato sulla fixture |
-| `get(event_id, chain_depth, *, external)` | 32 hex minuscoli senza trattini, profondità 32, `external=True` | il record con `causation_chain`, oppure `None` | mappato, verificato sulla fixture |
+| `get(event_id, chain_depth, *, external)` | 32 hex minuscoli senza trattini, profondità 20 (il `MAX_CHAIN_DEPTH` di BB-1; prima 32, rifiutato dalla classe reale), `external=True` | il record con `causation_chain`, oppure `None` | mappato, verificato sulla fixture |
 | `request_hook(record)` | record dell'hook (§7) | `True` solo se scritto; qualunque altro valore = non registrato | verificato sulla fixture (`true`) |
 
 Il lettore **non** espone `record`, `delete`, `update`, `write`, `purge` o `truncate`: `check_reader` lo rifiuta.

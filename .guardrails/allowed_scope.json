@@ -977,6 +977,20 @@
         "docs/mutation/run_campaign.py"
       ],
       "max_files": 8
+    },
+    "mcp01r-bb1-chain-depth": {
+      "issue": "PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109 FASE 4-5; verifica sulla classe reale BB-1 (#617 @ 3b6848d6), I1 confermato da B (pfab-b-20261109-bb1-pr617-verify-reply-008)",
+      "scheda": "MCP-01r — profondità della catena chiesta a BB-1: 20 (MAX_CHAIN_DEPTH reale)",
+      "description": "Patch minima: l'adapter chiedeva get(id, 32) e la classe reale accetta al massimo 20 (QueryError: ogni get_blackbox_event falliva). MAX_CHAIN = 20, lettore finto con il limite reale (RED 2 -> GREEN), mutante R26; contratto e schema invariati.",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "docs/design/BLACKBOX_BB1_COMPATIBILITY.md",
+        "scripts/critical_mutations.py",
+        "src/pickfair_control_api/blackbox_bridge.py",
+        "tests/contract/fake_engine_blackbox.py",
+        "tests/contract/test_blackbox_bb1_contract.py"
+      ],
+      "max_files": 6
     }
   }
 }

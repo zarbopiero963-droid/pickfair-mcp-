@@ -14,6 +14,8 @@ import uuid
 from typing import Any
 
 SESSION = "s-20261108-1"
+# Profondità massima della catena di BB-1 (`core.blackbox_query.MAX_CHAIN_DEPTH`, PR #617).
+MAX_CHAIN_DEPTH = 20
 
 
 ORDER_ALIAS = "ord_" + uuid.UUID(int=42).hex  # alias opaco di BB-1 (HMAC dell'id interno)
@@ -244,6 +246,8 @@ class FakeBlackboxQuery:
         assente vale {event_id, missing: true}; un evento inesistente dà None."""
         assert external is True
         self.gets.append((event_id, chain_depth))
+        if not 0 <= chain_depth <= MAX_CHAIN_DEPTH:  # come BB-1: QueryError oltre il limite
+            raise ValueError(f"chain_depth fuori da 0..{MAX_CHAIN_DEPTH}")
         by_id = {r["event_id"]: r for r in self.records}
         rec = by_id.get(event_id)
         if rec is None:
