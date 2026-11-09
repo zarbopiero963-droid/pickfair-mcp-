@@ -1,15 +1,15 @@
 {
  "schema": "pf-checkpoint/3",
  "repository": "zarbopiero963-droid/pickfair-mcp-",
- "seq": 12,
+ "seq": 13,
  "agent": "claude-c",
  "agent_identity": "Claude C — MCP + Control API (sessione session_013X2mCaF4fE5YMWGVrM8LtR)",
  "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01",
- "previous_checkpoint_sha": "96d78d1368c785ab42fa8c61365ffc384f4c7614",
+ "previous_checkpoint_sha": "bfcbbc45631e06c610a608f4e4e9a58732fa3748",
  "code": {
   "branch": "ccr-edf04c7d-e7vtj1-mcp01p-bb1-ready",
-  "sha": "df044fc2f055335034b020dbeb879cefdb267361",
-  "tree": "91752aed7cc4758fbb2d4bcf2cd524f92e32d4f4"
+  "sha": "869d2c0f00ec866d022f4ca2589ef1926d7447ae",
+  "tree": "a11edeaba1d93f134bf36304638117132ad4f0f5"
  },
  "published_branches": {
   "ccr-edf04c7d-e7vtj1": "647d5e8d269952af975ec01df7be27abf2ff3c1e",
@@ -33,7 +33,7 @@
   "ccr-edf04c7d-e7vtj1-g8-provenance": "a5333571d4ac6b9c5063bffc2f2deeee8628ac88",
   "ccr-edf04c7d-e7vtj1-mcp01o-blackbox-read": "6580f91eaeaa5a6288304325c400947442f2b0fc",
   "ccr-edf04c7d-e7vtj1-mcp-mutants-realign": "40c34c4fdeebec786b244a05515675e3c5a5e238",
-  "ccr-edf04c7d-e7vtj1-mcp01p-bb1-ready": "df044fc2f055335034b020dbeb879cefdb267361"
+  "ccr-edf04c7d-e7vtj1-mcp01p-bb1-ready": "869d2c0f00ec866d022f4ca2589ef1926d7447ae"
  },
  "integration_chain": [
   "MCP-01d",
@@ -56,7 +56,7 @@
   "MCP-01o lettura della scatola nera (dopo l'interfaccia di lettura di B)",
   "MCP-MUTANTS-REALIGN (solo catalogo e guardia, sopra 01o)"
  ],
- "lotto_corrente": "MCP-01q: contratto 1.15.0 sulla forma normativa di BB-1, mappature verificate sulle fixture reali di B (sha256 c11e4108…2766c0); campagna mutanti finale in corso su df044fc",
+ "lotto_corrente": "MCP pronto per BB-1: contratto 1.15.0 sulle forme reali di BB-1 (fixture 74be0f92, schema D1-D2), campagna mutanti 241/241 KILLED su 540a932, esiti versionati in docs/mutation",
  "lotti_completati": [
   "MCP-01j get_config (305b843)",
   "MCP-01k compatibilità P0/F-16 (4cd3e75)",
@@ -82,7 +82,7 @@
   "MCP-01o: record RESULT con `returned` (READ_REQUEST di B), contratto accettato da B (6580f91)",
   "mutanti critici: 9 riallineati, P01-P03, guardia di applicabilità; 12/12 KILLED (40c34c4)"
  ],
- "next_atomic_action": "raccogliere la campagna 239 mutanti su df044fc, versionare esiti e rapporto nel repo MCP; alla risposta di B su returned/ATTEMPT/request_id aggiornare la compatibilità; alla integrazione di BB-1 (#615) eseguire check_reader e i contract test sulla classe reale",
+ "next_atomic_action": "alla integrazione di BB-1 (#615 su main, merge owner): eseguire check_reader(BlackBoxReader) e gli scenari dei contract test sulla classe reale; poi la vista del ponte nel core (task #30) come handoff per B",
  "dependencies": {
   "F-04 su main": "MCP-01i r2",
   "F-03 su main (con F-02, F-04)": "MCP-01m",
@@ -116,6 +116,11 @@
    "id": "MCP01O-CROSSREPO-BLOCKED",
    "owner": "Claude C (dopo B)",
    "descrizione": "crossrepo con il core reale BLOCKED sulla 1.13.0 finché il ponte non ha i provider della scatola nera e request_hook"
+  },
+  {
+   "id": "MCP-TOKEN-TEST-FLAKY",
+   "owner": "Claude C",
+   "descrizione": "tests/control_api/test_tokens.py::test_concurrent_processes_never_read_a_partial_token fallito una volta nella baseline della campagna su 540a932 (3 suite in parallelo); 15/15 da solo e 12/12 con CPU satura: osservato, non spiegato"
   }
  ],
  "github_evidence": [
@@ -459,23 +464,28 @@
  "handoffs_extra_delivered": [],
  "blackbox_bb1": {
   "contract": "1.15.0",
-  "schema_hash": "0c7a3d6b1f564f603c6a6165853cfff87d3322a355af815b1f3ff52fd7ab389c",
+  "schema_hash": "81a81884c80c3bb269ce20d214f5e064d66159336a6063b7c9922436ed245bed",
   "commits": {
    "907423e": "MCP-01q forma normativa (filtri, request_hook, external)",
-   "df044fc": "mappature sulle fixture reali"
+   "df044fc": "mappature sulle fixture reali",
+   "3900d1c": "fixture b275d7ea (TRACE, ATTEMPT, returned)",
+   "540a932": "schema D1-D2: order_id alias ord_<32 hex>, exchange_ts; fixture 74be0f92",
+   "9d521f0": "docs: link decisione owner D1-D3",
+   "869d2c0": "campagne mutanti versionate"
   },
   "fixture": {
-   "sha256": "c11e4108f074e8a64d18ce0dcd2eca3a2bda68f034e2e9bf0d149efb5e2766c0",
-   "bytes": 16543,
-   "source": "pfab-b-20261109-bb1-fixtures-001, BlackBoxReader BB-1 locale 0df7a411"
+   "sha256": "74be0f92274b5dda252061148c82a0c54329be2d50e1d1ddd23e31691a36f6df",
+   "bytes": 20484,
+   "source": "pfab-b-20261109-bb1-schema-d1d3-001 / fixtures-delivery-003 (gzip sha256 88e12f90...), BlackBoxReader BB-1 locale 9626f95",
+   "history": [
+    "c11e4108 (0df7a411)",
+    "b275d7ea (46e722b)"
+   ]
   },
-  "verdict_fixture": "VERIFIED (RED 7 su 907423e -> GREEN 10 su df044fc)",
+  "verdict_fixture": "VERIFIED (RED 7 su 907423e -> GREEN; fixture attuale 74be0f92 GREEN su 540a932)",
   "verdict_real_class": "NOT_RUN (check_reader e scenari sulla classe integrata, dopo #615)",
-  "requests_to_b": [
-   "returned nel data di CONTROL_API_REQUEST",
-   "registrazione dell'ATTEMPT",
-   "normalizzazione di request_id mcp-<24 hex>"
-  ]
+  "requests_to_b": "chiuse (returned, ATTEMPT, request_id mcp- invariato) - pfab-b-20261109-bb1-fixtures-002",
+  "owner_decision_d1_d3": "PF-BB1-IDENTITY-TIMESTAMP-SESSION-20261109, data in sessione a B, registrata da B in Pickfair-nogui #586 c.6740764129"
  },
  "mutant_campaigns": {
   "40c34c4": {
@@ -493,8 +503,19 @@
    "jsonl": "results/evidence-mut-campaign-90e7d45.jsonl"
   },
   "df044fc": {
-   "mutants": 239,
-   "stato": "IN CORSO"
+   "stato": "INTERROTTA (commit superato dalle consegne di B), non riportata come esito"
+  },
+  "540a932": {
+   "mutants": 241,
+   "KILLED": 241,
+   "SURVIVED": 0,
+   "NOT_APPLICABLE": 0,
+   "TIMEOUT": 0,
+   "INFRA_ERROR": 0,
+   "baseline": "3/3 PASS alla ripresa; primo avvio: 1 baseline fallita su test instabile",
+   "jsonl_sha256": "19245ce11fdd8f3792fe201bc34b2e32c8e706b1cc967524fe0190fa89db2e4a",
+   "jsonl": "results/evidence-mut-campaign-540a932.jsonl",
+   "repo": "docs/mutation/ in 869d2c0"
   }
  }
 }

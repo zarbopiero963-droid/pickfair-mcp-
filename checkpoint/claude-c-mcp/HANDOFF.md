@@ -17,3 +17,8 @@ Verificato sulle fixture: RED 7 → GREEN 10. Ancora NOT_RUN: `check_reader` e g
 dopo #615. Patch 13 (f16-compat) DURABLE su handoff/claude-c/mcp-core-20261105 @ 0a529035.
 
 Prossimo passo: `next_atomic_action` in STATE.json.
+
+## Seq 13 (09/11/2026): MCP pronto per BB-1, campagna finale
+
+Codice finale `540a932`; `9d521f0` e `869d2c0` toccano solo docs ed esiti. Fixture BB-1 74be0f92 (schema D1-D2) VERIFIED.
+Mutanti 241/241 KILLED su 540a932 (docs/mutation/CAMPAIGN_REPORT.md). Aperto: test token instabile sotto carico.

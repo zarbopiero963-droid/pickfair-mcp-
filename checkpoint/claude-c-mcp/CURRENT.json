@@ -3,11 +3,11 @@
  "checkpoint_commit": null,
  "code": {
   "branch": "ccr-edf04c7d-e7vtj1-mcp01p-bb1-ready",
-  "sha": "df044fc2f055335034b020dbeb879cefdb267361"
+  "sha": "869d2c0f00ec866d022f4ca2589ef1926d7447ae"
  },
  "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01",
- "next_atomic_action": "raccogliere la campagna 239 mutanti su df044fc, versionare esiti e rapporto nel repo MCP; alla risposta di B su returned/ATTEMPT/request_id aggiornare la compatibilit\u00e0; alla integrazione di BB-1 (#615) eseguire check_reader e i contract test sulla classe reale",
- "previous_checkpoint_sha": "96d78d1368c785ab42fa8c61365ffc384f4c7614",
+ "next_atomic_action": "alla integrazione di BB-1 (#615 su main, merge owner): eseguire check_reader(BlackBoxReader) e gli scenari dei contract test sulla classe reale; poi la vista del ponte nel core (task #30) come handoff per B",
+ "previous_checkpoint_sha": "bfcbbc45631e06c610a608f4e4e9a58732fa3748",
  "schema": "pf-current/1",
- "seq": 12
+ "seq": 13
 }

@@ -1,9 +1,9 @@
-2c4f77be09b979d66c20d757c78247d159e01024ff4c275c065a456c85791579  ./AGENT_LEASE.json
-ae248d05c19630b610fed1ad3b2693a5dd022b55ccb5062fff79acd8089f0886  ./CURRENT.json
-2441920fb4efc23f5b3b76a9ed51c5b9667480042861943110110a3a184ba7c2  ./HANDOFF.md
+ae87b368ee01c7860b5e57eaf4de1f5fb4228f4fc9031769da88e79181098a13  ./AGENT_LEASE.json
+c1c4c56a0b598c924a90f73915b21dab850d97f905e403242832b882c5e8a1b1  ./CURRENT.json
+f8bd55c071d76e116064cb727e2cd65ab11a4c47312d9d955cc4a4df8107e2d0  ./HANDOFF.md
 25c0ecdedb79ade0d3dbeb201fd97ce9e419dc277c71c9f79803190681c5f834  ./RUNBOOK.md
-a5e32d4dad4eb30eb3f08476422fa34d74c71ea3c2a69794a5593b1235659a63  ./STATE.json
-17cce0e9e7648ded62ec2fe066558ed82173059d6aa8fb9446e4c3ba3c5dc788  ./TASK_STATE.json
+e817d0421397fb59f0e8c7a629c15cd0a3bbc76945f2ee528554d942df358a00  ./STATE.json
+1152920c1852e1e36245d7e0a4f08bbed12f9968af2a3eea6d7857fd9aa3b44b  ./TASK_STATE.json
 03dac6bb026b72eb3d0fc45910815b446d28743a73de0497586a279c8d6caa3c  ./results/evidence-01ir2-e2e.txt
 3865b8f2e9cf47d8c012ea107b2ff94f78ede19462957740709ad8e4a2992661  ./results/evidence-01ir2-mcp-l.txt
 614559deb160e196c148dc6eceaae962e89226573a2844f3ff0e5a250cf53905  ./results/evidence-01ir2-mcp-suite.txt
@@ -37,6 +37,7 @@ bce8601211b33edf31eba8d6ba81b3913b1e2fb351ae7fec1f506c5c76baa87b  ./results/evid
 76a7fcf85d9923e6c2c7482f081cb4d21ac0fdd20ff46454cdb04fa68e90301c  ./results/evidence-handoff-durable-verify.txt
 b108f811be2305675f763b900e21004380cdc74ebe3cae519e33abc3ea3fdb3b  ./results/evidence-load-flake.txt
 fbea5bf73993e2c28123ada7fdafe09a5ac9416703f86473bb25585af36714b4  ./results/evidence-mut-campaign-40c34c4.jsonl
+19245ce11fdd8f3792fe201bc34b2e32c8e706b1cc967524fe0190fa89db2e4a  ./results/evidence-mut-campaign-540a932.jsonl
 b35711f8cdae1418ab31d5e99816e0b3610d6fbf1b0eebb57b4412b429a53847  ./results/evidence-mut-campaign-90e7d45.jsonl
 2c8474c064aa441a32a138e2d47ffe6e4074a4a5b83204cbbbf0617c122da943  ./results/evidence-mutants-realign.txt
 f50cb71cf379c4129438104f53f09697343cf34d69c907bae74fa90e18fe5e92  ./results/evidence-sec01-e2e.txt

@@ -38,9 +38,9 @@
   "MCP-01o: record RESULT con `returned` (READ_REQUEST di B), contratto accettato da B (6580f91)",
   "mutanti critici: 9 riallineati, P01-P03, guardia di applicabilit\u00e0; 12/12 KILLED (40c34c4)"
  ],
- "lotto_corrente": "MCP-01q: contratto 1.15.0 sulla forma normativa di BB-1, mappature verificate sulle fixture reali di B (sha256 c11e4108\u20262766c0); campagna mutanti finale in corso su df044fc",
+ "lotto_corrente": "MCP pronto per BB-1: contratto 1.15.0 sulle forme reali di BB-1 (fixture 74be0f92, schema D1-D2), campagna mutanti 241/241 KILLED su 540a932, esiti versionati in docs/mutation",
  "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01",
- "next_atomic_action": "raccogliere la campagna 239 mutanti su df044fc, versionare esiti e rapporto nel repo MCP; alla risposta di B su returned/ATTEMPT/request_id aggiornare la compatibilit\u00e0; alla integrazione di BB-1 (#615) eseguire check_reader e i contract test sulla classe reale",
+ "next_atomic_action": "alla integrazione di BB-1 (#615 su main, merge owner): eseguire check_reader(BlackBoxReader) e gli scenari dei contract test sulla classe reale; poi la vista del ponte nel core (task #30) come handoff per B",
  "pr_505": "N/A (repository MCP)",
  "schema": "pf-task-state/1",
  "tests_missing": []
