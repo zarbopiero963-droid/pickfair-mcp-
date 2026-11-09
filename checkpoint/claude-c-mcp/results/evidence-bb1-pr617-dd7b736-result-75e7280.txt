@@ -1,0 +1,2 @@
+FAILED ../realbb/test_real_bb1_v4.py::test_02b_free_text_secret_in_reason
+1 failed, 17 passed, 3 warnings in 4.62s

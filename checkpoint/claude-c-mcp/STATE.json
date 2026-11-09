@@ -1,15 +1,15 @@
 {
  "schema": "pf-checkpoint/3",
  "repository": "zarbopiero963-droid/pickfair-mcp-",
- "seq": 17,
+ "seq": 18,
  "agent": "claude-c",
  "agent_identity": "Claude C — MCP + Control API (sessione session_013X2mCaF4fE5YMWGVrM8LtR)",
  "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01 + PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109",
- "previous_checkpoint_sha": "ad18056a32b0293738cb0d810f57aaaaffd72529",
+ "previous_checkpoint_sha": "ab1b996f84a4ec24f8fbf2ade7cdf084e628e642",
  "code": {
   "branch": "ccr-edf04c7d-e7vtj1-mcp01r-bb1-chain-depth",
-  "sha": "7daadf82ed77fc04436594a105ae753c85f76608",
-  "tree": "c1e0a785406404fa2fa92ac467c26f82412d4371"
+  "sha": "75e7280a81d5a26ccea05999a5f7a692fc0379c8",
+  "tree": "f630d0573f44da85f6869126cee7820f0f80e38a"
  },
  "published_branches": {
   "ccr-edf04c7d-e7vtj1": "647d5e8d269952af975ec01df7be27abf2ff3c1e",
@@ -34,7 +34,7 @@
   "ccr-edf04c7d-e7vtj1-mcp01o-blackbox-read": "6580f91eaeaa5a6288304325c400947442f2b0fc",
   "ccr-edf04c7d-e7vtj1-mcp-mutants-realign": "40c34c4fdeebec786b244a05515675e3c5a5e238",
   "ccr-edf04c7d-e7vtj1-mcp01p-bb1-ready": "869d2c0f00ec866d022f4ca2589ef1926d7447ae",
-  "ccr-edf04c7d-e7vtj1-mcp01r-bb1-chain-depth": "7daadf82ed77fc04436594a105ae753c85f76608"
+  "ccr-edf04c7d-e7vtj1-mcp01r-bb1-chain-depth": "75e7280a81d5a26ccea05999a5f7a692fc0379c8"
  },
  "integration_chain": [
   "MCP-01d",
@@ -57,7 +57,7 @@
   "MCP-01o lettura della scatola nera (dopo l'interfaccia di lettura di B)",
   "MCP-MUTANTS-REALIGN (solo catalogo e guardia, sopra 01o)"
  ],
- "lotto_corrente": "FASE 4 completata sull'head della PR #617 d1454af3: con la patch I1 7daadf8, 15 PASS / 1 FAIL (R2, limite dichiarato da B) -> COMPATIBLE_ON_PR_HEAD; NON INTEGRATED_VERIFIED (PR non mergiata)",
+ "lotto_corrente": "classe reale BB-1 #617 @ dd7b7369: con la patch MCP 75e7280 (I1 + health_scope) 17/18 PASS, unico FAIL R2 dichiarato -> COMPATIBLE_ON_PR_HEAD; NON INTEGRATED_VERIFIED",
  "lotti_completati": [
   "MCP-01j get_config (305b843)",
   "MCP-01k compatibilità P0/F-16 (4cd3e75)",
@@ -83,7 +83,7 @@
   "MCP-01o: record RESULT con `returned` (READ_REQUEST di B), contratto accettato da B (6580f91)",
   "mutanti critici: 9 riallineati, P01-P03, guardia di applicabilità; 12/12 KILLED (40c34c4)"
  ],
- "next_atomic_action": "al merge della #617 da parte dell'owner: rieseguire l'harness v2 sullo SHA di main; preparare l'handoff dell'integrazione nel ponte del core (make_providers + make_request_hook sul BlackBoxReader del runtime) e la patch I1 in forma mergiabile, con hash e ACK di B",
+ "next_atomic_action": "al merge della #617: harness v4 sullo SHA di main; handoff integrazione ponte core (make_providers sul BlackBoxReader del runtime, scope RUNTIME) + patch 869d2c0..75e7280 in forma mergiabile, con hash e ACK di B",
  "dependencies": {
   "F-04 su main": "MCP-01i r2",
   "F-03 su main (con F-02, F-04)": "MCP-01m",
@@ -537,6 +537,17 @@
      "R1 gaps_in_range senza limite (dichiarato)",
      "R2 segreto in testo libero non registrato (dichiarato, BB-3)"
     ]
+   },
+   "pr617_dd7b736": {
+    "target": "dd7b7369ebd3beb1be50534f05228413838acaa1",
+    "mcp_code": "75e7280a81d5a26ccea05999a5f7a692fc0379c8",
+    "patch_sha256": "4204cba7ea6182298382f555db2b173aa2e338779612fa8a6d0b7c7946cee7f4",
+    "harness_sha256": "8cbe584d579d7cfc3c08691160c8e5d4476edf42e87b520b4b703c9c25adca9b",
+    "result": "17 PASS / 1 FAIL (02b = R2 dichiarato)",
+    "with_7daadf8": "16 PASS / 2 FAIL (16 READER_LOCAL: available=true e session_id del lettore -> falso crash; 02b)",
+    "finding_mcp": "health_scope non gestito dall'adapter: corretto in 75e7280 (fail-closed), RED 3 -> GREEN, R27-R28",
+    "proposal_b": "in READER_LOCAL anche ok e session_id sono dell'istanza del lettore: None + not_reported o docs",
+    "verdict": "COMPATIBLE_ON_PR_HEAD, NON INTEGRATED_VERIFIED"
    }
   }
  },

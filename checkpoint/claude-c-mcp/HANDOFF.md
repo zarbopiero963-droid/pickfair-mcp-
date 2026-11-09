@@ -41,3 +41,7 @@ In attesa dello SHA di B per I2.
 ## Seq 17 (09/11/2026): compatibile con BB-1 sull'head della PR #617
 
 d1454af3 + patch MCP 7daadf8: 15 PASS / 1 FAIL (R2 dichiarato). Non INTEGRATED_VERIFIED: serve il merge della #617.
+
+## Seq 18 (09/11/2026): health_scope
+
+#617 @ dd7b7369 + patch MCP 75e7280: 17/18 (R2 dichiarato). Correzione fail-closed di health_scope READER_LOCAL.

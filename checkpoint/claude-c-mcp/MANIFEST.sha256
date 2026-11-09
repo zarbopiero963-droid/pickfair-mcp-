@@ -1,9 +1,9 @@
-4916c6e77026e14cb9158128183dbabe6d1058648a37cf4045069144c04e7ff0  ./AGENT_LEASE.json
-ee7adb2161034a057d0db0eff3aeb9fdbce161267dae1fcfeeac3fa5148e92b2  ./CURRENT.json
-84deaf57a376d72607e3164e562e533d7d6c65d75f1e97d8becbded12e48cdb7  ./HANDOFF.md
+8417accf2c0409b492d3734c29db74842ed7f1b6e9f3eb9b10e20e5e30cb5aa3  ./AGENT_LEASE.json
+d5733c4197cf473c037e596ac65b287e594242fd899de0278fcbcbd0cde448c5  ./CURRENT.json
+682762669aca16cd2983bd61fd1feba8de68b672e1dcd6b791e30e4269122541  ./HANDOFF.md
 25c0ecdedb79ade0d3dbeb201fd97ce9e419dc277c71c9f79803190681c5f834  ./RUNBOOK.md
-77a1b25dd9089560ab713758be9bd70d06e1320aceb4272b706331ea763d27d7  ./STATE.json
-509375c714c1c435f9e4e0773d039c752f20751d771e39821d2ea48bcd137a55  ./TASK_STATE.json
+bf96ede25a43e43de5c77e92d9d997bdf27b82545303519837f648c6eddbc1ea  ./STATE.json
+854a03df8b4a9d0d7f2f05dc98b25dd39ecfa338513b86cbb1e30168a4876e5b  ./TASK_STATE.json
 03dac6bb026b72eb3d0fc45910815b446d28743a73de0497586a279c8d6caa3c  ./results/evidence-01ir2-e2e.txt
 3865b8f2e9cf47d8c012ea107b2ff94f78ede19462957740709ad8e4a2992661  ./results/evidence-01ir2-mcp-l.txt
 614559deb160e196c148dc6eceaae962e89226573a2844f3ff0e5a250cf53905  ./results/evidence-01ir2-mcp-suite.txt
@@ -27,7 +27,10 @@ cdcaf04aac2a7d32a667383a4a29f1b8f6a635bc4579a3ccaf8972455f207af8  ./results/evid
 390dd9ccbb73823bf6f2ad4bec5f3664321a11a5be3224c284e6a19c3ff7cedd  ./results/evidence-01o.txt
 48251ecc2c05e204e1622cccce965b6527a557a83d8258db577210fe1b4ee8e2  ./results/evidence-bb1-pr617-d1454af-result-7daadf8.txt
 8dca7dd095fdfa33112da03c6d656a0c9f77b4a08eec669df3b0c02ee4b5864b  ./results/evidence-bb1-pr617-d1454af-result-869d2c0.txt
+960480312228361789bca8e46651b311c5e66e98d6f0aa8b5e72d6f641cd7190  ./results/evidence-bb1-pr617-dd7b736-result-75e7280.txt
+17ebe9916f81220c624da16190e6ba0714fb051014ee488f13b4c4d2fe3d5481  ./results/evidence-bb1-pr617-dd7b736-result-7daadf8.txt
 77c9d1675b9c3b9135bd9131723257c926cd977319197f188fa0636a39c16e7c  ./results/evidence-bb1-pr617-real-class-harness-v2.py.txt
+8cbe584d579d7cfc3c08691160c8e5d4476edf42e87b520b4b703c9c25adca9b  ./results/evidence-bb1-pr617-real-class-harness-v4.py.txt
 bbeed81c7b68f8c4464910cfb6a6556cb735f1088f32dcba49e0fe7b8707dcd3  ./results/evidence-bb1-pr617-real-class-harness.py.txt
 fc6a0b9dcdeb60031e36206e17adc50083ff4767de69ff30b44b4a851efe5dfa  ./results/evidence-bb1-pr617-real-class-result-7daadf8.txt
 e51c808d9a3a346c8dc1ca9b941fcfa270a106a218c0edda2f2fe3c904c93fab  ./results/evidence-bb1-pr617-real-class-result.txt
