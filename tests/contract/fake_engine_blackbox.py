@@ -1,7 +1,7 @@
 """Lettore finto della scatola nera, fedele a pf_blackbox_01 §3 e §4-bis (Claude B), per i contract
 test.
 
-Forme REALI di BB-1 (fixture di Claude B, sha256 c11e4108…2766c0, in `fixtures/`): record con
+Forme REALI di BB-1 (fixture di Claude B, sha256 b275d7ea…321288, in `fixtures/`): record con
 `source`, `type`, `pid`, `ts_utc` al microsecondo, id in 32 hex, `not_recorded` (i campi a null),
 `data` annidato con float; `get` con la catena in `causation_chain`; `status` {ok, degraded, …};
 `sessions` {started, last_ts, clean_shutdown, …}. Nessuna scrittura esposta oltre a `request_hook`.

@@ -542,7 +542,7 @@ Adapter:
 - dà errore, mai una risposta parziale, su lacune per tempo, `get` in forma dict e qualunque forma non ancora
   mappata.
 
-Dalle fixture reali di B (sha256 `c11e4108…2766c0`, in `tests/contract/fixtures/`), cosa cambia nella vista:
+Dalle fixture reali di B (sha256 `b275d7ea…321288`, in `tests/contract/fixtures/`), cosa cambia nella vista:
 - eventi:
   - `not_recorded` è quello del motore (in BB-1 ogni null è «non registrato»);
   - `reason_code` può essere il nome di un'eccezione (`KeyError`);

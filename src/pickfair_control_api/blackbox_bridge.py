@@ -1,5 +1,5 @@
 """MCP-01p/01q: dalla scatola nera del motore (Claude B, `core/blackbox_query`) alla vista del
-contratto. Forme del lettore: quelle REALI di BB-1 (fixture di B, sha256 c11e4108…2766c0).
+contratto. Forme del lettore: quelle REALI di BB-1 (fixture di B, sha256 b275d7ea…321288).
 
 Funzioni pure, solo stdlib. Il ponte del core collega l'interfaccia di lettura di B (pf_blackbox_01
 §4-bis):

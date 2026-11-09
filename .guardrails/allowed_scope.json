@@ -904,6 +904,22 @@
         "tests/unit/test_contract_version.py"
       ],
       "max_files": 18
+    },
+    "mcp01q-bb1-fixture-002": {
+      "issue": "mandato owner PF-CLAUDE-C-MCP-BLACKBOX-INTEGRATION-20261109 §3, fixture di B pfab-b-20261109-bb1-fixtures-002",
+      "scheda": "MCP-01q — fixture BB-1 rigenerata (sha256 b275d7ea…321288): TRACE, ATTEMPT dell'hook, returned",
+      "description": "Sostituisce la fixture c11e4108 con b275d7ea (BB-1 46e722b), verificata con l'hash; test sulla fixture estesi a TRACE, ATTEMPT/RESULT dell'hook con returned e request_id mcp- invariato; richieste a B chiuse nelle docs.",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "docs/contract_v1.md",
+        "docs/design/BLACKBOX_BB1_COMPATIBILITY.md",
+        "src/pickfair_control_api/blackbox_bridge.py",
+        "tests/contract/fake_engine_blackbox.py",
+        "tests/contract/fixtures/bb1_reader_b275d7ea.json",
+        "tests/contract/fixtures/bb1_reader_c11e4108.json",
+        "tests/contract/test_blackbox_bb1_fixture.py"
+      ],
+      "max_files": 8
     }
   }
 }

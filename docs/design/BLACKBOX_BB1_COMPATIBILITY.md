@@ -9,11 +9,15 @@ decisione C/B pfab-c-20261109-bb1-normative-001.
 La vista esterna resta quella del contratto MCP (1.15.0).
 
 **Nessun PASS end-to-end sul motore reale finché BB-1 non è integrata.** Due livelli di prova:
-- **fixture reali di B**: output di `BlackBoxReader` (BB-1 locale 0df7a411, `external=True`, dati sintetici),
-  salvati byte per byte in `tests/contract/fixtures/bb1_reader_c11e4108.json`, sha256
-  `c11e4108f074e8a64d18ce0dcd2eca3a2bda68f034e2e9bf0d149efb5e2766c0` (16.543 byte, uguale a quello dichiarato da
-  B). `tests/contract/test_blackbox_bb1_fixture.py` li fa passare per adapter, Control API reale e MCP.
-  Esito: **VERIFIED sulle fixture** (RED 7 su 907423e → GREEN 10);
+- **fixture reali di B**: output di `BlackBoxReader` (BB-1 locale 46e722b, `external=True`, dati sintetici),
+  salvati in `tests/contract/fixtures/bb1_reader_b275d7ea.json`, sha256
+  `b275d7eaa39b07515b2ec26542ea6670e747d79b748b4e6f9ae7439682321288` (19.546 byte, uguale a quello dichiarato da
+  B). Il file è stato ricostruito dal testo del messaggio di B e verificato con l'hash: il testo aveva due
+  scostamenti dal file, una `}` in più e `strategy`/`table_id` del seq 8 nella catena a null, e solo il
+  contenuto che riproduce l'hash è stato salvato. `tests/contract/test_blackbox_bb1_fixture.py` lo fa passare
+  per adapter, Control API reale e MCP. Esito: **VERIFIED sulle fixture**. La prima fixture (c11e4108…,
+  0df7a411) dava RED 7 su 907423e → GREEN 10 su df044fc ed è sostituita da questa, che aggiunge TRACE,
+  l'ATTEMPT dell'hook e `returned`;
 - **lettore finto** (`tests/contract/fake_engine_blackbox.py`), nelle stesse forme, per gli scenari che la
   fixture non copre: filtri, paginazione, record non mappabili, hook rifiutato.
 
@@ -181,14 +185,14 @@ nell'MCP.
 
 - `check_reader(BlackBoxReader(...)) == []` e gli scenari dei contract test sulla classe reale, una volta
   integrata BB-1 (#615, a merge dell'owner);
-- TRACE in `event_journal.LEVELS` di BB-1 (la fixture non ha record TRACE);
 - se la fixture cambia, B rigenera file e sha256 e qui si aggiorna `FIXTURE_SHA256`.
 
-## 11. Richieste a B dalle fixture (nel repository del motore)
+## 11. Richieste a B dalle fixture: chiuse (pfab-b-20261109-bb1-fixtures-002, BB-1 46e722b)
 
-- **`returned`**: il `data` di `CONTROL_API_REQUEST` nella fixture non contiene `returned` (il numero di
-  elementi letti, mandato dall'hook). Il `READ_REQUEST` col conteggio richiede che sia registrato.
-- **ATTEMPT**: la fixture mostra solo il RESULT. L'hook manda anche l'ATTEMPT prima della lettura; va confermato
-  che BB-1 lo registri (o che lo scarti per scelta dichiarata).
-- **`request_id` dell'MCP**: è `mcp-<24 hex>`, non un uuid. La normalizzazione di `correlation_id` a 32 hex
-  della fixture parte da un uuid: va confermato cosa fa BB-1 con `mcp-<24 hex>`, senza inventare cifre.
+- **`returned`**: aggiunto da B nel `data` di `CONTROL_API_REQUEST` (seq 15 della fixture: `returned: 13`).
+- **ATTEMPT**: BB-1 lo registra con `phase=ATTEMPT`, `outcome=PENDING` (seq 14).
+- **`request_id` dell'MCP** `mcp-<24 hex>`: resta invariato in `correlation_id` e in `data.request_id`; la
+  normalizzazione di BB-1 compatta solo valori di 32 hex. Nessuna cifra inventata.
+- **TRACE**: presente nella fixture (seq 13, `API_REQUEST`, categoria `BETFAIR`).
+- Nota di B: la vista esterna di BB-1 toglie `order_ref`, `customer_ref`, `customerOrderRef` e varianti a ogni
+  profondità di `data` e `values_*`. La vista MCP li ignora e redige comunque.

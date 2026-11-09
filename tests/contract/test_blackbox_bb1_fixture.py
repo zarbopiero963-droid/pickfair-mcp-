@@ -1,7 +1,8 @@
-"""Contract test sulle forme REALI di BB-1: fixture di Claude B (pfab-b-20261109-bb1-fixtures-001).
+"""Contract test sulle forme REALI di BB-1: fixture di Claude B (pfab-b-20261109-bb1-fixtures-002).
 
-`fixtures/bb1_reader_c11e4108.json` è l'output di `core.blackbox_query.BlackBoxReader` (BB-1 locale
-0df7a411, `external=True`, dati sintetici, orologio sintetico del 2025) generato da B. Il file è
+`fixtures/bb1_reader_b275d7ea.json` è l'output di `core.blackbox_query.BlackBoxReader` (BB-1 locale
+46e722b, `external=True`, dati sintetici, orologio sintetico del 2025) generato da B; sostituisce
+la prima fixture (c11e4108…, 0df7a411): aggiunge TRACE, l'ATTEMPT dell'hook e `returned`. Il file è
 salvato byte per byte com'è stato dichiarato (JSON minificato a chiavi ordinate): lo sha256 qui
 sotto è quello dichiarato da B. Se B rigenera la fixture, cambiano file e hash insieme.
 
@@ -31,8 +32,8 @@ from tests.integration.test_market_tools import call, session_for
 
 pytestmark = [pytest.mark.anyio, pytest.mark.loopback]
 
-FIXTURE = Path(__file__).parent / "fixtures" / "bb1_reader_c11e4108.json"
-FIXTURE_SHA256 = "c11e4108f074e8a64d18ce0dcd2eca3a2bda68f034e2e9bf0d149efb5e2766c0"
+FIXTURE = Path(__file__).parent / "fixtures" / "bb1_reader_b275d7ea.json"
+FIXTURE_SHA256 = "b275d7eaa39b07515b2ec26542ea6670e747d79b748b4e6f9ae7439682321288"
 REAL = json.loads(FIXTURE.read_bytes())
 
 
@@ -74,12 +75,15 @@ class FixtureReader:
 
     def request_hook(self, record: dict[str, Any]) -> bool:
         self.requests.append(record)
-        return self.real["e_request_hook_return"]
+        key = "e_request_hook_attempt_return" if record.get("phase") == "ATTEMPT" else (
+            "e_request_hook_return"
+        )
+        return self.real[key]
 
 
 def test_the_fixture_is_the_one_b_declared() -> None:
     data = FIXTURE.read_bytes()
-    assert hashlib.sha256(data).hexdigest() == FIXTURE_SHA256 and len(data) == 16543
+    assert hashlib.sha256(data).hexdigest() == FIXTURE_SHA256 and len(data) == 19546
     assert REAL["source"].startswith("core.blackbox_query.BlackBoxReader")
 
 
@@ -89,7 +93,7 @@ def test_the_replica_has_the_reader_interface() -> None:
 
 def test_every_real_record_maps_none_becomes_corrupt() -> None:
     views = [event_view(r) for r in REAL["a_query_page"]["records"]]
-    assert [v["seq"] for v in views] == list(range(1, 14))
+    assert [v["seq"] for v in views] == list(range(1, 16))
 
 
 async def test_the_real_page_through_control_api_and_mcp(tmp_path: Path) -> None:
@@ -100,8 +104,8 @@ async def test_the_real_page_through_control_api_and_mcp(tmp_path: Path) -> None
     assert ok is False, page
     body = page["data"]["events"]
     by_seq = {e["seq"]: e for e in body["events"]}
-    assert sorted(by_seq) == list(range(1, 14)) and body["gaps_in_range"] == []
-    assert body["as_of_seq"] == 13 and body["next_after_seq"] == 0 and body["truncated"] is False
+    assert sorted(by_seq) == list(range(1, 16)) and body["gaps_in_range"] == []
+    assert body["as_of_seq"] == 15 and body["next_after_seq"] == 0 and body["truncated"] is False
     # Arresto non pulito di s_crash: finestra non registrata, esito mai «niente è successo».
     assert body["unrecorded_windows"] == [
         {"seq": 6, "from_ts": "2025-11-09T12:00:07.000Z", "to_ts": "2025-11-09T12:01:08.000Z",
@@ -120,7 +124,17 @@ async def test_the_real_page_through_control_api_and_mcp(tmp_path: Path) -> None
     assert by_seq[1]["data"] == {"pid": 1001} and by_seq[1]["omitted_values"] == 1
     assert by_seq[4]["values_after"] == {"price": "2.12", "stake": "1.5"}  # float esatti
     assert by_seq[9]["values_before"] == {"status": "INFLIGHT"}
-    assert by_seq[13]["data"]["params.limit"] == 50 and by_seq[13]["origin"] == "CONTROL_API"
+    # TRACE del giornale (categoria BETFAIR nel vocabolario di event_journal).
+    assert (by_seq[13]["severity"], by_seq[13]["category"]) == ("TRACE", "BETFAIR")
+    # La lettura dell'MCP registrata due volte: tentativo prima, risultato con il conteggio dopo.
+    attempt, result = by_seq[14], by_seq[15]
+    assert (attempt["phase"], attempt["outcome"]) == ("ATTEMPT", "PENDING")
+    assert attempt["data"]["returned"] is None and attempt["data"]["status"] is None
+    assert (result["phase"], result["outcome"]) == ("RESULT", "VERIFIED")
+    assert (result["data"]["returned"], result["data"]["status"]) == (13, 200)
+    assert result["data"]["params.limit"] == 50 and result["origin"] == "CONTROL_API"
+    # request_id dell'MCP non normalizzato: nessuna cifra inventata.
+    assert result["correlation_id"] == attempt["correlation_id"] == "mcp-0123456789abcdef01234567"
 
 
 async def test_the_real_causal_chain(tmp_path: Path) -> None:
@@ -128,7 +142,7 @@ async def test_the_real_causal_chain(tmp_path: Path) -> None:
     with engine_api(tmp_path, reader) as (server, token_path):  # type: ignore[arg-type]
         async with session_for(adapter_for(server, token_path)) as s:
             ok, out = await call(
-                s, "get_blackbox_event", {"event_id": "fd19271e0e63485083c49e7d3db89ce6"}
+                s, "get_blackbox_event", {"event_id": "8bbf0aeff499457b9c75265607dc6854"}
             )
             ok2, missing = await call(s, "get_blackbox_event", {"event_id": "0" * 32})
     assert ok is False, out
@@ -143,16 +157,16 @@ def test_a_real_missing_link_breaks_the_chain() -> None:
     reader = FixtureReader()
     chain = reader.real["b_get_with_chain_2"]["causation_chain"]
     chain[1] = {"event_id": chain[1]["event_id"], "missing": True}
-    body = make_providers(reader)["blackbox_event"]("fd19271e0e63485083c49e7d3db89ce6")
+    body = make_providers(reader)["blackbox_event"]("8bbf0aeff499457b9c75265607dc6854")
     assert [c["seq"] for c in body["chain"]] == [9]
-    assert body["chain_broken_at"] == "ff234a61cbcd4422b7d94602cef40ddc"
+    assert body["chain_broken_at"] == "89c474d06aa14b449a6f1215ccaeb30e"
 
 
 def test_the_real_healthy_status() -> None:
     body = make_providers(FixtureReader())["blackbox_status"]()
     assert body["available"] is True and body["degraded"] is False
     assert body["dropped_non_critical"] == 0
-    assert (body["first_seq"], body["last_seq"], body["sessions"]) == (1, 13, 3)
+    assert (body["first_seq"], body["last_seq"], body["sessions"]) == (1, 15, 3)
     assert body["current_session_id"] == "s_current"
     # Ciò che BB-1 non riporta resta dichiarato, mai riempito.
     assert set(body["not_reported"]) == {
@@ -188,7 +202,9 @@ async def test_status_and_sessions_pass_the_server_schema(tmp_path: Path) -> Non
         )
 
 
-def test_the_real_hook_answer_is_an_accepted_record() -> None:
+def test_the_real_hook_answers_are_accepted_records() -> None:
     reader = FixtureReader()
-    assert make_request_hook(reader)({"phase": "RESULT", "route": "/v1/status"}) is True
-    assert reader.requests == [{"phase": "RESULT", "route": "/v1/status"}]
+    hook = make_request_hook(reader)
+    assert hook({"phase": "ATTEMPT", "route": "/v1/status"}) is True
+    assert hook({"phase": "RESULT", "route": "/v1/status", "returned": 1}) is True
+    assert [r["phase"] for r in reader.requests] == ["ATTEMPT", "RESULT"]
