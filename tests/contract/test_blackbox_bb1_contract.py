@@ -27,7 +27,7 @@ from pickfair_control_api.server import ControlApiServer
 from pickfair_control_api.tokens import TokenStore, issue_token_file
 from pickfair_mcp.adapters.http import HttpControlApiAdapter
 from pickfair_mcp.auth.token_file import LocalTokenFile
-from tests.contract.fake_engine_blackbox import FakeBlackboxQuery, record, uid
+from tests.contract.fake_engine_blackbox import SESSION, FakeBlackboxQuery, record, uid
 from tests.control_api.servers import SHA, Providers, secure_dir
 from tests.integration.test_market_tools import call, session_for
 
@@ -111,14 +111,34 @@ def test_engine_record_mapping() -> None:
     )
     assert view["outcome"] == "UNKNOWN" and view["reason_code"] == "AMBIGUOUS"
     assert "order_ref" not in view and "cref-x" not in str(view)
-    assert view["refs"]["order_id"] == 42 and view["not_recorded"] == []
+    assert view["refs"]["order_id"] == 42
+    # BB-1: ogni colonna a null è «non registrata» (not_recorded del motore, campi della vista)
+    assert view["not_recorded"] == [
+        "state_before", "state_after", "values_before", "values_after", "reason",
+        "correlation_id", "data",
+    ]
 
 
-def test_absent_field_is_not_recorded_null_is_not_applicable() -> None:
-    rec = {k: v for k, v in record(9).items() if k not in ("reason", "data")}
+def test_not_recorded_comes_from_the_engine_and_from_absent_keys() -> None:
+    rec = {k: v for k, v in record(9, not_recorded=[]).items() if k not in ("reason", "data")}
     view = event_view(rec)
     assert view["not_recorded"] == ["reason", "data"] and view["reason"] is None
-    assert event_view(record(9))["not_recorded"] == []
+    assert event_view(record(9, not_recorded=[]))["not_recorded"] == []  # null non dichiarato
+    assert event_view(record(9, not_recorded=["reason"]))["not_recorded"] == ["reason"]
+
+
+@pytest.mark.parametrize(
+    "not_recorded",
+    [
+        ["reason_code"],  # dichiarato non registrato ma con un valore
+        ["order_ref"],  # colonna che la vista non conosce
+        "reason",  # non una lista
+        [1],
+    ],
+)
+def test_engine_not_recorded_never_hides_a_value(not_recorded: Any) -> None:
+    with pytest.raises(Unmappable):
+        event_view(record(9, reason_code="X", not_recorded=not_recorded))
 
 
 @pytest.mark.parametrize(
@@ -199,7 +219,7 @@ async def test_owner_question_reconstructed_from_recorded_events_only(tmp_path: 
         "AMBIGUOUS",
     )  # da riconciliare
     assert (by_seq[7]["origin"], by_seq[7]["severity"]) == ("TELEGRAM", "TRACE")
-    assert by_seq[9]["not_recorded"] == ["reason"]
+    assert "reason" in by_seq[9]["not_recorded"] and by_seq[9]["reason"] is None
     assert "cref-secret-1" not in str(page)  # né order_ref né customer_ref escono mai
 
 
@@ -289,13 +309,37 @@ async def test_thread_component_is_shown_as_recorded(tmp_path: Path) -> None:
     assert event["component"] == "thread:Thread-3 (poller)" and event["severity"] == "ERROR"
 
 
-async def test_time_gaps_from_bb1_are_never_hidden(tmp_path: Path) -> None:
-    """Lacune per tempo non ancora mappate (fixture di B attese): errore, mai pagina «completa»."""
+_WINDOW = {"seq": 7, "from_ts": "2026-11-08T15:00:07.000123Z", "to_ts": "2026-11-08T15:00:09Z",
+           "outcome": "UNKNOWN", "reason_code": "UNCLEAN_TERMINATION"}
+
+
+async def test_time_gaps_from_bb1_are_shown_as_unrecorded_windows(tmp_path: Path) -> None:
     reader = FakeBlackboxQuery()
-    reader.time_gaps = [
-        {"seq": 7, "from_ts": "2026-11-08T15:00:07Z", "to_ts": "2026-11-08T15:00:09Z",
-         "outcome": "UNKNOWN", "reason_code": "WRITER_DOWN"}
+    reader.time_gaps = [_WINDOW]
+    with engine_api(tmp_path, reader) as (server, token_path):
+        async with session_for(adapter_for(server, token_path)) as s:
+            ok, page = await call(s, "list_blackbox_events")
+    assert ok is False, page
+    assert page["data"]["events"]["unrecorded_windows"] == [
+        {"seq": 7, "from_ts": "2026-11-08T15:00:07.000Z", "to_ts": "2026-11-08T15:00:09.000Z",
+         "reason_code": "UNCLEAN_TERMINATION"}
     ]
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {**_WINDOW, "outcome": "VERIFIED"},  # una finestra non registrata non ha mai un esito noto
+        {**_WINDOW, "to_ts": "2026-11-08T15:00:06Z"},  # estremi invertiti
+        {**_WINDOW, "from_ts": "2026-11-08T16:00:07+01:00"},
+        {**_WINDOW, "seq": 0},
+        {k: v for k, v in _WINDOW.items() if k != "reason_code"},
+        "UNCLEAN_TERMINATION",
+    ],
+)
+async def test_a_bad_time_gap_is_an_error_never_hidden(tmp_path: Path, bad: Any) -> None:
+    reader = FakeBlackboxQuery()
+    reader.time_gaps = [bad]
     with engine_api(tmp_path, reader) as (server, token_path):
         async with session_for(adapter_for(server, token_path)) as s:
             is_error, page = await call(s, "list_blackbox_events")
@@ -377,26 +421,70 @@ def test_the_fake_rejects_unknown_filters_like_bb1() -> None:
         FakeBlackboxQuery().query({"severity_min": "WARNING"}, 0, 10, external=True)
 
 
-class _Bb1StatusShape(FakeBlackboxQuery):
-    """status() nella forma statica di BB-1 vista da B ({ok, degraded, as_of_seq})."""
-
-    def status(self) -> dict[str, Any]:
-        return {"ok": True, "degraded": False, "as_of_seq": 11}
-
-
-def test_bb1_status_shape_is_never_shown_as_a_healthy_register() -> None:
-    """Finché la mappatura di status() non è scritta sulle fixture reali: mai «disponibile», mai
-    «nessuna lacuna» per una chiave che il motore non ha riportato."""
-    body = make_providers(_Bb1StatusShape())["blackbox_status"]()
-    assert body["available"] is False
-    assert "gaps" in body["not_reported"] and "seq_range" in body["not_reported"]
+def test_status_never_claims_what_bb1_does_not_report() -> None:
+    """BB-1 non riporta lacune per seq né l'ultimo errore: mai «nessuna lacuna», mai inventato."""
+    body = make_providers(FakeBlackboxQuery())["blackbox_status"]()
+    assert body["available"] is True and body["degraded"] is False
+    assert (body["first_seq"], body["last_seq"], body["sessions"]) == (1, 11, 1)
+    assert {"gaps", "last_write_error_code", "corrupt_records"} <= set(body["not_reported"])
     assert body["gaps"] == []  # vuota per forma, ma dichiarata non riportata
 
 
-def test_get_in_bb1_dict_shape_is_an_error_never_a_lookup() -> None:
-    class _Bb1GetShape(FakeBlackboxQuery):
+@pytest.mark.parametrize(
+    ("ok", "degraded"), [(False, False), (True, True), ("true", False), (None, False)]
+)
+def test_only_a_literal_ok_and_not_degraded_register_is_available(ok: Any, degraded: Any) -> None:
+    class _Status(FakeBlackboxQuery):
+        def status(self) -> dict[str, Any]:
+            return {**super().status(), "ok": ok, "degraded": degraded}
+
+    assert make_providers(_Status())["blackbox_status"]()["available"] is False
+
+
+@pytest.mark.parametrize(
+    "shape",
+    [
+        (record(1), []),  # la vecchia coppia (record, chain): non è la forma di BB-1
+        {k: v for k, v in record(1).items()},  # senza causation_chain: catena mai «vuota» per caso
+        {**record(1), "causation_chain": "x"},
+    ],
+)
+def test_get_in_a_shape_other_than_bb1_is_an_error(shape: Any) -> None:
+    class _Get(FakeBlackboxQuery):
         def get(self, event_id: str, chain_depth: int, *, external: bool = False) -> Any:
-            return {"event": None, "chain": []}  # due chiavi: spacchettabili in silenzio
+            return shape
 
     with pytest.raises(ValueError, match="get shape"):
-        make_providers(_Bb1GetShape())["blackbox_event"](uid(1))
+        make_providers(_Get())["blackbox_event"](uid(1))
+
+
+def test_a_missing_link_breaks_the_chain_where_it_is() -> None:
+    reader = FakeBlackboxQuery()
+    reader.records = [r for r in reader.records if r["seq"] != 5]  # la causa del 6 manca
+    body = make_providers(reader)["blackbox_event"](uid(6))
+    assert body["state"] == "OK" and body["chain"] == []
+    assert body["chain_broken_at"] == uid(5)
+
+
+def test_sessions_tell_a_crash_from_the_running_session() -> None:
+    class _Two(FakeBlackboxQuery):
+        def sessions(self) -> list[dict[str, Any]]:
+            crashed = {**super().sessions()[0], "session_id": "s-old", "last_ts":
+                       "2026-11-08T14:00:00.5Z", "started": "2026-11-08T13:00:00Z"}
+            return [crashed, *super().sessions()]
+
+    items = make_providers(_Two())["blackbox_sessions"]()["sessions"]
+    assert [(i["session_id"], i["end_reason"], i["ended_at"]) for i in items] == [
+        ("s-old", "CRASH_DETECTED", None),  # l'ora vera del crash non è nota
+        (SESSION, "RUNNING", None),
+    ]
+    assert items[0]["last_event_at"] == "2026-11-08T14:00:00.500Z"
+
+
+def test_without_the_current_session_id_an_unclean_session_is_an_error() -> None:
+    class _NoCurrent(FakeBlackboxQuery):
+        def status(self) -> dict[str, Any]:
+            return {k: v for k, v in super().status().items() if k != "session_id"}
+
+    with pytest.raises(ValueError, match="clean_shutdown"):
+        make_providers(_NoCurrent())["blackbox_sessions"]()

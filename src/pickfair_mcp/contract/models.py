@@ -1605,6 +1605,8 @@ BlackboxSeverity = Literal["TRACE", "DEBUG", "INFO", "WARNING", "ERROR", "CRITIC
 BlackboxPhase = Literal["ATTEMPT", "RESULT", "OBSERVATION"]
 BlackboxOutcome = Literal["VERIFIED", "PENDING", "UNKNOWN", "REJECTED", "FAILED", "NOT_APPLICABLE"]
 UpperCode = Annotated[str, StringConstraints(pattern=r"^[A-Z][A-Z0-9_]{0,63}$")]
+# Codice del motivo: anche il nome di un'eccezione (BB-1 registra `KeyError` per TASK_EXCEPTION).
+ReasonCode = Annotated[str, StringConstraints(pattern=r"^[A-Za-z][A-Za-z0-9_]{0,63}$")]
 BlackboxCategory = Annotated[str, StringConstraints(pattern=r"^[A-Z][A-Z0-9_]{0,31}$")]
 # ASCII stampabile: BB-1 registra anche `thread:<nome del thread>` per le eccezioni dei thread.
 BlackboxComponent = Annotated[str, StringConstraints(pattern=r"^[ -~]{1,64}$")]
@@ -1683,7 +1685,7 @@ class BlackboxEvent(StrictModel):
     values_before: BlackboxValues | None
     values_after: BlackboxValues | None
     reason: ShortText | None
-    reason_code: UpperCode | None
+    reason_code: ReasonCode | None
     correlation_id: SessionKey | None
     causation_id: BlackboxEventId | None
     refs: BlackboxRefs
@@ -1748,6 +1750,24 @@ BlackboxGaps = Annotated[
 ]
 
 
+class BlackboxWindow(StrictModel):
+    """Finestra di tempo non registrata (lacuna per tempo di BB-1, es. arresto non pulito).
+
+    Il motore sa solo che in quell'intervallo può essere successo qualcosa che non ha scritto:
+    l'esito è sempre sconosciuto, mai «niente è successo»."""
+
+    seq: BlackboxSeq  # record della lacuna (BLACKBOX_GAP) che la descrive
+    from_ts: UtcMillis
+    to_ts: UtcMillis
+    reason_code: ReasonCode
+
+    @model_validator(mode="after")
+    def _ordered(self) -> BlackboxWindow:
+        if self.from_ts > self.to_ts:
+            raise ValueError("window bounds inverted")
+        return self
+
+
 def _strictly_increasing_seq(values: tuple[BlackboxEvent, ...]) -> tuple[BlackboxEvent, ...]:
     for a, b in itertools.pairwise(values):
         if b.seq <= a.seq:
@@ -1775,6 +1795,10 @@ class BlackboxEventsResponse(StrictModel):
     # Ultimo seq scritto al momento della lettura (0 = registro vuoto).
     as_of_seq: Annotated[int, Field(ge=0, le=10**15)] | None
     gaps_in_range: BlackboxGaps
+    # Finestre di tempo nell'intervallo letto in cui il motore non ha potuto registrare.
+    unrecorded_windows: Annotated[
+        tuple[BlackboxWindow, ...], Field(max_length=BLACKBOX_MAX_GAPS)
+    ]
     redacted: Count
     unavailable: Annotated[
         tuple[Literal["events", "as_of_seq"], ...],
@@ -1785,7 +1809,9 @@ class BlackboxEventsResponse(StrictModel):
     def _coherent(self) -> BlackboxEventsResponse:
         _check_unavailable({"events": self.events, "as_of_seq": self.as_of_seq}, self.unavailable)
         if self.events is None:
-            if self.truncated or self.next_after_seq or self.gaps_in_range or self.redacted:
+            no_page = (self.truncated or self.next_after_seq or self.gaps_in_range
+                       or self.unrecorded_windows or self.redacted)
+            if no_page:
                 raise ValueError("pagination or gaps without events")
             return self
         if self.truncated != (self.next_after_seq != 0):
@@ -1840,7 +1866,10 @@ class BlackboxSession(StrictModel):
     session_id: SessionKey
     process_id: Annotated[int, Field(ge=1, le=2**31)] | None
     started_at: UtcMillis
+    # Ora dell'arresto registrato: solo per CLEAN_STOP (per un crash l'ora vera non è nota).
     ended_at: UtcMillis | None
+    # Ora dell'ultimo evento registrato della sessione (per un crash: limite inferiore della fine).
+    last_event_at: UtcMillis | None
     # RUNNING: sessione corrente; CLEAN_STOP: arresto registrato; CRASH_DETECTED: il motore ha
     # rilevato al
     # riavvio un arresto non pulito; UNRECORDED: nessun arresto registrato e nessuna rilevazione.
@@ -1850,10 +1879,14 @@ class BlackboxSession(StrictModel):
 
     @model_validator(mode="after")
     def _coherent(self) -> BlackboxSession:
-        if (self.ended_at is None) != (self.end_reason in ("RUNNING", "UNRECORDED")):
-            raise ValueError("ended_at present iff the end was recorded or detected")
+        if (self.ended_at is None) != (self.end_reason != "CLEAN_STOP"):
+            raise ValueError("ended_at present iff a clean stop was recorded")
         if self.ended_at is not None and self.ended_at < self.started_at:
             raise ValueError("session ends before it starts")
+        if self.last_event_at is not None and self.last_event_at < self.started_at:
+            raise ValueError("last event before the session start")
+        if self.ended_at is not None and self.last_event_at != self.ended_at:
+            raise ValueError("a clean stop is the last recorded event")
         if (self.first_seq is None) != (self.last_seq is None):
             raise ValueError("seq range incomplete")
         if (self.first_seq is not None and self.last_seq is not None
@@ -1891,6 +1924,9 @@ class BlackboxStatusResponse(StrictModel):
     observed_at: ObservedAt
     consistency: Literal["PER_FIELD_NON_ATOMIC"]
     available: bool
+    # BB-1: registro degradato (una scrittura non critica fallita) e scritture non critiche perse.
+    degraded: bool | None
+    dropped_non_critical: Count | None
     first_seq: BlackboxSeq | None
     last_seq: BlackboxSeq | None
     retained_from_seq: BlackboxSeq | None
@@ -1911,11 +1947,12 @@ class BlackboxStatusResponse(StrictModel):
         tuple[
             Literal[
                 "seq_range", "corrupt_records", "sessions", "last_durable_write_at",
-                "retention_days", "gaps",
+                "retention_days", "gaps", "degraded", "dropped_non_critical",
+                "last_write_error_code",
             ],
             ...,
         ],
-        Field(max_length=6, json_schema_extra={"uniqueItems": True}),
+        Field(max_length=9, json_schema_extra={"uniqueItems": True}),
     ]
 
     @model_validator(mode="after")
@@ -1925,7 +1962,9 @@ class BlackboxStatusResponse(StrictModel):
         reported = {
             "corrupt_records": self.corrupt_records, "sessions": self.sessions,
             "last_durable_write_at": self.last_durable_write_at,
-            "retention_days": self.retention_days,
+            "retention_days": self.retention_days, "degraded": self.degraded,
+            "dropped_non_critical": self.dropped_non_critical,
+            "last_write_error_code": self.last_write_error_code,
         }
         for name, value in reported.items():
             if name in self.not_reported and value is not None:
@@ -1941,7 +1980,14 @@ class BlackboxStatusResponse(StrictModel):
             raise ValueError("gaps truncated without gaps")
         if "gaps" in self.not_reported and self.gaps:
             raise ValueError("gaps declared not reported carry a value")
-        no_cause = self.last_write_error_code is None and "seq_range" not in self.not_reported
-        if not self.available and no_cause:
+        if self.available and self.degraded:
+            raise ValueError("a degraded register is not available")
+        said_why = (
+            self.last_write_error_code is not None
+            or self.degraded is True
+            or "seq_range" in self.not_reported
+            or "last_write_error_code" in self.not_reported
+        )
+        if not self.available and not said_why:
             raise ValueError("an unavailable register must say why")
         return self

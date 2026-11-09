@@ -542,5 +542,18 @@ Adapter:
 - dà errore, mai una risposta parziale, su lacune per tempo, `get` in forma dict e qualunque forma non ancora
   mappata.
 
-Compatibilità con la classe reale: NOT_VERIFIED finché B non fornisce le fixture JSON
+Dalle fixture reali di B (sha256 `c11e4108…2766c0`, in `tests/contract/fixtures/`), cosa cambia nella vista:
+- eventi:
+  - `not_recorded` è quello del motore (in BB-1 ogni null è «non registrato»);
+  - `reason_code` può essere il nome di un'eccezione (`KeyError`);
+  - `unrecorded_windows` `{seq, from_ts, to_ts, reason_code}` riporta le finestre di tempo non registrate
+    (per esempio dopo un arresto non pulito); l'esito di una finestra è sempre sconosciuto;
+- stato:
+  - nuovi `degraded` e `dropped_non_critical`; un registro degradato non è mai disponibile;
+  - `not_reported` può comprendere `degraded`, `dropped_non_critical` e `last_write_error_code`;
+- sessioni:
+  - nuovo `last_event_at`;
+  - `ended_at` solo per CLEAN_STOP: per CRASH_DETECTED l'ora vera della fine non è nota.
+
+Mappature verificate sulle fixture (RED 7 → GREEN 10). La prova sulla classe reale integrata resta NOT_RUN
 (`docs/design/BLACKBOX_BB1_COMPATIBILITY.md` §10).

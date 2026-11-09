@@ -76,20 +76,21 @@ _NOTE = (
     "Times are UTC with milliseconds; convert them to the user's local time when presenting."
 )
 STATUS_DESCRIPTION = (
-    "Read-only. State of Pickfair's black box (GET /v1/blackbox/status): whether it is available, "
-    "the "
-    "seq range, gaps (lost, corrupt or removed by retention), corrupt records, sessions, last "
-    "write "
-    "error and last durable write, and how many Control API requests could not be recorded."
+    "Read-only. State of Pickfair's black box (GET /v1/blackbox/status): whether it is available "
+    "(never when degraded), whether it is degraded and how many non-critical writes were dropped, "
+    "the seq range, gaps (lost, corrupt or removed by retention), corrupt records, sessions, last "
+    "write error and last durable write, and how many Control API requests could not be recorded. "
+    "Anything the engine did not report is listed in not_reported, never filled in."
     + _NOTE
     + SUFFIX
 )
 SESSIONS_DESCRIPTION = (
     "Read-only. Start-to-stop sessions recorded in Pickfair's black box (GET "
     "/v1/blackbox/sessions): "
-    "session id, process id, start and end time, how it ended (RUNNING, CLEAN_STOP, "
-    "CRASH_DETECTED, or "
-    "UNRECORDED when no stop was recorded) and its seq range." + _NOTE + SUFFIX
+    "session id, process id, start time, end time (only for a recorded clean stop), time of the "
+    "last recorded event, how it ended (RUNNING, CLEAN_STOP, CRASH_DETECTED when the engine "
+    "detected an unclean stop at restart: its real end time is unknown and last_event_at is only "
+    "a lower bound, or UNRECORDED when no stop was recorded) and its seq range." + _NOTE + SUFFIX
 )
 EVENTS_DESCRIPTION = (
     "Read-only. Events from Pickfair's black box in seq order (GET /v1/blackbox/events). Filters: "
@@ -99,7 +100,9 @@ EVENTS_DESCRIPTION = (
     "lifecycle), market_id, selection_id, strategy, correlation_id, causation_id, category, "
     "origin (USER, SYSTEM, MCP, CONTROL_API, STRATEGY, EXCHANGE, TELEGRAM, CLI), severity "
     "(exact), phase, event_type, outcome. No free-text search: filter by type, category or "
-    "reason_code instead. Pages of up to 500 events: if truncated, "
+    "reason_code instead. unrecorded_windows are time windows the engine could not record (for "
+    "example after an unclean stop): what happened there is unknown, never 'nothing'. Pages of "
+    "up to 500 events: if truncated, "
     "call "
     "again with after_seq = next_after_seq. To answer 'what happened between 15:00 and 17:00', "
     "convert "

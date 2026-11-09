@@ -993,7 +993,7 @@ def _blackbox_events_body(scenario: StatusScenario, now: float) -> dict[str, Any
         "source": "core" if scenario is StatusScenario.WRONG_SOURCE else "simulated",
         "observed_at": _observed_at(scenario, now), "consistency": "SINGLE_READ_SNAPSHOT",
         "events": events, "next_after_seq": 0, "truncated": False, "as_of_seq": as_of,
-        "gaps_in_range": [], "redacted": 0, "unavailable": unavailable,
+        "gaps_in_range": [], "unrecorded_windows": [], "redacted": 0, "unavailable": unavailable,
     }
 
 
@@ -1014,7 +1014,8 @@ def _blackbox_event_body(scenario: StatusScenario, now: float, event_id: str) ->
 def _blackbox_sessions_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
     sessions: list[dict[str, Any]] | None = [
         {"session_id": _SIM_SESSION, "process_id": 1000, "started_at": "2026-11-07T15:00:00.000Z",
-         "ended_at": None, "end_reason": "RUNNING", "first_seq": 1, "last_seq": 3},
+         "ended_at": None, "last_event_at": "2026-11-07T15:00:01.900Z", "end_reason": "RUNNING",
+         "first_seq": 1, "last_seq": 3},
     ]
     unavailable: list[str] = []
     if scenario is StatusScenario.NOT_STARTED:
@@ -1030,7 +1031,8 @@ def _blackbox_status_body(scenario: StatusScenario, now: float) -> dict[str, Any
     body: dict[str, Any] = {
         "source": "core" if scenario is StatusScenario.WRONG_SOURCE else "simulated",
         "observed_at": _observed_at(scenario, now), "consistency": "PER_FIELD_NON_ATOMIC",
-        "available": True, "first_seq": 1, "last_seq": 3, "retained_from_seq": 1, "gaps": [],
+        "available": True, "degraded": False, "dropped_non_critical": 0,
+        "first_seq": 1, "last_seq": 3, "retained_from_seq": 1, "gaps": [],
         "gaps_truncated": False, "corrupt_records": 0, "sessions": 1,
         "current_session_id": _SIM_SESSION,
         "last_write_error_code": None, "last_durable_write_at": "2026-11-07T15:00:01.900Z",

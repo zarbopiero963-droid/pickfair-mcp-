@@ -1,5 +1,5 @@
-"""MCP-01p: dalla scatola nera del motore (Claude B, `core/blackbox_query`) alla vista del
-contratto.
+"""MCP-01p/01q: dalla scatola nera del motore (Claude B, `core/blackbox_query`) alla vista del
+contratto. Forme del lettore: quelle REALI di BB-1 (fixture di B, sha256 c11e4108…2766c0).
 
 Funzioni pure, solo stdlib. Il ponte del core collega l'interfaccia di lettura di B (pf_blackbox_01
 §4-bis):
@@ -9,15 +9,16 @@ Funzioni pure, solo stdlib. Il ponte del core collega l'interfaccia di lettura d
     query(filters, after_seq, limit, *, external)
         -> {records, next_after_seq, gaps_in_range, as_of_seq}
     get(event_id, chain_depth, *, external)
-        -> evento con la catena (forma da fixture reali di B: NOT_VERIFIED, oggi fail-closed)
+        -> record | None, con la catena in `causation_chain` (anello mancante: {event_id, missing})
     request_hook(record) -> bool
 
 e ottiene i quattro provider e il `request_hook` del server. Regole (mai inventare):
 - record del motore con i nomi di pf_blackbox_01 §3 (`source`, `type`, `pid`, `ts_utc` al µs,
 `event_id`
   uuid, `order_ref`, `data`): rinominati, tempo troncato al millisecondo, uuid in 32 hex;
-- `order_ref` / `customer_ref` non escono mai; un campo assente dal record è `null` ed elencato in
-  `not_recorded`, un campo presente e nullo è «non applicabile»;
+- `order_ref` / `customer_ref` non escono mai; `not_recorded` è quello del motore (BB-1 elenca i
+  campi a null) più i campi assenti dal record; un nome sconosciuto o con valore = record non
+  mappabile;
 - valori: mappe piatte di scalari; un float finito diventa la sua stringa decimale esatta; liste,
 valori
   oltre 256 caratteri, nomi fuori pattern o oltre 32 voci non si mostrano e si contano in
@@ -43,7 +44,6 @@ from pickfair_control_api.blackbox_query import ORIGINS, OUTCOMES, SEVERITIES
 
 PHASES: Final = frozenset({"ATTEMPT", "RESULT", "OBSERVATION"})
 GAP_KINDS: Final = frozenset({"LOST", "CORRUPT", "RETENTION"})
-END_REASONS: Final = frozenset({"RUNNING", "CLEAN_STOP", "CRASH_DETECTED", "UNRECORDED"})
 MAX_CHAIN: Final = 32
 MAX_VALUES: Final = 32
 MAX_TEXT: Final = 256
@@ -80,6 +80,8 @@ _TS = re.compile(r"\A(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,9}))?(?:Z|\
 _HEX32 = re.compile(r"\A[0-9a-f]{32}\Z")
 _NAME = re.compile(r"\A[a-z][a-z0-9_.]{0,63}\Z")
 _UPPER = re.compile(r"\A[A-Z][A-Z0-9_]{0,63}\Z")
+# reason_code: anche il nome di un'eccezione (BB-1: `KeyError` per TASK_EXCEPTION).
+_REASON = re.compile(r"\A[A-Za-z][A-Za-z0-9_]{0,63}\Z")
 _CATEGORY = re.compile(r"\A[A-Z][A-Z0-9_]{0,31}\Z")
 _COMPONENT = re.compile(r"\A[ -~]{1,64}\Z")  # BB-1: anche `thread:<nome del thread>`
 _SESSION = re.compile(r"\A[A-Za-z0-9_-]{1,64}\Z")
@@ -190,6 +192,25 @@ def _order_id(record: Mapping[str, Any]) -> int | str | None:
     return _opt_int(record, "order_id", 1, 10**15)
 
 
+_REF_COLUMNS: Final = frozenset(
+    {"table_id", "market_id", "selection_id", "order_id", "bet_id", "strategy"}
+)
+_NULLABLE_COLUMNS: Final = frozenset(
+    {"pid" if n == "process_id" else n for n in RECORDABLE} | _REF_COLUMNS
+)
+
+
+def _engine_not_recorded(record: Mapping[str, Any]) -> frozenset[str]:
+    """`not_recorded` di BB-1: campi a null non registrati. Mai un valore dichiarato assente."""
+    names = record.get("not_recorded", [])
+    if not isinstance(names, list) or not all(isinstance(n, str) for n in names):
+        raise Unmappable("not_recorded")
+    for name in names:
+        if name not in _NULLABLE_COLUMNS or record.get(name) is not None:
+            raise Unmappable("not_recorded")
+    return frozenset(names)
+
+
 def event_view(record: Mapping[str, Any]) -> dict[str, Any]:
     """Un record del motore -> evento del contratto. Solleva Unmappable se non rappresentabile."""
     if not isinstance(record, Mapping):
@@ -230,10 +251,11 @@ def event_view(record: Mapping[str, Any]) -> dict[str, Any]:
         "phase": phase,
         "outcome": outcome,
     }
+    engine_not_recorded = _engine_not_recorded(record)
     not_recorded = []
     for name in RECORDABLE:
         source_name = "pid" if name == "process_id" else name
-        if source_name not in record:
+        if source_name not in record or source_name in engine_not_recorded:
             view[name] = None
             not_recorded.append(name)
             continue
@@ -248,7 +270,7 @@ def event_view(record: Mapping[str, Any]) -> dict[str, Any]:
         elif name == "component":
             view[name] = _opt(record, "component", _COMPONENT)
         elif name == "reason_code":
-            view[name] = _opt(record, "reason_code", _UPPER)
+            view[name] = _opt(record, "reason_code", _REASON)
         elif name == "correlation_id":
             view[name] = _opt(record, "correlation_id", _SESSION)
         elif name in ("state_before", "state_after"):
@@ -288,6 +310,26 @@ def _gap(item: object) -> dict[str, Any]:
     return {"from_seq": lo, "to_seq": hi, "kind": kind}
 
 
+MAX_WINDOWS: Final = 64
+
+
+def unrecorded_window(item: object) -> dict[str, Any]:
+    """Lacuna per tempo di BB-1 {seq, from_ts, to_ts, outcome, reason_code} -> finestra della vista.
+
+    Il motore non sa cosa sia successo nella finestra: l'esito è UNKNOWN, mai altro."""
+    if not isinstance(item, Mapping):
+        raise ValueError("window")
+    seq, outcome, code = item.get("seq"), item.get("outcome"), item.get("reason_code")
+    if type(seq) is not int or seq < 1 or outcome != "UNKNOWN":
+        raise ValueError("window")
+    if not isinstance(code, str) or not _REASON.fullmatch(code):
+        raise ValueError("window")
+    lo, hi = ts_ms(item.get("from_ts")), ts_ms(item.get("to_ts"))
+    if lo > hi:
+        raise ValueError("window")
+    return {"seq": seq, "from_ts": lo, "to_ts": hi, "reason_code": code}
+
+
 def merge_gaps(gaps: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Ordina e unisce lacune contigue dello stesso tipo; una sovrapposizione è un errore."""
     out: list[dict[str, Any]] = []
@@ -322,6 +364,93 @@ def engine_filters(filters: Mapping[str, object]) -> tuple[dict[str, object], in
     return out, after, limit if isinstance(limit, int) else 200
 
 
+def session_view(raw: Mapping[str, Any], current: object) -> dict[str, Any]:
+    """Sessione di BB-1 {session_id, pid, started, last_ts, first_seq, last_seq, clean_shutdown}.
+
+    `clean_shutdown` falso vale sia per la sessione corrente sia per un crash rilevato al riavvio:
+    si distinguono solo con `status().session_id`. Senza di esso, nessuna fine «inventata».
+    """
+    session = raw.get("session_id")
+    if not isinstance(session, str) or not _SESSION.fullmatch(session):
+        raise ValueError("session_id")
+    clean = raw.get("clean_shutdown")
+    if clean is True:
+        end_reason = "CLEAN_STOP"
+    elif clean is False and isinstance(current, str):
+        end_reason = "RUNNING" if session == current else "CRASH_DETECTED"
+    else:
+        raise ValueError("clean_shutdown")
+    last_ts = raw.get("last_ts")
+    last_event_at = None if last_ts is None else ts_ms(last_ts)
+    return {
+        "session_id": session,
+        "process_id": _opt_int(raw, "pid", 1, 2**31),
+        "started_at": ts_ms(raw.get("started")),
+        # Fine registrata solo per l'arresto pulito; per un crash l'ora vera non è nota.
+        "ended_at": last_event_at if end_reason == "CLEAN_STOP" else None,
+        "last_event_at": last_event_at,
+        "end_reason": end_reason,
+        "first_seq": raw.get("first_seq"),
+        "last_seq": raw.get("last_seq"),
+    }
+
+
+# Chiavi di BB-1 che il contratto riporta; una chiave assente diventa `not_reported`.
+_STATUS_OPTIONAL: Final = (
+    "corrupt_records", "last_durable_write_at", "retention_days", "gaps", "degraded",
+    "dropped_non_critical", "last_write_error_code",
+)
+
+
+def status_view(raw: Mapping[str, Any], sessions_raw: object) -> dict[str, Any]:
+    """status() di BB-1 {ok, degraded, dropped_non_critical, as_of_seq, session_id, not_reported,
+    …} -> stato della vista. Disponibile solo se `ok` è letteralmente True e non degradato."""
+    if not isinstance(sessions_raw, list):
+        raise ValueError("sessions")
+    not_reported = [name for name in _STATUS_OPTIONAL if name not in raw]
+    engine_nr = raw.get("not_reported", [])
+    if not isinstance(engine_nr, list):
+        raise ValueError("not_reported")
+    if "last_error_detail" in engine_nr and "last_write_error_code" not in not_reported:
+        not_reported.append("last_write_error_code")
+    as_of = raw.get("as_of_seq")
+    firsts = [s.get("first_seq") for s in sessions_raw if isinstance(s, Mapping)]
+    first = min((f for f in firsts if type(f) is int), default=None)
+    if type(as_of) is not int or as_of < 0:
+        raise ValueError("as_of_seq")
+    if as_of == 0:
+        first = last = None  # registro vuoto: nessun intervallo, non «non riportato»
+    elif type(first) is int:
+        last = as_of
+    else:
+        first = last = None
+        not_reported.insert(0, "seq_range")
+    gaps = merge_gaps([_gap(g) for g in raw.get("gaps", [])])
+    durable = raw.get("last_durable_write_at")
+    degraded = raw.get("degraded")
+    if degraded is not None and not isinstance(degraded, bool):
+        raise ValueError("degraded")
+    available = raw.get("ok") is True and degraded is not True
+    return {
+        "available": available,
+        "degraded": degraded,
+        "dropped_non_critical": raw.get("dropped_non_critical"),
+        "first_seq": first,
+        "last_seq": last,
+        "retained_from_seq": raw.get("retained_from_seq"),
+        "gaps": gaps[:64],
+        "gaps_truncated": len(gaps) > 64,
+        "corrupt_records": raw.get("corrupt_records"),
+        "sessions": len(sessions_raw),
+        "current_session_id": raw.get("session_id"),
+        "last_write_error_code": raw.get("last_write_error_code"),
+        "last_durable_write_at": None if durable is None else ts_ms(durable),
+        "retention_days": raw.get("retention_days"),
+        "requests_unrecorded": 0,
+        "not_reported": not_reported,
+    }
+
+
 def make_providers(
     reader: Any, *, clock: Callable[[], float] = time.time
 ) -> dict[str, Callable[..., Any]]:
@@ -335,11 +464,10 @@ def make_providers(
         page = reader.query(engine, after_seq, limit, external=True)
         records, as_of_seq = page["records"], page["as_of_seq"]
         next_after_seq = page["next_after_seq"]
-        if page.get("gaps_in_range"):
-            # Lacune per tempo di BB-1 ({seq, from_ts, to_ts, outcome, reason_code}): la loro forma
-            # nella vista (unrecorded_windows) arriva con le fixture reali di B. Fino ad allora una
-            # pagina con lacune NON si mostra come completa: errore, mai una lacuna nascosta.
-            raise ValueError("time gaps not yet mapped")
+        raw_windows = page["gaps_in_range"]  # chiave obbligatoria: assente = risposta non valida
+        if not isinstance(raw_windows, list) or len(raw_windows) > MAX_WINDOWS:
+            raise ValueError("gaps_in_range")  # mai una lacuna nascosta o tagliata
+        windows = sorted((unrecorded_window(w) for w in raw_windows), key=lambda w: w["seq"])
         gaps: list[Any] = []
         views, corrupt = [], []
         for record in records:
@@ -359,16 +487,22 @@ def make_providers(
             "as_of_seq": int(as_of_seq),
             "redacted": 0,
             "gaps_in_range": merge_gaps([_gap(g) for g in gaps] + corrupt),
+            "unrecorded_windows": windows,
             "unavailable": [],
         }
 
     def event(event_id: str) -> dict[str, Any]:
         got = reader.get(engine_id(event_id), MAX_CHAIN, external=True)
-        if not isinstance(got, tuple) or len(got) != 2:
-            # BB-1 restituisce un dict con la catena dentro: la mappatura arriva con le fixture
-            # reali di B. Spacchettare un dict ne darebbe le chiavi: errore, mai una risposta.
-            raise ValueError("get shape not yet mapped")
-        record, chain = got
+        if got is not None and not isinstance(got, Mapping):
+            raise ValueError("get shape")  # BB-1: il record con la catena dentro, oppure None
+        record: dict[str, Any] | None = None
+        chain: list[Any] = []
+        if got is not None:
+            raw_chain = got.get("causation_chain")
+            if not isinstance(raw_chain, list):
+                raise ValueError("get shape")  # mai una catena «vuota» perché non riportata
+            chain = raw_chain
+            record = {k: v for k, v in got.items() if k != "causation_chain"}
         body = {
             **envelope("SINGLE_READ_SNAPSHOT"),
             "event_id": event_id,
@@ -381,7 +515,7 @@ def make_providers(
             return {**body, "state": "NOT_FOUND", "event": None}
         view = event_view(record)  # l'evento richiesto illeggibile: errore, mai uno «aggiustato»
         links, expected = [], view["causation_id"]
-        for link in chain or []:
+        for link in chain:  # un anello {event_id, missing: true} non si mappa: catena interrotta
             if expected is None:
                 break
             try:
@@ -403,22 +537,9 @@ def make_providers(
         }
 
     def sessions() -> dict[str, Any]:
-        items = []
-        for raw in reader.sessions():
-            end_reason = raw.get("end_reason")
-            if end_reason not in END_REASONS:
-                raise ValueError("end_reason")
-            items.append(
-                {
-                    "session_id": raw["session_id"],
-                    "process_id": raw.get("pid"),
-                    "started_at": ts_ms(raw["started_at"]),
-                    "ended_at": None if raw.get("ended_at") is None else ts_ms(raw["ended_at"]),
-                    "end_reason": end_reason,
-                    "first_seq": raw.get("first_seq"),
-                    "last_seq": raw.get("last_seq"),
-                }
-            )
+        raw_sessions = reader.sessions()
+        current = reader.status().get("session_id")  # BB-1: unico modo di riconoscere la corrente
+        items = [session_view(raw, current) for raw in raw_sessions]
         return {
             **envelope("SINGLE_READ_SNAPSHOT"),
             "sessions": items,
@@ -428,31 +549,10 @@ def make_providers(
 
     def status() -> dict[str, Any]:
         raw = reader.status()
-        reportable = ("corrupt_records", "sessions", "last_durable_write_at", "retention_days")
-        not_reported = [name for name in reportable if name not in raw]
-        if "last_seq" not in raw:
-            not_reported.insert(0, "seq_range")
-        if "gaps" not in raw:  # lista vuota per forma: mai «nessuna lacuna» se non riportata
-            not_reported.append("gaps")
-        gaps = merge_gaps([_gap(g) for g in raw.get("gaps", [])])
-        durable = raw.get("last_durable_write_at")
-        return {
-            **envelope("PER_FIELD_NON_ATOMIC"),
-            "available": raw.get("available") is True,
-            "first_seq": raw.get("first_seq"),
-            "last_seq": raw.get("last_seq"),
-            "retained_from_seq": raw.get("retained_from_seq"),
-            "gaps": gaps[:64],
-            "gaps_truncated": len(gaps) > 64,
-            "corrupt_records": raw.get("corrupt_records"),
-            "sessions": raw.get("sessions"),
-            "current_session_id": raw.get("current_session_id"),
-            "last_write_error_code": raw.get("last_write_error_code"),
-            "last_durable_write_at": None if durable is None else ts_ms(durable),
-            "retention_days": raw.get("retention_days"),
-            "requests_unrecorded": 0,
-            "not_reported": not_reported,
-        }
+        if not isinstance(raw, Mapping):
+            raise ValueError("status")
+        sessions_raw = reader.sessions()  # BB-1: primo seq e numero di sessioni stanno qui
+        return {**envelope("PER_FIELD_NON_ATOMIC"), **status_view(raw, sessions_raw)}
 
     return {
         "blackbox_status": status,

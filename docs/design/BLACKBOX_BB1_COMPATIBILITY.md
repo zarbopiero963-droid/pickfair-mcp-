@@ -1,4 +1,4 @@
-# Scatola nera — condizioni di compatibilità con BB-1 (MCP-01q, contratto 1.15.0)
+# Scatola nera — compatibilità con BB-1 (MCP-01q, contratto 1.15.0)
 
 Da: Claude C · Per: Claude B · mandato owner PF-CLAUDE-C-MCP-BLACKBOX-INTEGRATION-20261109.
 Riferimenti: `docs/design/BLACKBOX_READ_CONTRACT.md` (vista), `pf_blackbox_01.md` §3 e §4-bis di Claude B
@@ -8,9 +8,16 @@ decisione C/B pfab-c-20261109-bb1-normative-001.
 **Regola di forma.** La forma del lettore è quella di BB-1, ed è normativa: si adatta l'adapter, non il motore.
 La vista esterna resta quella del contratto MCP (1.15.0).
 
-**Nessun PASS sul motore reale finché BB-1 non è integrata.** I contract test girano su un lettore finto nella
-forma di BB-1 (`tests/contract/fake_engine_blackbox.py`). La compatibilità con la classe reale resta
-**NOT_VERIFIED** finché non girano gli stessi scenari sulle fixture JSON reali di B (§10).
+**Nessun PASS end-to-end sul motore reale finché BB-1 non è integrata.** Due livelli di prova:
+- **fixture reali di B**: output di `BlackBoxReader` (BB-1 locale 0df7a411, `external=True`, dati sintetici),
+  salvati byte per byte in `tests/contract/fixtures/bb1_reader_c11e4108.json`, sha256
+  `c11e4108f074e8a64d18ce0dcd2eca3a2bda68f034e2e9bf0d149efb5e2766c0` (16.543 byte, uguale a quello dichiarato da
+  B). `tests/contract/test_blackbox_bb1_fixture.py` li fa passare per adapter, Control API reale e MCP.
+  Esito: **VERIFIED sulle fixture** (RED 7 su 907423e → GREEN 10);
+- **lettore finto** (`tests/contract/fake_engine_blackbox.py`), nelle stesse forme, per gli scenari che la
+  fixture non copre: filtri, paginazione, record non mappabili, hook rifiutato.
+
+Restano **NOT_RUN** `check_reader` e gli scenari sulla classe reale integrata (§10).
 
 ## 1. Come si verifica la classe reale
 
@@ -30,24 +37,25 @@ controllo di B è stato statico.
 
 | Metodo | Parametri | Ritorno | Stato |
 |---|---|---|---|
-| `status()` | — | dict | forma BB-1 `{ok, degraded, as_of_seq, …}` **non ancora mappata**: §5 |
-| `sessions()` | — | lista di dict (§6) | da confrontare con la fixture |
-| `query(filters, after_seq, limit, *, external)` | filtri del motore (§4), cursore, 1–500; sempre `external=True` | `{records, next_after_seq, gaps_in_range, as_of_seq}` | adattato |
-| `get(event_id, chain_depth, *, external)` | 32 hex minuscoli senza trattini, profondità 32, `external=True` | dict con la catena dentro | **non ancora mappato**: oggi errore (§2-bis) |
-| `request_hook(record)` | record dell'hook (§7) | `True` solo se scritto; qualunque altro valore = non registrato | adattato |
+| `status()` | — | `{ok, degraded, dropped_non_critical, as_of_seq, count, buffered, session_id, not_reported}` | mappato (§5), verificato sulla fixture |
+| `sessions()` | — | lista di `{session_id, pid, started, last_ts, first_seq, last_seq, clean_shutdown}` | mappato (§6), verificato sulla fixture |
+| `query(filters, after_seq, limit, *, external)` | filtri del motore (§4), cursore, 1–500; sempre `external=True` | `{records, next_after_seq, gaps_in_range, as_of_seq}` | mappato, verificato sulla fixture |
+| `get(event_id, chain_depth, *, external)` | 32 hex minuscoli senza trattini, profondità 32, `external=True` | il record con `causation_chain`, oppure `None` | mappato, verificato sulla fixture |
+| `request_hook(record)` | record dell'hook (§7) | `True` solo se scritto; qualunque altro valore = non registrato | verificato sulla fixture (`true`) |
 
 Il lettore **non** espone `record`, `delete`, `update`, `write`, `purge` o `truncate`: `check_reader` lo rifiuta.
 
-### 2-bis. Fail-closed su ciò che non è ancora mappato
+### 2-bis. Fail-closed su ogni forma diversa
 
-- `query` con `gaps_in_range` non vuoto (lacune per tempo `{seq, from_ts, to_ts, outcome, reason_code}`):
-  errore, mai una pagina mostrata come completa. La vista (`unrecorded_windows`) arriva con le fixture.
-- `get` che non restituisce una coppia `(record, chain)`: errore. Un dict di due chiavi si spacchetterebbe nelle
-  sue chiavi senza errore.
-- `status()` senza `available`, `last_seq` o `gaps`:
-  - il registro risulta non disponibile;
-  - il campo assente va in `not_reported`, `gaps` compreso (nuovo in 1.15.0);
-  - una lista vuota non significa mai «nessuna lacuna» se il motore non l'ha riportata.
+- `gaps_in_range` assente, non lista, oltre 64 voci, o con una voce fuori forma: errore, mai una pagina mostrata
+  come completa. Fuori forma vuol dire: esito diverso da UNKNOWN, estremi invertiti o non UTC, seq < 1,
+  `reason_code` mancante.
+- `get` che non restituisce un dict con `causation_chain` (lista), o `None`: errore. La vecchia coppia
+  `(record, chain)` non è accettata.
+- `sessions()` con `clean_shutdown` falso e `status()` senza `session_id`: errore. Senza la sessione corrente,
+  un crash non si distingue dalla sessione in corso.
+- `not_recorded` del record con un nome sconosciuto o con un valore non nullo: record non mappabile (lacuna
+  CORRUPT), mai un valore nascosto.
 
 ## 3. Record del motore → vista
 
@@ -58,17 +66,19 @@ Il lettore **non** espone `record`, `delete`, `update`, `write`, `purge` o `trun
 | `ts_utc` ISO-8601 UTC fino al ns (`Z` o `+00:00`) | `ts_utc` al ms | troncato, mai arrotondato; altro fuso = record non mappabile |
 | `source` | `origin` | USER, SYSTEM, MCP, CONTROL_API, STRATEGY, EXCHANGE, TELEGRAM, CLI |
 | `type`, `category`, `severity` | `event_type`, `category`, `severity` | maiuscoli; livelli TRACE…CRITICAL |
+| `not_recorded` (BB-1: i campi a null) | `not_recorded` | i campi della vista che il motore elenca, più quelli assenti dal record |
 | `phase`, `outcome` | uguali | ATTEMPT ⇒ PENDING; AMBIGUOUS dell'exchange = UNKNOWN con `reason_code` AMBIGUOUS |
 | `pid` | `process_id` | |
 | `component` | `component` | ASCII stampabile, 1–64 caratteri (`thread:<nome>` di BB-1 compreso) |
-| `state_*`, `reason_code`, `reason` | uguali | `reason` oltre 256 caratteri: non mostrata, contata in `omitted_values` |
+| `state_*`, `reason` | uguali | `reason` oltre 256 caratteri: non mostrata, contata in `omitted_values` |
+| `reason_code` | uguale | `^[A-Za-z][A-Za-z0-9_]{0,63}$`: anche il nome di un'eccezione (`KeyError`) |
 | `values_before`, `values_after`, `data` (dict o JSON) | mappe piatte con nomi puntati | vedi nota sotto |
 | `table_id`, `selection_id` (testo di cifre in BB-1, o int) | `refs`, come interi | testo non di cifre = record non mappabile |
 | `order_id` | `refs.order_id` | id del ledger (int o testo di cifre → int) oppure uuid canonico con trattini (`str(uuid4())` col DB degradato) |
 | `market_id`, `bet_id`, `strategy` | `refs` | |
 | `order_ref` / `customer_ref` | — | **mai** nella vista; `external=True` li esclude già, la vista li ignora comunque; in `data` diventano `[REDACTED]` |
 | `mono`, `session_seq`, `prev_hash`, `hash` | — | interni |
-| campo **assente** dal record | `null` + `not_recorded` | campo presente e nullo = «non applicabile» |
+| campo **assente** dal record | `null` + `not_recorded` | in BB-1 ogni colonna esiste; il null va in `not_recorded` |
 
 Nota sulle mappe piatte (`values_before`, `values_after`, `data`):
 - un float finito diventa la sua stringa decimale esatta;
@@ -99,28 +109,31 @@ quello finto lo fa.
 rifiuta con `QUERY_PARAM` e il tool MCP non li offre. I valori sono già validati dalla whitelist della Control
 API.
 
-## 5. `status()`
+## 5. `status()` → stato della vista
 
-Chiavi lette dall'adapter:
-- `available`: vale True solo se è letteralmente True;
-- `first_seq`, `last_seq`, `retained_from_seq`;
-- `gaps`: lista di `(from, to, kind)` o di dict, con kind LOST, CORRUPT o RETENTION;
-- `corrupt_records`, `sessions`, `current_session_id`, `last_write_error_code`, `last_durable_write_at`,
-  `retention_days`.
+L'adapter legge anche `sessions()`.
 
-Una chiave **assente** diventa `not_reported`. La forma di BB-1 `{ok, degraded, as_of_seq, …}` oggi produce
-«non disponibile», con `seq_range` e `gaps` non riportati: è prudente, ma non è la mappatura. La mappatura si
-scrive sulla fixture (§10).
+| BB-1 | Vista | Regola |
+|---|---|---|
+| `ok`, `degraded` | `available`, `degraded` | `available` solo se `ok` è letteralmente True e `degraded` non è True |
+| `dropped_non_critical` | uguale | |
+| `as_of_seq` + il minimo `first_seq` delle sessioni | `last_seq`, `first_seq` | `as_of_seq` 0 = registro vuoto; senza `first_seq`: `seq_range` in `not_reported` |
+| numero delle sessioni | `sessions` | |
+| `session_id` | `current_session_id` | |
+| `not_reported` con `last_error_detail` | `last_write_error_code` in `not_reported` | |
+| `count`, `buffered` | — | non mostrati |
+| chiavi che BB-1 non ha: `gaps`, `corrupt_records`, `last_durable_write_at`, `retention_days`, `last_write_error_code` | `not_reported` | `gaps` vuota per forma, ma dichiarata non riportata: mai «nessuna lacuna» |
 
-## 6. `sessions()`
+## 6. `sessions()` → sessioni della vista
 
-Per sessione:
-- `session_id`, `pid`, `started_at`;
-- `ended_at` (`None` se la sessione non è chiusa);
-- `end_reason`: RUNNING, CLEAN_STOP, CRASH_DETECTED o UNRECORDED;
-- `first_seq`, `last_seq`.
-
-Da confrontare con la fixture di B.
+| BB-1 | Vista |
+|---|---|
+| `session_id`, `pid`, `first_seq`, `last_seq` | `session_id`, `process_id`, `first_seq`, `last_seq` |
+| `started` | `started_at` (al ms) |
+| `last_ts` | `last_event_at` (al ms) |
+| `clean_shutdown` true | `end_reason` CLEAN_STOP, `ended_at` = `last_ts` |
+| `clean_shutdown` false, sessione = `status().session_id` | RUNNING, `ended_at` null |
+| `clean_shutdown` false, altra sessione | CRASH_DETECTED, `ended_at` null: l'ora vera non è nota, `last_event_at` è il limite inferiore |
 
 ## 7. Hook `request_hook(record)`
 
@@ -146,9 +159,12 @@ stato del guasto resta raggiungibile anche via MCP.
 | tempo filtrato con `from_ts`/`to_ts`; filtro sconosciuto = errore (ACK di B) | `since`/`until` tradotti | idem |
 | hook `request_hook(record)` (controllo statico di B) | `make_request_hook`, `check_reader` | contract test, mutante R04 |
 | `query` con `external` e risultato dict | adapter con `external=True`, lettura del dict | contract test, mutante R13 |
-| `gaps_in_range` per tempo | errore finché non è mappato | test `time_gaps_…`, mutante R12 |
-| `get` restituisce un dict | errore finché non è mappato | test `get_in_bb1_dict_shape…`, mutante R16 |
-| `status` senza `available`/`gaps` | `not_reported` comprende `gaps` | test `bb1_status_shape…`, mutante R15 |
+| `gaps_in_range` per tempo (fixture) | `unrecorded_windows`, esito sempre sconosciuto | fixture, mutanti R12 e R19 |
+| `get`: record con `causation_chain`, anello `{event_id, missing}`, `None` (fixture) | catena, `chain_broken_at`, NOT_FOUND | fixture, mutante R16 |
+| `status` `{ok, degraded, …}` (fixture) | §5, `degraded` e `dropped_non_critical` nuovi | fixture, mutanti R15 e R20 |
+| `sessions` con `clean_shutdown` (fixture) | §6, `last_event_at` nuovo; per un crash, nessuna ora di fine | fixture, mutanti R21 e R22 |
+| `not_recorded` del motore (fixture) | usato; mai un valore nascosto | fixture, mutanti R17 e R18 |
+| `reason_code` `KeyError` (fixture): prima diventava un record CORRUPT | pattern anche minuscolo | fixture, mutante R23 |
 | `table_id`/`selection_id` come testo di cifre | vista: testo → int; filtro: int → testo | RED (0 righe invece di 3) → GREEN, mutante R11 |
 | `order_id` uuid | vista e filtro: int oppure uuid canonico | test dei filtri, mutante R14 |
 | `component` `thread:<nome>` | pattern ASCII stampabile 1–64 | test `thread_component…` |
@@ -161,18 +177,18 @@ verificato, percentuale MM, stake teorico e autorizzato, riserve, commissioni, v
 mostrata come il motore l'ha registrata in `data`, con il suo `correlation_id`. Nessuna logica finanziaria
 nell'MCP.
 
-## 10. NOT_VERIFIED: fixture JSON reali richieste a B
+## 10. Ancora da verificare sulla classe reale (NOT_RUN)
 
-Servono le fixture di:
-- a) `status()`;
-- b) `sessions()`;
-- c) una pagina di `query` con `gaps_in_range` non vuoto;
-- d) `get` di un evento con la sua catena;
-- e) un record per ognuna delle forme di `order_id` (intero e uuid).
+- `check_reader(BlackBoxReader(...)) == []` e gli scenari dei contract test sulla classe reale, una volta
+  integrata BB-1 (#615, a merge dell'owner);
+- TRACE in `event_journal.LEVELS` di BB-1 (la fixture non ha record TRACE);
+- se la fixture cambia, B rigenera file e sha256 e qui si aggiorna `FIXTURE_SHA256`.
 
-Fino ad allora restano da verificare:
-- la mappatura di `status`, `sessions` e `get`;
-- `unrecorded_windows` (le lacune per tempo);
-- `check_reader` sulla classe reale;
-- TRACE in `event_journal.LEVELS` di BB-1;
-- la forma registrata di `order_id`, cioè se è intero o testo di cifre.
+## 11. Richieste a B dalle fixture (nel repository del motore)
+
+- **`returned`**: il `data` di `CONTROL_API_REQUEST` nella fixture non contiene `returned` (il numero di
+  elementi letti, mandato dall'hook). Il `READ_REQUEST` col conteggio richiede che sia registrato.
+- **ATTEMPT**: la fixture mostra solo il RESULT. L'hook manda anche l'ATTEMPT prima della lettura; va confermato
+  che BB-1 lo registri (o che lo scarti per scelta dichiarata).
+- **`request_id` dell'MCP**: è `mcp-<24 hex>`, non un uuid. La normalizzazione di `correlation_id` a 32 hex
+  della fixture parte da un uuid: va confermato cosa fa BB-1 con `mcp-<24 hex>`, senza inventare cifre.

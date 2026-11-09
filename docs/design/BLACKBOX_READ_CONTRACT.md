@@ -78,7 +78,15 @@ Risposta: `events`, `next_after_seq` (ultimo `seq` restituito; `0` se non ci son
 Il lettore riporta, mai ripara:
 - **lacuna**: `seq` mancanti in un intervallo → `gaps` come intervalli `[from, to]`;
 - **record corrotto**: illeggibile o con checksum errato → contato, mai mostrato come se fosse valido;
-- **sessione senza chiusura**: `ended_at` `null` + `end_reason` `UNRECORDED` (crash o arresto non registrato);
+- **finestra non registrata** (lacuna per tempo di BB-1, per esempio dopo un arresto non pulito):
+  `unrecorded_windows` `{seq, from_ts, to_ts, reason_code}`. Cosa sia successo nella finestra è sconosciuto, mai
+  «niente»;
+- **sessione senza chiusura**: `ended_at` `null`, con `end_reason`:
+  - `CRASH_DETECTED`: il motore ha rilevato l'arresto non pulito al riavvio. L'ora vera della fine non è nota;
+    `last_event_at` ne è solo il limite inferiore;
+  - `UNRECORDED`: nessuna rilevazione;
+- **registro degradato** (BB-1: una scrittura non critica fallita): `degraded = true`,
+  `dropped_non_critical`, `available = false`;
 - **registro non disponibile**: `status.available = false` con `last_write_error_code` o `not_reported`; eventi
   `null` con `unavailable: ["events", "as_of_seq"]`.
 

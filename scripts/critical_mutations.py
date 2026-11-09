@@ -1770,8 +1770,8 @@ MUTANTS: tuple[Mutant, ...] = (
         (
             (
                 'src/pickfair_control_api/blackbox_bridge.py',
-                '        if page.get("gaps_in_range"):',
-                '        if False:',
+                '        windows = sorted((unrecorded_window(w) for w in raw_windows), key=lambda w: w["seq"])',
+                '        windows = []',
             ),
         ),
     ),
@@ -1803,19 +1803,96 @@ MUTANTS: tuple[Mutant, ...] = (
         (
             (
                 'src/pickfair_control_api/blackbox_bridge.py',
-                '        if "gaps" not in raw:',
-                '        if False:',
+                '    "corrupt_records", "last_durable_write_at", "retention_days", "gaps", "degraded",',
+                '    "corrupt_records", "last_durable_write_at", "retention_days", "degraded",',
             ),
         ),
     ),
     Mutant(
         "R16",
-        "get nella forma dict di BB-1 spacchettato in silenzio",
+        "get senza causation_chain mostrato con una catena vuota",
         (
             (
                 'src/pickfair_control_api/blackbox_bridge.py',
-                '        if not isinstance(got, tuple) or len(got) != 2:',
-                '        if False:',
+                '            raw_chain = got.get("causation_chain")',
+                '            raw_chain = got.get("causation_chain") or []',
+            ),
+        ),
+    ),
+    Mutant(
+        "R17",
+        'not_recorded del motore ignorato (campo non registrato mostrato «non applicabile»)',
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                '        if source_name not in record or source_name in engine_not_recorded:',
+                '        if source_name not in record:',
+            ),
+        ),
+    ),
+    Mutant(
+        "R18",
+        'valore nascosto da un not_recorded del motore',
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                '        if name not in _NULLABLE_COLUMNS or record.get(name) is not None:',
+                '        if name not in _NULLABLE_COLUMNS:',
+            ),
+        ),
+    ),
+    Mutant(
+        "R19",
+        'finestra non registrata con un esito diverso da UNKNOWN accettata',
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                '    if type(seq) is not int or seq < 1 or outcome != "UNKNOWN":',
+                '    if type(seq) is not int or seq < 1:',
+            ),
+        ),
+    ),
+    Mutant(
+        "R20",
+        'registro degradato mostrato disponibile',
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                '    available = raw.get("ok") is True and degraded is not True',
+                '    available = raw.get("ok") is True',
+            ),
+        ),
+    ),
+    Mutant(
+        "R21",
+        'sessione crashata mostrata in corso',
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                '        end_reason = "RUNNING" if session == current else "CRASH_DETECTED"',
+                '        end_reason = "RUNNING"',
+            ),
+        ),
+    ),
+    Mutant(
+        "R22",
+        'ora di fine inventata per un crash',
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                '        "ended_at": last_event_at if end_reason == "CLEAN_STOP" else None,',
+                '        "ended_at": last_event_at,',
+            ),
+        ),
+    ),
+    Mutant(
+        "R23",
+        'reason_code di un\'eccezione (KeyError) reso record CORRUPT',
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                '            view[name] = _opt(record, "reason_code", _REASON)',
+                '            view[name] = _opt(record, "reason_code", _UPPER)',
             ),
         ),
     ),

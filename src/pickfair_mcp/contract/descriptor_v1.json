@@ -182,7 +182,7 @@
     ]
   ],
   "semantics": {
-    "blackbox": "PF-BLACKBOX-01, read-only. The engine's permanent chronological register; the reader never invents: a field the engine did not record is null and listed in the event's `unavailable`. seq is the persistent progressive number: missing seq are reported as gaps (LOST, CORRUPT, or RETENTION when removed by the configured retention), never repaired. phase ATTEMPT is what Pickfair tried (outcome always PENDING), RESULT what actually happened; an exchange AMBIGUOUS is outcome UNKNOWN, never FAILED. Timestamps are UTC with milliseconds; local time is the viewer's job. Values of sensitive names are always [REDACTED]. Filters only on GET /v1/blackbox/events, from a closed whitelist (since, until, after_seq, limit 1-500, session_id, table_id, market_id, order_id (integer or uuid), bet_id, selection_id, strategy, correlation_id, causation_id, category, origin, severity, phase, event_type, outcome: the filters of the engine's BB-1 reader); an unknown or repeated parameter, a value out of pattern or a range over 31 days is 400 without calling the core. Every Control API request is recorded once in the register (never once per returned event); a request that cannot be recorded is refused 503 BLACKBOX_UNAVAILABLE, except /v1/blackbox/status and /v1/meta (the handshake, no Pickfair data), so the register's failure stays visible.",
+    "blackbox": "PF-BLACKBOX-01, read-only. The engine's permanent chronological register; the reader never invents: a field the engine did not record is null and listed in the event's `not_recorded`. seq is the persistent progressive number: missing seq are reported as gaps (LOST, CORRUPT, or RETENTION when removed by the configured retention), never repaired; time windows the engine could not record (e.g. after an unclean stop) are `unrecorded_windows`, whose outcome is unknown. phase ATTEMPT is what Pickfair tried (outcome always PENDING), RESULT what actually happened; an exchange AMBIGUOUS is outcome UNKNOWN, never FAILED. Timestamps are UTC with milliseconds; local time is the viewer's job. Values of sensitive names are always [REDACTED]. Filters only on GET /v1/blackbox/events, from a closed whitelist (since, until, after_seq, limit 1-500, session_id, table_id, market_id, order_id (integer or uuid), bet_id, selection_id, strategy, correlation_id, causation_id, category, origin, severity, phase, event_type, outcome: the filters of the engine's BB-1 reader); an unknown or repeated parameter, a value out of pattern or a range over 31 days is 400 without calling the core. Every Control API request is recorded once in the register (never once per returned event); a request that cannot be recorded is refused 503 BLACKBOX_UNAVAILABLE, except /v1/blackbox/status and /v1/meta (the handshake, no Pickfair data), so the register's failure stays visible.",
     "codes": "Codes and reasons match ^[A-Z][A-Z0-9_]{0,63}$; free text from the core becomes UNSTRUCTURED and never crosses the API.",
     "config": {
       "keys": {
@@ -1019,7 +1019,7 @@
               "reason_code": {
                 "anyOf": [
                   {
-                    "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                    "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$",
                     "type": "string"
                   },
                   {
@@ -1653,6 +1653,30 @@
                 ],
                 "title": "Current Session Id"
               },
+              "degraded": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Degraded"
+              },
+              "dropped_non_critical": {
+                "anyOf": [
+                  {
+                    "maximum": 1000000,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Dropped Non Critical"
+              },
               "first_seq": {
                 "anyOf": [
                   {
@@ -1723,11 +1747,14 @@
                     "sessions",
                     "last_durable_write_at",
                     "retention_days",
-                    "gaps"
+                    "gaps",
+                    "degraded",
+                    "dropped_non_critical",
+                    "last_write_error_code"
                   ],
                   "type": "string"
                 },
-                "maxItems": 6,
+                "maxItems": 9,
                 "title": "Not Reported",
                 "type": "array",
                 "uniqueItems": true
@@ -1797,6 +1824,8 @@
               "observed_at",
               "consistency",
               "available",
+              "degraded",
+              "dropped_non_critical",
               "first_seq",
               "last_seq",
               "retained_from_seq",
@@ -6772,7 +6801,7 @@
               "reason_code": {
                 "anyOf": [
                   {
-                    "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                    "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$",
                     "type": "string"
                   },
                   {
@@ -7042,6 +7071,14 @@
                 "title": "Unavailable",
                 "type": "array",
                 "uniqueItems": true
+              },
+              "unrecorded_windows": {
+                "items": {
+                  "$ref": "#/$defs/BlackboxWindow"
+                },
+                "maxItems": 64,
+                "title": "Unrecorded Windows",
+                "type": "array"
               }
             },
             "required": [
@@ -7053,6 +7090,7 @@
               "truncated",
               "as_of_seq",
               "gaps_in_range",
+              "unrecorded_windows",
               "redacted",
               "unavailable"
             ],
@@ -7185,6 +7223,41 @@
               "strategy"
             ],
             "title": "BlackboxRefs",
+            "type": "object"
+          },
+          "BlackboxWindow": {
+            "additionalProperties": false,
+            "description": "Finestra di tempo non registrata (lacuna per tempo di BB-1, es. arresto non pulito).\n\nIl motore sa solo che in quell'intervallo pu\u00f2 essere successo qualcosa che non ha scritto:\nl'esito \u00e8 sempre sconosciuto, mai \u00abniente \u00e8 successo\u00bb.",
+            "properties": {
+              "from_ts": {
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+                "title": "From Ts",
+                "type": "string"
+              },
+              "reason_code": {
+                "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$",
+                "title": "Reason Code",
+                "type": "string"
+              },
+              "seq": {
+                "maximum": 1000000000000000,
+                "minimum": 1,
+                "title": "Seq",
+                "type": "integer"
+              },
+              "to_ts": {
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+                "title": "To Ts",
+                "type": "string"
+              }
+            },
+            "required": [
+              "seq",
+              "from_ts",
+              "to_ts",
+              "reason_code"
+            ],
+            "title": "BlackboxWindow",
             "type": "object"
           },
           "ErrorBody": {
@@ -7394,6 +7467,18 @@
                 ],
                 "title": "First Seq"
               },
+              "last_event_at": {
+                "anyOf": [
+                  {
+                    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Last Event At"
+              },
               "last_seq": {
                 "anyOf": [
                   {
@@ -7436,6 +7521,7 @@
               "process_id",
               "started_at",
               "ended_at",
+              "last_event_at",
               "end_reason",
               "first_seq",
               "last_seq"
@@ -9532,7 +9618,7 @@
             "reason_code": {
               "anyOf": [
                 {
-                  "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                  "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$",
                   "type": "string"
                 },
                 {
@@ -10059,7 +10145,7 @@
             "reason_code": {
               "anyOf": [
                 {
-                  "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                  "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$",
                   "type": "string"
                 },
                 {
@@ -10346,6 +10432,41 @@
           ],
           "title": "BlackboxRefs",
           "type": "object"
+        },
+        "BlackboxWindow": {
+          "additionalProperties": false,
+          "description": "Finestra di tempo non registrata (lacuna per tempo di BB-1, es. arresto non pulito).\n\nIl motore sa solo che in quell'intervallo pu\u00f2 essere successo qualcosa che non ha scritto:\nl'esito \u00e8 sempre sconosciuto, mai \u00abniente \u00e8 successo\u00bb.",
+          "properties": {
+            "from_ts": {
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+              "title": "From Ts",
+              "type": "string"
+            },
+            "reason_code": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$",
+              "title": "Reason Code",
+              "type": "string"
+            },
+            "seq": {
+              "maximum": 1000000000000000,
+              "minimum": 1,
+              "title": "Seq",
+              "type": "integer"
+            },
+            "to_ts": {
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+              "title": "To Ts",
+              "type": "string"
+            }
+          },
+          "required": [
+            "seq",
+            "from_ts",
+            "to_ts",
+            "reason_code"
+          ],
+          "title": "BlackboxWindow",
+          "type": "object"
         }
       },
       "additionalProperties": false,
@@ -10433,6 +10554,14 @@
           "title": "Unavailable",
           "type": "array",
           "uniqueItems": true
+        },
+        "unrecorded_windows": {
+          "items": {
+            "$ref": "#/$defs/BlackboxWindow"
+          },
+          "maxItems": 64,
+          "title": "Unrecorded Windows",
+          "type": "array"
         }
       },
       "required": [
@@ -10444,6 +10573,7 @@
         "truncated",
         "as_of_seq",
         "gaps_in_range",
+        "unrecorded_windows",
         "redacted",
         "unavailable"
       ],
@@ -10490,6 +10620,18 @@
               ],
               "title": "First Seq"
             },
+            "last_event_at": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Last Event At"
+            },
             "last_seq": {
               "anyOf": [
                 {
@@ -10532,6 +10674,7 @@
             "process_id",
             "started_at",
             "ended_at",
+            "last_event_at",
             "end_reason",
             "first_seq",
             "last_seq"
@@ -10674,6 +10817,30 @@
           ],
           "title": "Current Session Id"
         },
+        "degraded": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Degraded"
+        },
+        "dropped_non_critical": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Dropped Non Critical"
+        },
         "first_seq": {
           "anyOf": [
             {
@@ -10744,11 +10911,14 @@
               "sessions",
               "last_durable_write_at",
               "retention_days",
-              "gaps"
+              "gaps",
+              "degraded",
+              "dropped_non_critical",
+              "last_write_error_code"
             ],
             "type": "string"
           },
-          "maxItems": 6,
+          "maxItems": 9,
           "title": "Not Reported",
           "type": "array",
           "uniqueItems": true
@@ -10818,6 +10988,8 @@
         "observed_at",
         "consistency",
         "available",
+        "degraded",
+        "dropped_non_critical",
         "first_seq",
         "last_seq",
         "retained_from_seq",

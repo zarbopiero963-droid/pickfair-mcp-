@@ -163,9 +163,11 @@ SEMANTICS: Final = {
     "blackbox": (
         "PF-BLACKBOX-01, read-only. The engine's permanent chronological register; the reader "
         "never invents: a field the engine did not record is null and listed in the event's "
-        "`unavailable`. seq is the persistent progressive number: missing seq are reported as "
+        "`not_recorded`. seq is the persistent progressive number: missing seq are reported as "
         "gaps (LOST, CORRUPT, or RETENTION when removed by the configured retention), never "
-        "repaired. phase ATTEMPT is what Pickfair tried (outcome always PENDING), RESULT what "
+        "repaired; time windows the engine could not record (e.g. after an unclean stop) are "
+        "`unrecorded_windows`, whose outcome is unknown. phase ATTEMPT is what Pickfair tried "
+        "(outcome always PENDING), RESULT what "
         "actually happened; an exchange AMBIGUOUS is outcome UNKNOWN, never FAILED. Timestamps "
         "are UTC with milliseconds; local time is the viewer's job. Values of sensitive names "
         "are always [REDACTED]. Filters only on GET /v1/blackbox/events, from a closed "

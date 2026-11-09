@@ -475,7 +475,8 @@ def bb_events(events: list[dict[str, Any]] | None = None, **overrides: Any) -> d
     body: dict[str, Any] = {
         "source": "core", "observed_at": time.time(), "consistency": "SINGLE_READ_SNAPSHOT",
         "events": evs, "next_after_seq": 0, "truncated": False,
-        "as_of_seq": max((e["seq"] for e in evs), default=0), "gaps_in_range": [], "redacted": 0,
+        "as_of_seq": max((e["seq"] for e in evs), default=0), "gaps_in_range": [],
+        "unrecorded_windows": [], "redacted": 0,
         "unavailable": [],
     }
     body.update(overrides)
@@ -497,7 +498,8 @@ def bb_event_detail(**overrides: Any) -> dict[str, Any]:
 def bb_session(session_id: str = "s-20261107-1", **overrides: Any) -> dict[str, Any]:
     data: dict[str, Any] = {
         "session_id": session_id, "process_id": 4242, "started_at": "2026-11-07T14:00:00.000Z",
-        "ended_at": "2026-11-07T18:00:00.000Z", "end_reason": "CLEAN_STOP", "first_seq": 1,
+        "ended_at": "2026-11-07T18:00:00.000Z", "last_event_at": "2026-11-07T18:00:00.000Z",
+        "end_reason": "CLEAN_STOP", "first_seq": 1,
         "last_seq": 900,
     }
     data.update(overrides)
@@ -509,6 +511,7 @@ def bb_sessions(**overrides: Any) -> dict[str, Any]:
         "source": "core", "observed_at": time.time(), "consistency": "SINGLE_READ_SNAPSHOT",
         "sessions": [bb_session(), bb_session("s-20261108-1", started_at="2026-11-08T09:00:00.000Z",
                                               ended_at=None, end_reason="RUNNING", first_seq=901,
+                                              last_event_at="2026-11-08T09:30:00.000Z",
                                               last_seq=950)],
         "truncated": False, "unavailable": [],
     }
@@ -519,7 +522,8 @@ def bb_sessions(**overrides: Any) -> dict[str, Any]:
 def bb_status(**overrides: Any) -> dict[str, Any]:
     body: dict[str, Any] = {
         "source": "core", "observed_at": time.time(), "consistency": "PER_FIELD_NON_ATOMIC",
-        "available": True, "first_seq": 1, "last_seq": 950, "retained_from_seq": 1,
+        "available": True, "degraded": False, "dropped_non_critical": 0,
+        "first_seq": 1, "last_seq": 950, "retained_from_seq": 1,
         "gaps": [{"from_seq": 400, "to_seq": 402, "kind": "LOST"}], "gaps_truncated": False,
         "corrupt_records": 0, "sessions": 2, "current_session_id": "s-20261108-1",
         "last_write_error_code": None, "last_durable_write_at": "2026-11-08T09:30:00.000Z",

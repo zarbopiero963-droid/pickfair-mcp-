@@ -1,10 +1,11 @@
 """Lettore finto della scatola nera, fedele a pf_blackbox_01 §3 e §4-bis (Claude B), per i contract
 test.
 
-Record nella forma del MOTORE (non della vista): `source`, `type`, `pid`, `ts_utc` al microsecondo,
-`event_id` uuid con trattini, `order_ref` (customer_order_ref), `data` annidato con float. Nessuna
-scrittura
-esposta oltre al record dell'hook della Control API, come nell'interfaccia di BB-1.
+Forme REALI di BB-1 (fixture di Claude B, sha256 c11e4108…2766c0, in `fixtures/`): record con
+`source`, `type`, `pid`, `ts_utc` al microsecondo, id in 32 hex, `not_recorded` (i campi a null),
+`data` annidato con float; `get` con la catena in `causation_chain`; `status` {ok, degraded, …};
+`sessions` {started, last_ts, clean_shutdown, …}. Nessuna scrittura esposta oltre a `request_hook`.
+Il campo `order_ref` resta nei record finti per provare che la vista lo ignora comunque.
 """
 
 from __future__ import annotations
@@ -18,6 +19,14 @@ SESSION = "s-20261108-1"
 def uid(n: int) -> str:
     """Id nella forma di BB-1: uuid in 32 hex minuscoli senza trattini (event, causation)."""
     return uuid.UUID(int=n).hex
+
+
+# Colonne che BB-1 elenca in `not_recorded` quando sono null.
+NULLABLE = (
+    "bet_id", "causation_id", "correlation_id", "data", "market_id", "order_id", "reason",
+    "reason_code", "selection_id", "state_after", "state_before", "strategy", "table_id",
+    "values_after", "values_before",
+)
 
 
 def record(seq: int, **over: Any) -> dict[str, Any]:
@@ -56,6 +65,8 @@ def record(seq: int, **over: Any) -> dict[str, Any]:
         "hash": "1" * 64,
     }
     data.update(over)
+    if "not_recorded" not in over:  # come BB-1: ogni colonna a null è non registrata
+        data["not_recorded"] = [k for k in NULLABLE if data.get(k) is None]
     return data
 
 
@@ -164,6 +175,9 @@ class FakeBlackboxQuery:
         "causation_id", "severity",
     })
 
+    ok = True
+    degraded = False
+
     def __init__(self, records: list[dict[str, Any]] | None = None) -> None:
         self.records = records if records is not None else scenario()
         self.requests: list[dict[str, Any]] = []
@@ -175,27 +189,20 @@ class FakeBlackboxQuery:
 
     def status(self) -> dict[str, Any]:
         seqs = [r["seq"] for r in self.records]
-        return {
-            "available": True,
-            "first_seq": min(seqs),
-            "last_seq": max(seqs),
-            "retained_from_seq": 1,
-            "gaps": list(self.gaps),
-            "corrupt_records": 0,
-            "sessions": 1,
-            "current_session_id": SESSION,
-            "last_write_error_code": None,
-            "last_durable_write_at": "2026-11-08T15:00:09.000001Z",
+        return {  # forma di c_status_healthy della fixture di B
+            "as_of_seq": max(seqs), "buffered": 0, "count": len(seqs), "degraded": self.degraded,
+            "dropped_non_critical": int(self.degraded), "ok": self.ok and not self.degraded,
+            "not_reported": ["last_error_detail"] if self.degraded else [], "session_id": SESSION,
         }
 
     def sessions(self) -> list[dict[str, Any]]:
-        return [
+        return [  # forma di d_sessions della fixture di B
             {
                 "session_id": SESSION,
                 "pid": 4242,
-                "started_at": "2026-11-08T15:00:01.123456Z",
-                "ended_at": None,
-                "end_reason": "RUNNING",
+                "started": "2026-11-08T15:00:01.123456Z",
+                "last_ts": max(r["ts_utc"] for r in self.records),
+                "clean_shutdown": False,
                 "first_seq": 1,
                 "last_seq": max(r["seq"] for r in self.records),
             }
@@ -226,16 +233,24 @@ class FakeBlackboxQuery:
 
     def get(
         self, event_id: str, chain_depth: int, *, external: bool = False
-    ) -> tuple[Any, list[Any]]:
+    ) -> dict[str, Any] | None:
+        """Forma di b_get_with_chain_2: il record con `causation_chain` dal più vicino; un anello
+        assente vale {event_id, missing: true}; un evento inesistente dà None."""
         assert external is True
         self.gets.append((event_id, chain_depth))
         by_id = {r["event_id"]: r for r in self.records}
         rec = by_id.get(event_id)
-        chain, cause = [], rec.get("causation_id") if rec else None
-        while cause and cause in by_id and len(chain) < chain_depth:
+        if rec is None:
+            return None
+        chain: list[dict[str, Any]] = []
+        cause = rec.get("causation_id")
+        while cause and len(chain) < chain_depth:
+            if cause not in by_id:
+                chain.append({"event_id": cause, "missing": True})
+                break
             chain.append(by_id[cause])
             cause = by_id[cause].get("causation_id")
-        return rec, chain
+        return {**rec, "causation_chain": chain}
 
     def request_hook(self, record: dict[str, Any]) -> bool:
         if not self.accept_requests:

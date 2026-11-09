@@ -878,6 +878,32 @@
         "tests/unit/test_handshake.py"
       ],
       "max_files": 28
+    },
+    "mcp01q-bb1-fixtures": {
+      "issue": "mandato owner PF-CLAUDE-C-MCP-BLACKBOX-INTEGRATION-20261109 §3 (BB-1), fixture di B pfab-b-20261109-bb1-fixtures-001",
+      "scheda": "MCP-01q — mappature sulle forme reali di BB-1 (fixture sha256 c11e4108…2766c0)",
+      "description": "Adapter sulle forme reali di BlackBoxReader verificate sulle fixture di B: not_recorded del motore, reason_code con il nome dell'eccezione, unrecorded_windows dalle lacune per tempo, get con causation_chain e anelli mancanti, status {ok, degraded, dropped_non_critical} e sessions {clean_shutdown, last_ts}; fixture salvata byte per byte con il suo sha256; RED 7 su 907423e -> GREEN 10. Mutanti R12/R15/R16 riallineati, R17-R23 nuovi.",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "docs/contract_v1.md",
+        "docs/design/BLACKBOX_BB1_COMPATIBILITY.md",
+        "docs/design/BLACKBOX_READ_CONTRACT.md",
+        "scripts/critical_mutations.py",
+        "src/pickfair_control_api/blackbox_bridge.py",
+        "src/pickfair_control_api/contract_v1.json",
+        "src/pickfair_mcp/adapters/simulated.py",
+        "src/pickfair_mcp/contract/descriptor.py",
+        "src/pickfair_mcp/contract/descriptor_v1.json",
+        "src/pickfair_mcp/contract/models.py",
+        "src/pickfair_mcp/tools/blackbox.py",
+        "tests/contract/fake_engine_blackbox.py",
+        "tests/contract/fixtures/bb1_reader_c11e4108.json",
+        "tests/contract/test_blackbox_bb1_contract.py",
+        "tests/contract/test_blackbox_bb1_fixture.py",
+        "tests/control_api/bodies.py",
+        "tests/unit/test_contract_version.py"
+      ],
+      "max_files": 18
     }
   }
 }
