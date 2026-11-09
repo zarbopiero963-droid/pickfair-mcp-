@@ -1,9 +1,9 @@
-c3e59dad95e84f31f215830695d5aee85252577f33005e09ad3148d2cbb6044f  ./AGENT_LEASE.json
-cf084a0fca4517b0b42de06f377fbd1460346af87f66c7019112fac49db5f27e  ./CURRENT.json
-df739d8c7875d692f33e379a58b3c06509c78c10dd22ed5d0342fe601b587302  ./HANDOFF.md
+60a222bcfdfb55e2d0e551d9db4b990c52b467596a41dc72afa3875fa4263d0a  ./AGENT_LEASE.json
+0e3b1b2512fb3aed42e6ea4284c56b9677c2ecb5096b4e9615cae047cc993a61  ./CURRENT.json
+64fa4be5fdfeedcd264e8fbd20bc838ddd6282803c1903394406ed9e03961d00  ./HANDOFF.md
 25c0ecdedb79ade0d3dbeb201fd97ce9e419dc277c71c9f79803190681c5f834  ./RUNBOOK.md
-d86e8f4be2601362f6af435f869892fdcb83acf84f73b5692eb1fe18360e19c0  ./STATE.json
-51752718446532a0c3d462b0f3578bdadfddb730e7debb22a56be1335c2c0646  ./TASK_STATE.json
+0057f1b683bdfd7ad6f289cb493a4ffe34afb907ac5e086815dd0e4753f65363  ./STATE.json
+f0945a45ab1a1937374b216735b27e2d9c7ea5c78006d4302fe666858b2750a2  ./TASK_STATE.json
 03dac6bb026b72eb3d0fc45910815b446d28743a73de0497586a279c8d6caa3c  ./results/evidence-01ir2-e2e.txt
 3865b8f2e9cf47d8c012ea107b2ff94f78ede19462957740709ad8e4a2992661  ./results/evidence-01ir2-mcp-l.txt
 614559deb160e196c148dc6eceaae962e89226573a2844f3ff0e5a250cf53905  ./results/evidence-01ir2-mcp-suite.txt
@@ -45,10 +45,12 @@ bce8601211b33edf31eba8d6ba81b3913b1e2fb351ae7fec1f506c5c76baa87b  ./results/evid
 6d185e6477feb3f1dd8e853f7f2dd7733ce775f18a180afe52084b572df8b104  ./results/evidence-g8-core-catalog.txt
 76a7fcf85d9923e6c2c7482f081cb4d21ac0fdd20ff46454cdb04fa68e90301c  ./results/evidence-handoff-durable-verify.txt
 b108f811be2305675f763b900e21004380cdc74ebe3cae519e33abc3ea3fdb3b  ./results/evidence-load-flake.txt
+7e505a88cda2981c93686051c7fa4494c46726d9c640b8eeb5c466d14aa0a91d  ./results/evidence-mcp-control-api-phase1-plan.md
 fbea5bf73993e2c28123ada7fdafe09a5ac9416703f86473bb25585af36714b4  ./results/evidence-mut-campaign-40c34c4.jsonl
 19245ce11fdd8f3792fe201bc34b2e32c8e706b1cc967524fe0190fa89db2e4a  ./results/evidence-mut-campaign-540a932.jsonl
 b35711f8cdae1418ab31d5e99816e0b3610d6fbf1b0eebb57b4412b429a53847  ./results/evidence-mut-campaign-90e7d45.jsonl
 2c8474c064aa441a32a138e2d47ffe6e4074a4a5b83204cbbbf0617c122da943  ./results/evidence-mutants-realign.txt
+2f501d1aeb8ee6ed9cfe398ff234c8b8e91ffdcfe17f423dc85429626ed2ec38  ./results/evidence-pf-api-491-compatibility-matrix.md
 620f050d2b6baa1fdd4202526fb8b39bd4c3effbe80eed49c1d27bbbe1d21f0f  ./results/evidence-roserpina-mcp-observability-matrix.md
 f50cb71cf379c4129438104f53f09697343cf34d69c907bae74fa90e18fe5e92  ./results/evidence-sec01-e2e.txt
 7bd032126986f4dc2cde7b0481183e12112de69fa2b1e9c823602ac02435a08b  ./results/evidence-sec01-mcp-suite.txt

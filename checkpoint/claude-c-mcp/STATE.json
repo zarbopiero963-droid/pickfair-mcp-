@@ -1,11 +1,11 @@
 {
  "schema": "pf-checkpoint/3",
  "repository": "zarbopiero963-droid/pickfair-mcp-",
- "seq": 19,
+ "seq": 20,
  "agent": "claude-c",
  "agent_identity": "Claude C — MCP + Control API (sessione session_013X2mCaF4fE5YMWGVrM8LtR)",
- "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01 + PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109 + PF-ROSERPINA-MCP-OBSERVABILITY-CLAUDE-C-20261109",
- "previous_checkpoint_sha": "22f4213d2819c406deced7bcdc009314f685eb4e",
+ "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01 + PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109 + PF-ROSERPINA-MCP-OBSERVABILITY-CLAUDE-C-20261109 + OWNER-PF-API-0-1-491 (inventario e piano)",
+ "previous_checkpoint_sha": "7d79ba72aa8a4fa80c7974121e79a42fcf20494b",
  "code": {
   "branch": "ccr-edf04c7d-e7vtj1-mcp01r-bb1-chain-depth",
   "sha": "75e7280a81d5a26ccea05999a5f7a692fc0379c8",
@@ -57,7 +57,7 @@
   "MCP-01o lettura della scatola nera (dopo l'interfaccia di lettura di B)",
   "MCP-MUTANTS-REALIGN (solo catalogo e guardia, sopra 01o)"
  ],
- "lotto_corrente": "matrice di osservabilita' Roserpina consegnata (analisi read-only); codice MCP congelato; in attesa del merge della #617",
+ "lotto_corrente": "inventario Control API/MCP/ponte e matrice di compatibilita' #491 pubblicati (c.6754243364): handoff 1-9 applicabili su main (solo 3 file di registro), ponte su main di oggi 211 test PASS, E2E 14/17 PASS (3 FAIL = funzioni di D)",
  "lotti_completati": [
   "MCP-01j get_config (305b843)",
   "MCP-01k compatibilità P0/F-16 (4cd3e75)",
@@ -83,7 +83,7 @@
   "MCP-01o: record RESULT con `returned` (READ_REQUEST di B), contratto accettato da B (6580f91)",
   "mutanti critici: 9 riallineati, P01-P03, guardia di applicabilità; 12/12 KILLED (40c34c4)"
  ],
- "next_atomic_action": "al merge della #617: harness v4 sullo SHA di main; handoff integrazione ponte core (make_providers sul BlackBoxReader del runtime, scope RUNTIME) + patch 869d2c0..75e7280 in forma mergiabile, con hash e ACK di B",
+ "next_atomic_action": "attendere: merge #617, PR Roserpina, GO owner per PF-API-0/1 (B) e per la PR MCP della catena 36bbef1..75e7280 (C); poi E2E a 1.15.0 sul main del core",
  "dependencies": {
   "F-04 su main": "MCP-01i r2",
   "F-03 su main (con F-02, F-04)": "MCP-01m",
@@ -600,6 +600,24 @@
    "G5 picco non persistito",
    "G6 Money float nel contratto MCP",
    "G7 equity/drawdown per tavolo"
+  ]
+ },
+ "pf_api_inventory": {
+  "issue": "Pickfair-nogui #491 c.6754243364",
+  "matrix_sha256": "2f501d1aeb8ee6ed9cfe398ff234c8b8e91ffdcfe17f423dc85429626ed2ec38",
+  "mcp_chain": "36bbef1..75e7280, 68 commit, merge-tree senza conflitti",
+  "core_handoffs_1_9": "base ada40765 su main; conflitti solo nei 3 file di registro",
+  "core_tests_on_main": "211 PASS; 6 FAIL + 9 ERROR tutti dipendenti da D",
+  "e2e_on_main": "14/17 PASS (MCP f1b4b64 1.12.0); 3 FAIL F-18/F-04/F-03",
+  "missing": [
+   "registro 3 file",
+   "collegamento scatola nera nel core",
+   "pin 1.15.0",
+   "test dipendenti da D",
+   "packaging pickfair_control_api (owner)",
+   "cartella token (ciclo 13 #617)",
+   "RATE_LIMITED opzionale",
+   "segnali/strategie (RC-10 bad873b)"
   ]
  }
 }

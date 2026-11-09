@@ -38,9 +38,9 @@
   "MCP-01o: record RESULT con `returned` (READ_REQUEST di B), contratto accettato da B (6580f91)",
   "mutanti critici: 9 riallineati, P01-P03, guardia di applicabilit\u00e0; 12/12 KILLED (40c34c4)"
  ],
- "lotto_corrente": "matrice di osservabilita' Roserpina consegnata (analisi read-only); codice MCP congelato; in attesa del merge della #617",
- "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01 + PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109 + PF-ROSERPINA-MCP-OBSERVABILITY-CLAUDE-C-20261109",
- "next_atomic_action": "al merge della #617: harness v4 sullo SHA di main; handoff integrazione ponte core (make_providers sul BlackBoxReader del runtime, scope RUNTIME) + patch 869d2c0..75e7280 in forma mergiabile, con hash e ACK di B",
+ "lotto_corrente": "inventario Control API/MCP/ponte e matrice di compatibilita' #491 pubblicati (c.6754243364): handoff 1-9 applicabili su main (solo 3 file di registro), ponte su main di oggi 211 test PASS, E2E 14/17 PASS (3 FAIL = funzioni di D)",
+ "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01 + PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109 + PF-ROSERPINA-MCP-OBSERVABILITY-CLAUDE-C-20261109 + OWNER-PF-API-0-1-491 (inventario e piano)",
+ "next_atomic_action": "attendere: merge #617, PR Roserpina, GO owner per PF-API-0/1 (B) e per la PR MCP della catena 36bbef1..75e7280 (C); poi E2E a 1.15.0 sul main del core",
  "pr_505": "N/A (repository MCP)",
  "schema": "pf-task-state/1",
  "tests_missing": []

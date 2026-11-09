@@ -49,3 +49,7 @@ d1454af3 + patch MCP 7daadf8: 15 PASS / 1 FAIL (R2 dichiarato). Non INTEGRATED_V
 ## Seq 19 (09/11/2026): matrice di osservabilita' Roserpina
 
 results/evidence-roserpina-mcp-observability-matrix.md; lacune G1-G7 a B. Codice congelato.
+
+## Seq 20 (09/11/2026): inventario PF-API #491
+
+Matrice in results/evidence-pf-api-491-compatibility-matrix.md (#491 c.6754243364). Nessun codice scritto.
