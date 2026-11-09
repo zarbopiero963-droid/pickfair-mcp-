@@ -558,8 +558,8 @@ Dalle fixture reali di B (sha256 `74be0f92…36f6df`, in `tests/contract/fixture
 Mappature verificate sulle fixture (RED 7 → GREEN 10). La prova sulla classe reale integrata resta NOT_RUN
 (`docs/design/BLACKBOX_BB1_COMPATIBILITY.md` §10).
 
-Schema BB-1 D1-D3. B lo riporta come concordato dall'owner (PF-BB1-IDENTITY-TIMESTAMP-SESSION-20261109); la
-decisione non è stata trovata su GitHub da C.
+Schema BB-1 D1-D3, decisione owner PF-BB1-IDENTITY-TIMESTAMP-SESSION-20261109. L'owner l'ha data in sessione a
+Claude B; il testo integrale è registrato da B in https://github.com/zarbopiero963-droid/Pickfair-nogui/issues/586#issuecomment-6740764129.
 - **D1**: `refs.order_id` e il filtro `order_id` accettano solo l'alias opaco `ord_<32 hex>` (HMAC dell'id
   interno, stabile e non enumerabile). Un id interno, intero o uuid, in un record lo rende non mappabile (lacuna
   CORRUPT): mai mostrato.

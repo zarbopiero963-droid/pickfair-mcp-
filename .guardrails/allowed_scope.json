@@ -950,6 +950,17 @@
         "tests/unit/test_contract_version.py"
       ],
       "max_files": 22
+    },
+    "mcp01q-bb1-owner-link": {
+      "issue": "pfab-b-20261109-bb1-owner-decision-link-004",
+      "scheda": "MCP-01q — link alla decisione owner D1-D3 registrata da B",
+      "description": "Solo docs: cita Pickfair-nogui #586 c.6740764129 per PF-BB1-IDENTITY-TIMESTAMP-SESSION-20261109 (fonte: owner tramite B).",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "docs/contract_v1.md",
+        "docs/design/BLACKBOX_BB1_COMPATIBILITY.md"
+      ],
+      "max_files": 3
     }
   }
 }

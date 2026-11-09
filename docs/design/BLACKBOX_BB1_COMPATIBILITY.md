@@ -199,8 +199,9 @@ nell'MCP.
 
 ## 12. Schema D1–D3 (pfab-b-20261109-bb1-schema-d1d3-001, BB-1 9626f95)
 
-B lo riporta come concordato dall'owner (PF-BB1-IDENTITY-TIMESTAMP-SESSION-20261109). C non ha trovato la
-decisione su GitHub: la adotta perché la forma di BB-1 è normativa e la vista risulta più prudente.
+Decisione owner PF-BB1-IDENTITY-TIMESTAMP-SESSION-20261109, data in sessione a Claude B. Il testo integrale è
+registrato da B in https://github.com/zarbopiero963-droid/Pickfair-nogui/issues/586#issuecomment-6740764129: la fonte è l'owner tramite B, non un commento scritto dall'owner. C la adotta: la forma di
+BB-1 è normativa e la vista risulta più prudente.
 - **D1**: alias opaco dell'ordine. Il campo interno `order_alias` non esce mai.
 - **D2**: `exchange_ts`, con lo stesso formato RFC 3339 UTC di `ts_utc`.
 - **D3**: lock di runtime unico. Riguarda solo chi scrive: il ponte Control API/MCP legge e non apre sessioni.
