@@ -1,0 +1,7 @@
+ERROR    pickfair_control_api.server:server.py:271 control_api: lettura fallita (/v1/blackbox/events/{event_id})
+ERROR    pickfair_control_api.server:server.py:271 control_api: lettura fallita (/v1/blackbox/events/{event_id})
+FAILED ../realbb/test_real_bb1_v2.py::test_02b_free_text_secret_in_reason
+FAILED ../realbb/test_real_bb1_v2.py::test_04_causal_chain_through_get
+FAILED ../realbb/test_real_bb1_v2.py::test_05_missing_event_is_not_found
+FAILED ../realbb/test_real_bb1_v2.py::test_12_get_chain_depth_limit_of_the_real_reader
+4 failed, 12 passed, 3 warnings in 4.71s

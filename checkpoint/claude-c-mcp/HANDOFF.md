@@ -37,3 +37,7 @@ rischi R1 (gaps_in_range non limitato) e R2 (segreto in testo libero). Codice MC
 
 Patch 7daadf8 (branch ccr-edf04c7d-e7vtj1-mcp01r-bb1-chain-depth, base congelata 869d2c0): MAX_CHAIN=20. Classe reale 10 PASS.
 In attesa dello SHA di B per I2.
+
+## Seq 17 (09/11/2026): compatibile con BB-1 sull'head della PR #617
+
+d1454af3 + patch MCP 7daadf8: 15 PASS / 1 FAIL (R2 dichiarato). Non INTEGRATED_VERIFIED: serve il merge della #617.

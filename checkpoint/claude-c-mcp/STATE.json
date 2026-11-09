@@ -1,11 +1,11 @@
 {
  "schema": "pf-checkpoint/3",
  "repository": "zarbopiero963-droid/pickfair-mcp-",
- "seq": 16,
+ "seq": 17,
  "agent": "claude-c",
  "agent_identity": "Claude C — MCP + Control API (sessione session_013X2mCaF4fE5YMWGVrM8LtR)",
  "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01 + PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109",
- "previous_checkpoint_sha": "e44cdb9a9874695071f45f51ade269d9ef3b1f3e",
+ "previous_checkpoint_sha": "ad18056a32b0293738cb0d810f57aaaaffd72529",
  "code": {
   "branch": "ccr-edf04c7d-e7vtj1-mcp01r-bb1-chain-depth",
   "sha": "7daadf82ed77fc04436594a105ae753c85f76608",
@@ -57,7 +57,7 @@
   "MCP-01o lettura della scatola nera (dopo l'interfaccia di lettura di B)",
   "MCP-MUTANTS-REALIGN (solo catalogo e guardia, sopra 01o)"
  ],
- "lotto_corrente": "I1 corretto (MAX_CHAIN=20, patch 7daadf8 su branch separato, base congelata 869d2c0 intatta): classe reale #617 10 PASS; restano 09 (I2 di B, congiunto con D) e 02b (limite R2)",
+ "lotto_corrente": "FASE 4 completata sull'head della PR #617 d1454af3: con la patch I1 7daadf8, 15 PASS / 1 FAIL (R2, limite dichiarato da B) -> COMPATIBLE_ON_PR_HEAD; NON INTEGRATED_VERIFIED (PR non mergiata)",
  "lotti_completati": [
   "MCP-01j get_config (305b843)",
   "MCP-01k compatibilità P0/F-16 (4cd3e75)",
@@ -83,7 +83,7 @@
   "MCP-01o: record RESULT con `returned` (READ_REQUEST di B), contratto accettato da B (6580f91)",
   "mutanti critici: 9 riallineati, P01-P03, guardia di applicabilità; 12/12 KILLED (40c34c4)"
  ],
- "next_atomic_action": "allo SHA di B con I2 (BLACKBOX_OUTAGE -> UNKNOWN): rieseguire l'harness sulla classe reale con 7daadf8; se tutto PASS salvo R2 dichiarato, handoff con hash e ACK di B; INTEGRATED_VERIFIED solo dopo merge di #617",
+ "next_atomic_action": "al merge della #617 da parte dell'owner: rieseguire l'harness v2 sullo SHA di main; preparare l'handoff dell'integrazione nel ponte del core (make_providers + make_request_hook sul BlackBoxReader del runtime) e la patch I1 in forma mergiabile, con hash e ACK di B",
  "dependencies": {
   "F-04 su main": "MCP-01i r2",
   "F-03 su main (con F-02, F-04)": "MCP-01m",
@@ -525,6 +525,18 @@
     ],
     "diagnostics": "12 superato per costruzione (verificava il vecchio 32), 13 conferma VERIFIED lato B",
     "b_reply": "pfab-b-20261109-bb1-pr617-verify-reply-008: I1 confermato 20; I2 accettato, fix congiunto con D; R1 e R2 dichiarati come limiti"
+   },
+   "pr617_d1454af": {
+    "target": "d1454af326785e6f312797a0f8ea70d297322181",
+    "mcp_code": "7daadf8",
+    "harness_sha256": "77c9d1675b9c3b9135bd9131723257c926cd977319197f188fa0636a39c16e7c",
+    "result": "15 PASS / 1 FAIL (02b = R2 dichiarato in docs/blackbox.md)",
+    "frozen_869d2c0": "12 PASS / 4 FAIL (04,05,12 per profondita' 32; 02b R2)",
+    "verdict": "COMPATIBLE_ON_PR_HEAD, NON INTEGRATED_VERIFIED",
+    "open_limits": [
+     "R1 gaps_in_range senza limite (dichiarato)",
+     "R2 segreto in testo libero non registrato (dichiarato, BB-3)"
+    ]
    }
   }
  },

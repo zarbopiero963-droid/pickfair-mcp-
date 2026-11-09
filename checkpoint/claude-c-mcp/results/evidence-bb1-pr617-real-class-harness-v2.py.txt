@@ -1,0 +1,309 @@
+"""FASE 4 (PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109): contratto MCP/Control API sulla classe REALE di BB-1.
+
+Pickfair-nogui PR #617 @ d1454af3 (v2: I2, refs_count, hook degradato, falso crash) (`core.blackbox.BlackBox`, `core.blackbox_query.BlackBoxReader`) letta dal codice
+MCP congelato 869d2c0 (`pickfair_control_api.blackbox_bridge`, Control API reale, adapter HTTP e tool MCP).
+Registro reale su file temporaneo, popolato con le API di scrittura di BB-1. Nessun dato reale, LIVE OFF."""
+from __future__ import annotations
+
+import sqlite3
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from core import blackbox as bb
+from core.blackbox_query import BlackBoxReader
+from pickfair_control_api.blackbox_bridge import check_reader, make_providers, make_request_hook
+from tests.contract.test_blackbox_bb1_contract import adapter_for, engine_api
+from tests.integration.test_market_tools import call, session_for
+
+pytestmark = [pytest.mark.anyio, pytest.mark.loopback]
+
+
+@pytest.fixture
+def anyio_backend() -> str:
+    return "asyncio"
+
+
+def build(tmp: Path) -> dict[str, Any]:
+    path = str(tmp / "blackbox.sqlite")
+    clean = bb.BlackBox(path, session_id="s_clean", pid=1001)
+    clean.start_session(argv=["--simulation"])
+    clean.end_session("STOP")
+    clean.close()
+    crash = bb.BlackBox(path, session_id="s_crash", pid=1002)
+    crash.start_session(argv=["--simulation"])
+    crash.record("ORDER_PLACE_REQUEST", critical=True, source="STRATEGY", component="trading_engine",
+                 phase="ATTEMPT", outcome="PENDING", order_id=42, table_id=3, market_id="1.234567",
+                 selection_id=123456, strategy="roserpina", values_after={"price": 2.12, "stake": 1.5},
+                 order_ref="cref-secret-1")
+    crash.close()                                   # nessuno SHUTDOWN: crash
+    box = bb.BlackBox(path, session_id="s_current", pid=1003)
+    box.start_session(argv=["--simulation"])
+    attempt = box.record("ORDER_PLACE_REQUEST", critical=True, source="STRATEGY", component="trading_engine",
+                         phase="ATTEMPT", outcome="PENDING", order_id=43, table_id=3, market_id="1.234567",
+                         selection_id=123456, strategy="roserpina", data={"side": "BACK", "stake": 2.0,
+                                                                          "customer_ref": "cref-secret-2"})
+    resp = box.record("ORDER_PLACE_RESPONSE", critical=True, source="EXCHANGE", component="order_manager",
+                      phase="RESULT", outcome="VERIFIED", order_id=43, bet_id="987654321", causation_id=attempt,
+                      values_before={"status": "INFLIGHT"}, values_after={"status": "PLACED", "matched": 2.0})
+    matched = box.record("ORDER_MATCHED", critical=True, source="EXCHANGE", component="order_manager",
+                         phase="OBSERVATION", outcome="VERIFIED", order_id=43, bet_id="987654321",
+                         causation_id=resp, exchange_ts="2025-11-09T12:01:10.500000Z")
+    box.record("ORDER_PLACE_REQUEST", critical=True, source="STRATEGY", component="trading_engine",
+               phase="ATTEMPT", outcome="PENDING", order_id="0b6c3e7e-1c2a-4f6e-9b6a-3f1d2c4b5a69",
+               reason_code="DB_DEGRADED_LOCAL_ID")
+    box.record("TASK_EXCEPTION", critical=True, source="SYSTEM", component="thread:worker-x", severity="CRITICAL",
+               phase="OBSERVATION", outcome="VERIFIED", reason_code="KeyError", reason="'k'",
+               data={"traceback": "Traceback ... KeyError: 'k'", "password": "hunter2"})
+    box.record("API_REQUEST", source="CONTROL_API", component="control_api", severity="TRACE",
+               phase="OBSERVATION", outcome="NOT_APPLICABLE")
+    box.record("CONFIG_CHANGE", critical=True, source="USER", component="settings", phase="RESULT",
+               outcome="VERIFIED", values_before={"roserpina": {"stake_pct": 2.0}},
+               values_after={"roserpina": {"stake_pct": 2.5}}, reason="token=sk-live-123456 cambiato")
+    return {"box": box, "reader": BlackBoxReader(box), "path": path, "attempt": attempt, "resp": resp,
+            "matched": matched, "alias42": box.order_alias(42), "alias43": box.order_alias(43)}
+
+
+@pytest.fixture
+def real(tmp_path: Path) -> Any:
+    env = build(tmp_path)
+    yield env
+    env["box"].close()
+
+
+def test_01_check_reader_on_the_real_class(real: Any) -> None:
+    assert check_reader(real["reader"]) == []
+
+
+async def test_02_full_page_maps_every_real_record(real: Any, tmp_path: Path) -> None:
+    with engine_api(tmp_path, real["reader"]) as (server, token_path):
+        async with session_for(adapter_for(server, token_path)) as s:
+            ok, page = await call(s, "list_blackbox_events", {"limit": 500})
+    assert ok is False, page
+    body = page["data"]["events"]
+    by_type: dict[str, list[dict[str, Any]]] = {}
+    for e in body["events"]:
+        by_type.setdefault(e["event_type"], []).append(e)
+    assert body["gaps_in_range"] == []                      # nessun record reale reso CORRUPT
+    assert [w["reason_code"] for w in body["unrecorded_windows"]] == ["UNCLEAN_TERMINATION"]
+    assert {e["phase"] for e in body["events"]} == {"ATTEMPT", "RESULT", "OBSERVATION"}
+    assert all(e["outcome"] == "PENDING" for e in body["events"] if e["phase"] == "ATTEMPT")
+    assert by_type["API_REQUEST"][0]["severity"] == "TRACE"
+    exc = by_type["TASK_EXCEPTION"][0]
+    assert (exc["component"], exc["reason_code"]) == ("thread:worker-x", "KeyError")
+    assert exc["data"]["password"] == "[REDACTED]"
+    assert by_type["ORDER_MATCHED"][0]["exchange_ts"] == "2025-11-09T12:01:10.500Z"
+    assert by_type["ORDER_MATCHED"][0]["ts_utc"] != by_type["ORDER_MATCHED"][0]["exchange_ts"]
+    assert by_type["UNCLEAN_TERMINATION"][0]["session_id"] == "s_current"
+    text = str(page)
+    for secret in ("cref-secret-1", "cref-secret-2", "hunter2"):
+        assert secret not in text, secret
+
+
+async def test_02b_free_text_secret_in_reason(real: Any, tmp_path: Path) -> None:
+    """Segreto non registrato in testo libero (`reason`): chi lo maschera?"""
+    with engine_api(tmp_path, real["reader"]) as (server, token_path):
+        async with session_for(adapter_for(server, token_path)) as s:
+            ok, page = await call(s, "list_blackbox_events", {"event_type": "CONFIG_CHANGE"})
+    assert ok is False, page
+    assert "sk-live-123456" not in str(page)
+
+
+async def test_03_d1_alias_never_the_internal_id(real: Any, tmp_path: Path) -> None:
+    with engine_api(tmp_path, real["reader"]) as (server, token_path):
+        async with session_for(adapter_for(server, token_path)) as s:
+            ok, page = await call(s, "list_blackbox_events", {"order_id": real["alias43"]})
+            bad, rejected = await call(s, "list_blackbox_events", {"order_id": 42})
+    assert ok is False, page
+    events = page["data"]["events"]["events"]
+    assert [e["event_type"] for e in events] == ["ORDER_PLACE_REQUEST", "ORDER_PLACE_RESPONSE", "ORDER_MATCHED"]
+    assert {e["refs"]["order_id"] for e in events} == {real["alias43"]}
+    assert bad is True and rejected["data"] is None
+    assert '"42"' not in str(page) and real["alias42"] != real["alias43"]
+
+
+async def test_04_causal_chain_through_get(real: Any, tmp_path: Path) -> None:
+    with engine_api(tmp_path, real["reader"]) as (server, token_path):
+        async with session_for(adapter_for(server, token_path)) as s:
+            ok, out = await call(s, "get_blackbox_event", {"event_id": real["matched"]})
+    assert ok is False, out
+    detail = out["data"]["event"]
+    assert detail["state"] == "OK"
+    assert [c["event_id"] for c in detail["chain"]] == [real["resp"], real["attempt"]]
+
+
+async def test_05_missing_event_is_not_found(real: Any, tmp_path: Path) -> None:
+    with engine_api(tmp_path, real["reader"]) as (server, token_path):
+        async with session_for(adapter_for(server, token_path)) as s:
+            ok, out = await call(s, "get_blackbox_event", {"event_id": "0" * 32})
+    assert ok is False, out
+    assert out["data"]["event"]["state"] == "NOT_FOUND"
+
+
+async def test_06_status_and_sessions(real: Any, tmp_path: Path) -> None:
+    with engine_api(tmp_path, real["reader"]) as (server, token_path):
+        async with session_for(adapter_for(server, token_path)) as s:
+            ok, status = await call(s, "get_blackbox_status")
+            ok2, sessions = await call(s, "list_blackbox_sessions")
+    assert ok is False and ok2 is False, (status, sessions)
+    st = status["data"]["blackbox"]
+    assert st["available"] is True and st["degraded"] is False and st["current_session_id"] == "s_current"
+    assert st["first_seq"] == 1 and st["sessions"] == 3
+    items = sessions["data"]["sessions"]["sessions"]
+    assert [(i["session_id"], i["end_reason"]) for i in items] == [
+        ("s_clean", "CLEAN_STOP"), ("s_crash", "CRASH_DETECTED"), ("s_current", "RUNNING")]
+    assert items[1]["ended_at"] is None
+
+
+async def test_07_every_mcp_read_is_recorded_in_the_real_register(real: Any, tmp_path: Path) -> None:
+    with engine_api(tmp_path, real["reader"]) as (server, token_path):
+        adapter = adapter_for(server, token_path)
+        async with session_for(adapter) as s:
+            await call(s, "list_blackbox_events", {"strategy": "roserpina"})
+            rid = adapter.last_request_id
+            import time
+            deadline = time.monotonic() + 5
+            mine: list[dict[str, Any]] = []
+            while time.monotonic() < deadline:
+                rows = real["reader"].query({"type": "CONTROL_API_REQUEST", "correlation_id": rid}, 0, 50)["records"]
+                mine = rows
+                if len(mine) >= 2:
+                    break
+                time.sleep(0.05)
+            ok, page = await call(s, "list_blackbox_events", {"correlation_id": rid})
+    assert [r["phase"] for r in mine] == ["ATTEMPT", "RESULT"]
+    assert mine[1]["data"]["returned"] == 2 and mine[1]["data"]["status"] == 200
+    assert ok is False, page
+    seen = [(e["phase"], e["outcome"], e["data"]["returned"]) for e in page["data"]["events"]["events"]]
+    assert seen[:2] == [("ATTEMPT", "PENDING", None), ("RESULT", "VERIFIED", 2)]
+
+
+async def test_08_filters_and_pagination(real: Any, tmp_path: Path) -> None:
+    with engine_api(tmp_path, real["reader"]) as (server, token_path):
+        async with session_for(adapter_for(server, token_path)) as s:
+            out = {}
+            for name, args in {
+                "table_selection": {"table_id": 3, "selection_id": 123456},
+                "phase": {"phase": "ATTEMPT"},
+                "severity": {"severity": "TRACE"},
+                "causation": {"causation_id": real["attempt"]},
+                "category": {"category": "CONFIG", "origin": "USER"},
+                "type": {"event_type": "ORDER_MATCHED", "outcome": "VERIFIED"},
+                "session": {"session_id": "s_clean"},
+            }.items():
+                out[name] = await call(s, "list_blackbox_events", args)
+            seen, cursor = [], 0
+            for _ in range(20):
+                ok, page = await call(s, "list_blackbox_events", {"after_seq": cursor, "limit": 3})
+                assert ok is False, page
+                seen += [e["seq"] for e in page["data"]["events"]["events"]]
+                cursor = page["data"]["events"]["next_after_seq"]
+                if not cursor:
+                    break
+    counts = {k: (len([e for e in v[1]["data"]["events"]["events"] if e["event_type"] != "CONTROL_API_REQUEST"])
+                  if v[0] is False else v) for k, v in out.items()}
+    assert counts == {"table_selection": 2, "phase": 3, "severity": 1, "causation": 1, "category": 1,
+                      "type": 1, "session": 2}, counts
+    assert seen == sorted(set(seen)) and seen[0] == 1
+
+
+def test_09_outage_gap_from_the_real_writer(tmp_path: Path) -> None:
+    """Guasto reale: una scrittura non critica fallisce, al ripristino BB-1 scrive BLACKBOX_GAP + RECOVERED."""
+    box = bb.BlackBox(str(tmp_path / "o.sqlite"), session_id="s_o", pid=7)
+    box.start_session()
+    real_insert = box._insert
+    calls = {"n": 0}
+
+    def failing(rec: dict[str, Any]) -> int:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise sqlite3.OperationalError("disk I/O error (simulato)")
+        return real_insert(rec)
+
+    box._insert = failing  # type: ignore[method-assign]
+    assert box.record("API_REQUEST", source="CONTROL_API", phase="OBSERVATION", outcome="NOT_APPLICABLE") is None
+    box._insert = real_insert  # type: ignore[method-assign]
+    box.record("CONFIG_CHANGE", critical=True, source="USER", phase="RESULT", outcome="VERIFIED")
+    reader = BlackBoxReader(box)
+    page = make_providers(reader)["blackbox_events"]({"limit": 100})
+    assert [w["reason_code"] for w in page["unrecorded_windows"]] == ["BLACKBOX_OUTAGE"]
+    gap = [e for e in page["events"] if e["event_type"] == "BLACKBOX_GAP"][0]
+    assert gap["outcome"] == "UNKNOWN" and gap["data"]["refs_count"] == 0 and "refs" not in gap["data"]
+    box.close()
+
+
+def test_10_degraded_register_status(real: Any) -> None:
+    real["box"]._enter_degraded(OSError("disk full (simulato)"))
+    st = make_providers(real["reader"])["blackbox_status"]()
+    assert st["available"] is False and st["degraded"] is True
+    assert "last_write_error_code" in st["not_reported"]
+
+
+def test_11_reader_is_read_only_and_hidden_fields_never_listed(real: Any) -> None:
+    page = real["reader"].query({}, 0, 500)
+    for r in page["records"]:
+        assert "order_ref" not in r and "order_alias" not in r
+        assert not {"order_ref", "order_alias"} & set(r["not_recorded"])
+    assert check_reader(real["reader"]) == []
+
+
+def test_12_get_chain_depth_limit_of_the_real_reader(real: Any) -> None:
+    """Causa di 04/05: profondità chiesta dall'adapter contro il limite della classe reale."""
+    from core.blackbox_query import MAX_CHAIN_DEPTH, QueryError
+    from pickfair_control_api.blackbox_bridge import MAX_CHAIN
+    assert MAX_CHAIN <= MAX_CHAIN_DEPTH == 20                # patch I1 (7daadf8)
+    assert real["reader"].get(real["matched"], MAX_CHAIN)["causation_chain"]
+    with pytest.raises(QueryError):
+        real["reader"].get(real["matched"], MAX_CHAIN_DEPTH + 1)
+
+
+def test_13_outage_gap_shape_of_the_real_writer(tmp_path: Path) -> None:
+    """Causa di 09: forma della lacuna di guasto scritta da BB-1."""
+    box = bb.BlackBox(str(tmp_path / "o.sqlite"), session_id="s_o", pid=7)
+    box.start_session()
+    real_insert = box._insert
+    calls = {"n": 0}
+
+    def failing(rec):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise sqlite3.OperationalError("disk I/O error (simulato)")
+        return real_insert(rec)
+
+    box._insert = failing
+    box.record("API_REQUEST", source="CONTROL_API", phase="OBSERVATION", outcome="NOT_APPLICABLE")
+    box._insert = real_insert
+    box.record("CONFIG_CHANGE", critical=True, source="USER", phase="RESULT", outcome="VERIFIED")
+    gaps = BlackBoxReader(box).query({}, 0, 100)["gaps_in_range"]
+    box.close()
+    assert [(g["outcome"], g["reason_code"]) for g in gaps] == [("UNKNOWN", "BLACKBOX_OUTAGE")], gaps
+
+
+async def test_14_coalesced_request_on_a_degraded_register_is_refused(real: Any, tmp_path: Path) -> None:
+    """Rilievo Sol #617: richiesta aggregata con registro degradato = non registrata => 503, stato leggibile."""
+    reader = real["reader"]
+    with engine_api(tmp_path, reader) as (server, token_path):
+        async with session_for(adapter_for(server, token_path)) as s:
+            real["box"]._enter_degraded(OSError("disk full (simulato)"))
+            reader._tokens, reader._clock = 0.0, (lambda: reader._last)   # oltre il limite: aggregazione
+            bad, payload = await call(s, "list_blackbox_events")
+            ok, status = await call(s, "get_blackbox_status")
+    assert bad is True and payload["data"] is None and payload["error"]["code"] == "UPSTREAM_UNAVAILABLE"
+    assert ok is False, status
+    assert status["data"]["blackbox"]["available"] is False and status["data"]["blackbox"]["degraded"] is True
+
+
+def test_15_a_read_after_shutdown_is_not_a_false_crash(tmp_path: Path) -> None:
+    path = str(tmp_path / "s.sqlite")
+    box = bb.BlackBox(path, session_id="s_a", pid=11)
+    box.start_session()
+    box.end_session("STOP")
+    hook = make_request_hook(BlackBoxReader(box))
+    assert hook({"phase": "ATTEMPT", "route": "/v1/blackbox/status", "params": {}, "request_id": "mcp-" + "a" * 24})
+    box.close()
+    nxt = bb.BlackBox(path, session_id="s_b", pid=12)
+    nxt.start_session()
+    types = [r["type"] for r in BlackBoxReader(nxt).query({}, 0, 100)["records"]]
+    nxt.close()
+    assert "UNCLEAN_TERMINATION" not in types and types[-1] == "PROCESS_START", types
