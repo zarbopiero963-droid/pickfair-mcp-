@@ -128,8 +128,8 @@ async def test_different_keys_distinct_request_ids(tmp_path: Path) -> None:
 async def test_failure_after_send_is_ambiguous_and_never_retried(tmp_path: Path, mode: str) -> None:
     j = Journal.open(jpath(tmp_path))
     up = FakeUpstream(mode)
-    # Limite proprio del test: se il timeout dell'invio non fosse applicato, il test fallisce in 5 s invece
-    # di bloccare l'intera suite (mutante J09: TIMEOUT della campagna -> KILLED).
+    # Limite proprio del test: se il timeout dell'invio non fosse applicato, il test fallisce in
+    # 5 s invece di bloccare l'intera suite (mutante J09: TIMEOUT della campagna -> KILLED).
     with anyio.fail_after(5):
         entry = await j.execute("m", up, timeout_s=0.05)
     assert entry.status is EntryStatus.AMBIGUOUS

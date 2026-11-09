@@ -16,7 +16,8 @@ SESSION = "s-20261108-1"
 
 
 def uid(n: int) -> str:
-    return str(uuid.UUID(int=n))
+    """Id nella forma di BB-1: uuid in 32 hex minuscoli senza trattini (event, causation)."""
+    return uuid.UUID(int=n).hex
 
 
 def record(seq: int, **over: Any) -> dict[str, Any]:
@@ -151,6 +152,27 @@ def scenario() -> list[dict[str, Any]]:
 class FakeBlackboxQuery:
     """Interfaccia di lettura di BB-1 (`core/blackbox_query`), in memoria."""
 
+    # Filtri accettati dal lettore (nomi del motore); qualunque altro nome è un errore.
+    FILTERS = frozenset(
+        {
+            "from_ts",
+            "to_ts",
+            "session_id",
+            "table_id",
+            "market_id",
+            "order_id",
+            "bet_id",
+            "strategy",
+            "correlation_id",
+            "category",
+            "source",
+            "type",
+            "severity_min",
+            "outcome",
+            "q",
+        }
+    )
+
     def __init__(self, records: list[dict[str, Any]] | None = None) -> None:
         self.records = records if records is not None else scenario()
         self.requests: list[dict[str, Any]] = []
@@ -191,11 +213,19 @@ class FakeBlackboxQuery:
         self, filters: dict[str, Any], after_seq: int, limit: int
     ) -> tuple[Any, int, Any, int]:
         self.queries.append((dict(filters), after_seq, limit))
+        unknown = set(filters) - self.FILTERS
+        if unknown:
+            raise ValueError(f"filtro sconosciuto: {sorted(unknown)}")  # come BB-1: mai ignorato
         out = [r for r in self.records if r["seq"] > after_seq]
         for name, value in filters.items():
-            if name in ("since", "until", "severity_min", "q"):
+            if name == "from_ts":
+                out = [r for r in out if r["ts_utc"][:23] >= str(value)[:23]]
+            elif name == "to_ts":
+                out = [r for r in out if r["ts_utc"][:23] <= str(value)[:23]]
+            elif name in ("severity_min", "q"):
                 continue
-            out = [r for r in out if r.get(name) == value]
+            else:
+                out = [r for r in out if r.get(name) == value]
         page = out[:limit]
         more = len(out) > limit
         gaps = [g for g in self.gaps if page and page[0]["seq"] <= g[0] <= page[-1]["seq"]]

@@ -238,7 +238,7 @@ async def test_why_an_order_is_ambiguous_follows_the_causal_chain(tmp_path: Path
     detail = out["data"]["event"]
     assert [c["event_type"] for c in detail["chain"]] == ["ORDER_PLACE", "STAKE_DECISION"]
     assert detail["chain_broken_at"] is None
-    assert reader.gets == [(uid(6), 32)]  # il motore riceve il suo formato di id
+    assert reader.gets == [(uid(6), 32)]  # il motore riceve il suo formato di id (32 hex)
 
 
 async def test_filters_use_the_engine_names(tmp_path: Path) -> None:
@@ -298,3 +298,25 @@ def test_a_truthy_non_true_answer_is_not_an_accepted_record() -> None:
             return 1  # type: ignore[return-value]
 
     assert make_request_hook(Sloppy())({"phase": "ATTEMPT"}) is False
+
+
+async def test_time_range_reaches_the_reader_as_from_ts_to_ts(tmp_path: Path) -> None:
+    reader = FakeBlackboxQuery()
+    with engine_api(tmp_path, reader) as (server, token_path):
+        async with session_for(adapter_for(server, token_path)) as s:
+            ok, page = await call(
+                s,
+                "list_blackbox_events",
+                {"since": "2026-11-08T15:00:02Z", "until": "2026-11-08T15:00:04.500Z"},
+            )
+    assert ok is False, page
+    assert reader.queries[-1][0] == {
+        "from_ts": "2026-11-08T15:00:02.000Z",
+        "to_ts": "2026-11-08T15:00:04.500Z",
+    }
+    assert [e["seq"] for e in page["data"]["events"]["events"]] == [2, 3, 4]
+
+
+def test_the_fake_rejects_unknown_filters_like_bb1() -> None:
+    with pytest.raises(ValueError):
+        FakeBlackboxQuery().query({"since": "x"}, 0, 10)

@@ -60,7 +60,10 @@ RECORDABLE: Final = (
     "data",
 )
 # Nomi dei filtri della vista => nomi del motore (pf_blackbox_01 §3).
-FILTER_NAMES: Final = {"origin": "source", "event_type": "type"}
+# BB-1: il tempo si filtra con from_ts/to_ts e un filtro sconosciuto è un errore del lettore.
+FILTER_NAMES: Final = {
+    "origin": "source", "event_type": "type", "since": "from_ts", "until": "to_ts",
+}
 READER_SIGNATURES: Final = {
     "status": (),
     "sessions": (),
@@ -104,8 +107,8 @@ def hex_id(value: object) -> str:
 
 
 def engine_id(hex32: str) -> str:
-    """32 hex della vista -> forma uuid con trattini, quella del motore."""
-    return str(uuid.UUID(hex=hex32))
+    """32 hex della vista -> id del motore (in BB-1: 32 hex minuscoli, senza trattini)."""
+    return uuid.UUID(hex=hex32).hex
 
 
 def _scalar(value: object) -> tuple[bool, object]:

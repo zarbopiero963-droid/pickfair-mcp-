@@ -23,7 +23,7 @@ finto: il ponte del core usa `make_providers(reader)` e `make_request_hook(reade
 | `status()` | — | dict (§5) |
 | `sessions()` | — | lista di dict (§6) |
 | `query(filters, after_seq, limit)` | filtri con i nomi del motore (§4), cursore, limite 1–500 | `(records, next_after_seq, gaps_in_range, as_of_seq)` |
-| `get(event_id, chain_depth)` | id nella forma del motore (uuid con trattini), profondità 32 | `(record \| None, chain)` |
+| `get(event_id, chain_depth)` | id nella forma del motore (uuid in 32 hex minuscoli, senza trattini), profondità 32 | `(record \| None, chain)` |
 | `record_control_api_request(fields)` | record dell'hook (§7) | `True` solo se scritto; qualunque altro valore = non registrato |
 
 Il lettore **non** espone `record`, `delete`, `update`, `write`, `purge`, `truncate`: `check_reader` lo rifiuta.
@@ -33,7 +33,7 @@ Il lettore **non** espone `record`, `delete`, `update`, `write`, `purge`, `trunc
 | Motore | Vista | Regola |
 |---|---|---|
 | `seq` (int ≥ 1) | `seq` | obbligatorio; senza seq la risposta non è attribuibile (errore) |
-| `event_id` uuid | `event_id` 32 hex | anche 32 hex accettato |
+| `event_id`, `causation_id`, `correlation_id` (uuid in 32 hex senza trattini, ACK di B del 09/11) | uguali | anche la forma con trattini è accettata e normalizzata |
 | `ts_utc` ISO-8601 UTC fino al ns (`Z` o `+00:00`) | `ts_utc` al ms | troncato, mai arrotondato; altro fuso = record non mappabile |
 | `source` | `origin` | USER, SYSTEM, MCP, CONTROL_API, STRATEGY, EXCHANGE, TELEGRAM, CLI |
 | `type`, `category`, `severity` | `event_type`, `category`, `severity` | maiuscoli; livelli TRACE…CRITICAL (event_journal.LEVELS) |
@@ -52,10 +52,11 @@ id non valido **non è mai mostrato «aggiustato»**: diventa una lacuna `CORRUP
 
 ## 4. Filtri passati a `query`
 
-Nomi della vista tradotti nei nomi del motore: `origin` → `source`, `event_type` → `type`; gli altri invariati
-(`session_id`, `table_id`, `market_id`, `order_id`, `bet_id`, `strategy`, `correlation_id`, `category`,
-`severity_min`, `outcome`, `q`). `since`/`until` arrivano come stringhe `YYYY-MM-DDTHH:MM:SS.mmmZ` (UTC).
-Valori già validati dalla whitelist della Control API.
+Nomi della vista tradotti nei nomi del motore: `origin` → `source`, `event_type` → `type`, `since` → `from_ts`,
+`until` → `to_ts` (stringhe ISO UTC `YYYY-MM-DDTHH:MM:SS.mmmZ`); gli altri invariati (`session_id`, `table_id`,
+`market_id`, `order_id`, `bet_id`, `strategy`, `correlation_id`, `category`, `severity_min`, `outcome`, `q`).
+Valori già validati dalla whitelist della Control API. Il lettore di BB-1 rifiuta un filtro sconosciuto: **da
+confermare da B** che accetti esattamente questi 15 nomi (il lettore finto li accetta e rifiuta gli altri).
 
 ## 5. `status()`
 
@@ -78,7 +79,17 @@ Campi: `phase` (ATTEMPT prima della lettura, RESULT dopo l'invio; solo RESULT pe
 risponde 503 `BLACKBOX_UNAVAILABLE`, tranne `/v1/blackbox/status` e `/v1/meta` (handshake senza dati): così lo
 stato del guasto resta raggiungibile anche via MCP.
 
-## 8. Cosa NON fa il lettore
+## 8. Differenze contratto simulato ↔ BB-1 trovate e corrette (ACK di B, 09/11/2026)
+
+| Differenza | Correzione (MCP-01p, repository MCP) | Prova |
+|---|---|---|
+| id del motore in 32 hex senza trattini (non uuid con trattini) | `engine_id` passa 32 hex a `get`; il lettore finto usa la forma reale | RED 3 → GREEN sui contract test |
+| tempo filtrato con `from_ts`/`to_ts`; filtro sconosciuto = errore | `since`/`until` tradotti; il lettore finto rifiuta i filtri sconosciuti | idem |
+
+Ancora da verificare sulla classe reale: `check_reader` (NOT_RUN finché B non ha l'adapter), elenco esatto dei
+filtri accettati, TRACE in `event_journal.LEVELS` di BB-1, `order_id` nel record (accolto da B per BB-1).
+
+## 9. Cosa NON fa il lettore
 
 Non scrive, non cancella, non ripara lacune, non ricalcola importi: la decisione di stake di Roserpina (bankroll
 verificato, percentuale MM, stake teorico e autorizzato, riserve, commissioni, valuta, motivo del rifiuto) è
