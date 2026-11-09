@@ -961,6 +961,22 @@
         "docs/design/BLACKBOX_BB1_COMPATIBILITY.md"
       ],
       "max_files": 3
+    },
+    "mcp-mutation-campaigns": {
+      "issue": "mandato owner PF-CLAUDE-C-MCP-BLACKBOX-INTEGRATION-20261109 §1",
+      "scheda": "Campagne dei mutanti critici versionate: esito per mutante",
+      "description": "JSONL per mutante delle campagne su 40c34c4 (216), 90e7d45 (226) e 540a932 (241, codice finale), rapporto generato dai JSONL, driver di campagna e generatore del rapporto per la riproduzione; baseline fallita una volta per un test instabile, dichiarata.",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "docs/mutation/CAMPAIGN_REPORT.md",
+        "docs/mutation/campaign_report.py",
+        "docs/mutation/mut_campaign_40c34c4.jsonl",
+        "docs/mutation/mut_campaign_540a932.jsonl",
+        "docs/mutation/mut_campaign_540a932_run1_baselines.txt",
+        "docs/mutation/mut_campaign_90e7d45.jsonl",
+        "docs/mutation/run_campaign.py"
+      ],
+      "max_files": 8
     }
   }
 }
