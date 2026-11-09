@@ -185,6 +185,9 @@ class FakeBlackboxQuery:
 
     ok = True
     degraded = False
+    # BB-1 dd7b7369: RUNTIME = istanza che scrive (lock D3); READER_LOCAL = istanza separata, la cui
+    # salute non e' quella del runtime (degraded, buffered, dropped_non_critical: None).
+    health_scope: str | None = "RUNTIME"
 
     def __init__(self, records: list[dict[str, Any]] | None = None) -> None:
         self.records = records if records is not None else scenario()
@@ -197,11 +200,20 @@ class FakeBlackboxQuery:
 
     def status(self) -> dict[str, Any]:
         seqs = [r["seq"] for r in self.records]
-        return {  # forma di c_status_healthy della fixture di B
-            "as_of_seq": max(seqs), "buffered": 0, "count": len(seqs), "degraded": self.degraded,
-            "dropped_non_critical": int(self.degraded), "ok": self.ok and not self.degraded,
-            "not_reported": ["last_error_detail"] if self.degraded else [], "session_id": SESSION,
+        runtime = self.health_scope == "RUNTIME"
+        out = {  # forma di status() di BB-1 (dd7b7369)
+            "as_of_seq": max(seqs), "buffered": 0 if runtime else None, "count": len(seqs),
+            "degraded": self.degraded if runtime else None,
+            "dropped_non_critical": int(self.degraded) if runtime else None,
+            "ok": self.ok and not self.degraded,
+            "not_reported": (["last_error_detail"] if self.degraded else [])
+            + ([] if runtime else ["degraded", "buffered", "dropped_non_critical"]),
+            "session_id": SESSION if runtime else "s_reader_instance",  # come BB-1: id del lettore
+            "health_scope": self.health_scope,
         }
+        if self.health_scope is None:
+            del out["health_scope"]
+        return out
 
     def sessions(self) -> list[dict[str, Any]]:
         return [  # forma di d_sessions della fixture di B

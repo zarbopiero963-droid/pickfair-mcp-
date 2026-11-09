@@ -500,3 +500,24 @@ def test_without_the_current_session_id_an_unclean_session_is_an_error() -> None
 
     with pytest.raises(ValueError, match="clean_shutdown"):
         make_providers(_NoCurrent())["blackbox_sessions"]()
+
+
+@pytest.mark.parametrize("scope", ["READER_LOCAL", None, "SOMETHING_ELSE"])
+def test_health_outside_the_runtime_is_never_shown_as_healthy(scope: Any) -> None:
+    """BB-1 dd7b7369 (rilievo Codex #617): fuori dal runtime la salute del registro non è nota."""
+    reader = FakeBlackboxQuery()
+    reader.health_scope = scope
+    p = make_providers(reader)
+    st = p["blackbox_status"]()
+    assert st["available"] is False
+    assert st["degraded"] is None and st["dropped_non_critical"] is None
+    assert {"degraded", "dropped_non_critical"} <= set(st["not_reported"])
+    assert st["current_session_id"] is None  # l'id della sessione del lettore non è quella corrente
+    with pytest.raises(ValueError, match="clean_shutdown"):
+        p["blackbox_sessions"]()  # in corso o crash: indistinguibile, mai un falso crash
+
+
+def test_runtime_scope_keeps_the_runtime_health() -> None:
+    st = make_providers(FakeBlackboxQuery())["blackbox_status"]()
+    assert st["available"] is True and st["degraded"] is False
+    assert st["current_session_id"] == SESSION

@@ -48,9 +48,15 @@ class FixtureReader:
 
     FILTERS = frozenset()
 
-    def __init__(self, status_key: str = "c_status_healthy") -> None:
+    def __init__(self, status_key: str = "c_status_healthy", scope: str | None = "RUNTIME") -> None:
         self.real = copy.deepcopy(REAL)
         self.status_key = status_key
+        # La fixture 74be0f92 precede `health_scope` (BB-1 dd7b7369). Per provare la mappatura dei
+        # valori reali si aggiunge lo scope del runtime, come lo riporta la classe attuale; con
+        # `scope=None` lo stato resta esattamente quello della fixture.
+        if scope is not None:
+            for key in ("c_status_healthy", "c_status_degraded"):
+                self.real[key] = {**self.real[key], "health_scope": scope}
         self.queries: list[tuple[dict[str, Any], int, int]] = []
         self.requests: list[dict[str, Any]] = []
 
@@ -183,6 +189,17 @@ def test_the_real_healthy_status() -> None:
         "corrupt_records", "last_durable_write_at", "retention_days", "gaps",
         "last_write_error_code",
     }
+
+
+def test_the_fixture_status_without_health_scope_is_never_healthy() -> None:
+    """Così com'è la fixture non dice di chi è la salute: fail-closed, nessuna sessione presunta."""
+    p = make_providers(FixtureReader(scope=None))
+    body = p["blackbox_status"]()
+    assert body["available"] is False and body["degraded"] is None
+    assert body["current_session_id"] is None
+    assert {"degraded", "dropped_non_critical"} <= set(body["not_reported"])
+    with pytest.raises(ValueError, match="clean_shutdown"):
+        p["blackbox_sessions"]()
 
 
 def test_the_real_degraded_status_is_not_available() -> None:

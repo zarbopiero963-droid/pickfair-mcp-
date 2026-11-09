@@ -1858,8 +1858,8 @@ MUTANTS: tuple[Mutant, ...] = (
         (
             (
                 'src/pickfair_control_api/blackbox_bridge.py',
-                '    available = raw.get("ok") is True and degraded is not True',
-                '    available = raw.get("ok") is True',
+                '    available = runtime and raw.get("ok") is True and degraded is False',
+                '    available = runtime and raw.get("ok") is True',
             ),
         ),
     ),
@@ -1926,6 +1926,28 @@ MUTANTS: tuple[Mutant, ...] = (
                 'src/pickfair_control_api/blackbox_bridge.py',
                 'MAX_CHAIN: Final = 20',
                 'MAX_CHAIN: Final = 32',
+            ),
+        ),
+    ),
+    Mutant(
+        "R27",
+        "salute di un lettore READER_LOCAL mostrata come quella del runtime",
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                '    runtime = raw.get("health_scope") == "RUNTIME"',
+                '    runtime = True',
+            ),
+        ),
+    ),
+    Mutant(
+        "R28",
+        "sessione del lettore presa per la sessione corrente del runtime (falso crash)",
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                '        current = st.get("session_id") if st.get("health_scope") == "RUNTIME" else None',
+                '        current = st.get("session_id")',
             ),
         ),
     ),

@@ -991,6 +991,22 @@
         "tests/contract/test_blackbox_bb1_contract.py"
       ],
       "max_files": 6
+    },
+    "mcp01r-bb1-health-scope": {
+      "issue": "PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109 FASE 4; verifica sulla classe reale BB-1 #617 @ dd7b7369 (health_scope, pfab-b-20261109-bb1-pr617-status-011)",
+      "scheda": "MCP-01r — salute della scatola nera solo nello scope del runtime",
+      "description": "Con health_scope diverso da RUNTIME (READER_LOCAL, o non riportato) l'adapter non mostra mai il registro disponibile, non usa la sessione del lettore come corrente (falso crash della sessione in corso) e dichiara degraded/dropped_non_critical non riportati. RED 3 -> GREEN; fixture 74be0f92 (anteriore a health_scope) provata sia com'e' (fail-closed) sia con lo scope del runtime; mutanti R20 riallineato, R27-R28 nuovi; descrittore invariato.",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "docs/design/BLACKBOX_BB1_COMPATIBILITY.md",
+        "scripts/critical_mutations.py",
+        "src/pickfair_control_api/blackbox_bridge.py",
+        "src/pickfair_mcp/contract/models.py",
+        "tests/contract/fake_engine_blackbox.py",
+        "tests/contract/test_blackbox_bb1_contract.py",
+        "tests/contract/test_blackbox_bb1_fixture.py"
+      ],
+      "max_files": 8
     }
   }
 }

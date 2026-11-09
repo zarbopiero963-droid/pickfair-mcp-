@@ -118,7 +118,8 @@ L'adapter legge anche `sessions()`.
 
 | BB-1 | Vista | Regola |
 |---|---|---|
-| `ok`, `degraded` | `available`, `degraded` | `available` solo se `ok` è letteralmente True e `degraded` non è True |
+| `health_scope` | — | `RUNTIME` = istanza che scrive (lock D3). Altrimenti (READER_LOCAL, o scope non riportato): la salute e la sessione corrente del runtime non sono note: `available=false`, `degraded`/`dropped_non_critical` null e in `not_reported`, `current_session_id` null, e le sessioni non pulite sono un errore (mai un falso crash della sessione in corso). BB-1 dd7b7369 |
+| `ok`, `degraded` | `available`, `degraded` | `available` solo con scope RUNTIME, `ok` letteralmente True e `degraded` False |
 | `dropped_non_critical` | uguale | |
 | `as_of_seq` + il minimo `first_seq` delle sessioni | `last_seq`, `first_seq` | `as_of_seq` 0 = registro vuoto; senza `first_seq`: `seq_range` in `not_reported` |
 | numero delle sessioni | `sessions` | |

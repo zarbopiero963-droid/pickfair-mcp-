@@ -406,8 +406,11 @@ _STATUS_OPTIONAL: Final = (
 
 
 def status_view(raw: Mapping[str, Any], sessions_raw: object) -> dict[str, Any]:
-    """status() di BB-1 {ok, degraded, dropped_non_critical, as_of_seq, session_id, not_reported,
-    …} -> stato della vista. Disponibile solo se `ok` è letteralmente True e non degradato."""
+    """status() di BB-1 {ok, health_scope, degraded, dropped_non_critical, as_of_seq, session_id,
+    not_reported, …} -> stato della vista. Disponibile solo se `ok` è letteralmente True, non
+    degradato e la salute è quella del runtime (`health_scope == "RUNTIME"`): un lettore su
+    un'istanza separata (READER_LOCAL), o uno scope non riportato, non conosce la salute né la
+    sessione corrente del runtime. Fail-closed: mai «disponibile», mai una sessione presunta."""
     if not isinstance(sessions_raw, list):
         raise ValueError("sessions")
     not_reported = [name for name in _STATUS_OPTIONAL if name not in raw]
@@ -430,14 +433,20 @@ def status_view(raw: Mapping[str, Any], sessions_raw: object) -> dict[str, Any]:
         not_reported.insert(0, "seq_range")
     gaps = merge_gaps([_gap(g) for g in raw.get("gaps", [])])
     durable = raw.get("last_durable_write_at")
-    degraded = raw.get("degraded")
+    runtime = raw.get("health_scope") == "RUNTIME"
+    degraded = raw.get("degraded") if runtime else None
+    dropped = raw.get("dropped_non_critical") if runtime else None
     if degraded is not None and not isinstance(degraded, bool):
         raise ValueError("degraded")
-    available = raw.get("ok") is True and degraded is not True
+    for name in ("degraded", "dropped_non_critical"):
+        absent = (degraded if name == "degraded" else dropped) is None
+        if (absent or name in engine_nr) and name not in not_reported:
+            not_reported.append(name)
+    available = runtime and raw.get("ok") is True and degraded is False
     return {
         "available": available,
         "degraded": degraded,
-        "dropped_non_critical": raw.get("dropped_non_critical"),
+        "dropped_non_critical": dropped,
         "first_seq": first,
         "last_seq": last,
         "retained_from_seq": raw.get("retained_from_seq"),
@@ -445,7 +454,7 @@ def status_view(raw: Mapping[str, Any], sessions_raw: object) -> dict[str, Any]:
         "gaps_truncated": len(gaps) > 64,
         "corrupt_records": raw.get("corrupt_records"),
         "sessions": len(sessions_raw),
-        "current_session_id": raw.get("session_id"),
+        "current_session_id": raw.get("session_id") if runtime else None,
         "last_write_error_code": raw.get("last_write_error_code"),
         "last_durable_write_at": None if durable is None else ts_ms(durable),
         "retention_days": raw.get("retention_days"),
@@ -541,7 +550,9 @@ def make_providers(
 
     def sessions() -> dict[str, Any]:
         raw_sessions = reader.sessions()
-        current = reader.status().get("session_id")  # BB-1: unico modo di riconoscere la corrente
+        st = reader.status()
+        # BB-1: unico modo di riconoscere la sessione corrente, valido solo nello scope del runtime.
+        current = st.get("session_id") if st.get("health_scope") == "RUNTIME" else None
         items = [session_view(raw, current) for raw in raw_sessions]
         return {
             **envelope("SINGLE_READ_SNAPSHOT"),

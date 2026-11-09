@@ -1986,6 +1986,7 @@ class BlackboxStatusResponse(StrictModel):
             or self.degraded is True
             or "seq_range" in self.not_reported
             or "last_write_error_code" in self.not_reported
+            or "degraded" in self.not_reported
         )
         if not self.available and not said_why:
             raise ValueError("an unavailable register must say why")
