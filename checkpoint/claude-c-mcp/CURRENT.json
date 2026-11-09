@@ -2,12 +2,12 @@
  "certification_verdict": "NOT VERIFIED",
  "checkpoint_commit": null,
  "code": {
-  "branch": "ccr-edf04c7d-e7vtj1-mcp01p-bb1-ready",
-  "sha": "869d2c0f00ec866d022f4ca2589ef1926d7447ae"
+  "branch": "ccr-edf04c7d-e7vtj1-mcp01r-bb1-chain-depth",
+  "sha": "7daadf82ed77fc04436594a105ae753c85f76608"
  },
  "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01 + PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109",
- "next_atomic_action": "alla risposta di B (pfab-c-20261109-bb1-pr617-verify-ack-001): patch minima lato C per I1 (profondita' 20) e, se deciso, I2; rieseguire l'harness sulla classe reale; handoff con hash e ACK di B; INTEGRATED_VERIFIED solo dopo merge di #617",
- "previous_checkpoint_sha": "2bc90431a0dfa9133397ba35895265278010d674",
+ "next_atomic_action": "allo SHA di B con I2 (BLACKBOX_OUTAGE -> UNKNOWN): rieseguire l'harness sulla classe reale con 7daadf8; se tutto PASS salvo R2 dichiarato, handoff con hash e ACK di B; INTEGRATED_VERIFIED solo dopo merge di #617",
+ "previous_checkpoint_sha": "e44cdb9a9874695071f45f51ade269d9ef3b1f3e",
  "schema": "pf-current/1",
- "seq": 15
+ "seq": 16
 }

@@ -1,0 +1,15 @@
+PASSED ../realbb/test_real_bb1.py::test_01_check_reader_on_the_real_class
+PASSED ../realbb/test_real_bb1.py::test_02_full_page_maps_every_real_record
+PASSED ../realbb/test_real_bb1.py::test_03_d1_alias_never_the_internal_id
+PASSED ../realbb/test_real_bb1.py::test_04_causal_chain_through_get
+PASSED ../realbb/test_real_bb1.py::test_05_missing_event_is_not_found
+PASSED ../realbb/test_real_bb1.py::test_06_status_and_sessions
+PASSED ../realbb/test_real_bb1.py::test_07_every_mcp_read_is_recorded_in_the_real_register
+PASSED ../realbb/test_real_bb1.py::test_08_filters_and_pagination
+PASSED ../realbb/test_real_bb1.py::test_10_degraded_register_status
+PASSED ../realbb/test_real_bb1.py::test_11_reader_is_read_only_and_hidden_fields_never_listed
+FAILED ../realbb/test_real_bb1.py::test_02b_free_text_secret_in_reason - asse...
+FAILED ../realbb/test_real_bb1.py::test_09_outage_gap_from_the_real_writer - ...
+FAILED ../realbb/test_real_bb1.py::test_12_get_chain_depth_limit_of_the_real_reader
+FAILED ../realbb/test_real_bb1.py::test_13_outage_gap_shape_of_the_real_writer
+4 failed, 10 passed, 3 warnings in 4.04s

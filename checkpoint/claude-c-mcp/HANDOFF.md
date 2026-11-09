@@ -32,3 +32,8 @@ Codice congelato a 869d2c0 (mandato PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109).
 
 9 PASS / 4 FAIL, NOT_COMPATIBLE_YET: I1 profondita' catena (lato C), I2 esito della lacuna di guasto (lato B o contratto),
 rischi R1 (gaps_in_range non limitato) e R2 (segreto in testo libero). Codice MCP ancora congelato a 869d2c0.
+
+## Seq 16 (09/11/2026): I1 corretto
+
+Patch 7daadf8 (branch ccr-edf04c7d-e7vtj1-mcp01r-bb1-chain-depth, base congelata 869d2c0): MAX_CHAIN=20. Classe reale 10 PASS.
+In attesa dello SHA di B per I2.

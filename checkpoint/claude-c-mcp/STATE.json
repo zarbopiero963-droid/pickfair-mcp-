@@ -1,15 +1,15 @@
 {
  "schema": "pf-checkpoint/3",
  "repository": "zarbopiero963-droid/pickfair-mcp-",
- "seq": 15,
+ "seq": 16,
  "agent": "claude-c",
  "agent_identity": "Claude C — MCP + Control API (sessione session_013X2mCaF4fE5YMWGVrM8LtR)",
  "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01 + PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109",
- "previous_checkpoint_sha": "2bc90431a0dfa9133397ba35895265278010d674",
+ "previous_checkpoint_sha": "e44cdb9a9874695071f45f51ade269d9ef3b1f3e",
  "code": {
-  "branch": "ccr-edf04c7d-e7vtj1-mcp01p-bb1-ready",
-  "sha": "869d2c0f00ec866d022f4ca2589ef1926d7447ae",
-  "tree": "a11edeaba1d93f134bf36304638117132ad4f0f5"
+  "branch": "ccr-edf04c7d-e7vtj1-mcp01r-bb1-chain-depth",
+  "sha": "7daadf82ed77fc04436594a105ae753c85f76608",
+  "tree": "c1e0a785406404fa2fa92ac467c26f82412d4371"
  },
  "published_branches": {
   "ccr-edf04c7d-e7vtj1": "647d5e8d269952af975ec01df7be27abf2ff3c1e",
@@ -33,7 +33,8 @@
   "ccr-edf04c7d-e7vtj1-g8-provenance": "a5333571d4ac6b9c5063bffc2f2deeee8628ac88",
   "ccr-edf04c7d-e7vtj1-mcp01o-blackbox-read": "6580f91eaeaa5a6288304325c400947442f2b0fc",
   "ccr-edf04c7d-e7vtj1-mcp-mutants-realign": "40c34c4fdeebec786b244a05515675e3c5a5e238",
-  "ccr-edf04c7d-e7vtj1-mcp01p-bb1-ready": "869d2c0f00ec866d022f4ca2589ef1926d7447ae"
+  "ccr-edf04c7d-e7vtj1-mcp01p-bb1-ready": "869d2c0f00ec866d022f4ca2589ef1926d7447ae",
+  "ccr-edf04c7d-e7vtj1-mcp01r-bb1-chain-depth": "7daadf82ed77fc04436594a105ae753c85f76608"
  },
  "integration_chain": [
   "MCP-01d",
@@ -56,7 +57,7 @@
   "MCP-01o lettura della scatola nera (dopo l'interfaccia di lettura di B)",
   "MCP-MUTANTS-REALIGN (solo catalogo e guardia, sopra 01o)"
  ],
- "lotto_corrente": "FASE 4 eseguita sulla classe reale BB-1 (PR #617 @ 3b6848d6, non mergiata) col codice MCP congelato 869d2c0: 9 PASS, 4 FAIL -> NOT_COMPATIBLE_YET (I1 profondita' catena 32>20 lato C; I2 outcome VERIFIED della lacuna BLACKBOX_OUTAGE lato B/contratto); in attesa della risposta di B",
+ "lotto_corrente": "I1 corretto (MAX_CHAIN=20, patch 7daadf8 su branch separato, base congelata 869d2c0 intatta): classe reale #617 10 PASS; restano 09 (I2 di B, congiunto con D) e 02b (limite R2)",
  "lotti_completati": [
   "MCP-01j get_config (305b843)",
   "MCP-01k compatibilità P0/F-16 (4cd3e75)",
@@ -82,7 +83,7 @@
   "MCP-01o: record RESULT con `returned` (READ_REQUEST di B), contratto accettato da B (6580f91)",
   "mutanti critici: 9 riallineati, P01-P03, guardia di applicabilità; 12/12 KILLED (40c34c4)"
  ],
- "next_atomic_action": "alla risposta di B (pfab-c-20261109-bb1-pr617-verify-ack-001): patch minima lato C per I1 (profondita' 20) e, se deciso, I2; rieseguire l'harness sulla classe reale; handoff con hash e ACK di B; INTEGRATED_VERIFIED solo dopo merge di #617",
+ "next_atomic_action": "allo SHA di B con I2 (BLACKBOX_OUTAGE -> UNKNOWN): rieseguire l'harness sulla classe reale con 7daadf8; se tutto PASS salvo R2 dichiarato, handoff con hash e ACK di B; INTEGRATED_VERIFIED solo dopo merge di #617",
  "dependencies": {
   "F-04 su main": "MCP-01i r2",
   "F-03 su main (con F-02, F-04)": "MCP-01m",
@@ -513,7 +514,18 @@
    },
    "risks": [
     "R1 gaps_in_range non limitato: oltre 64 lacune la lettura non filtrata si blocca"
-   ]
+   ],
+   "after_i1_patch": {
+    "mcp_code": "7daadf8",
+    "patch_sha256": "9c41387c7fa1d1ca7d5b57efd2758bffcb169cce72b6a7ea3ca822bb251f83c1",
+    "scenarios_PASS": 10,
+    "scenarios_FAIL": [
+     "09 (I2, attesa B)",
+     "02b (R2, limite dichiarato)"
+    ],
+    "diagnostics": "12 superato per costruzione (verificava il vecchio 32), 13 conferma VERIFIED lato B",
+    "b_reply": "pfab-b-20261109-bb1-pr617-verify-reply-008: I1 confermato 20; I2 accettato, fix congiunto con D; R1 e R2 dichiarati come limiti"
+   }
   }
  },
  "mutant_campaigns": {

@@ -38,9 +38,9 @@
   "MCP-01o: record RESULT con `returned` (READ_REQUEST di B), contratto accettato da B (6580f91)",
   "mutanti critici: 9 riallineati, P01-P03, guardia di applicabilit\u00e0; 12/12 KILLED (40c34c4)"
  ],
- "lotto_corrente": "FASE 4 eseguita sulla classe reale BB-1 (PR #617 @ 3b6848d6, non mergiata) col codice MCP congelato 869d2c0: 9 PASS, 4 FAIL -> NOT_COMPATIBLE_YET (I1 profondita' catena 32>20 lato C; I2 outcome VERIFIED della lacuna BLACKBOX_OUTAGE lato B/contratto); in attesa della risposta di B",
+ "lotto_corrente": "I1 corretto (MAX_CHAIN=20, patch 7daadf8 su branch separato, base congelata 869d2c0 intatta): classe reale #617 10 PASS; restano 09 (I2 di B, congiunto con D) e 02b (limite R2)",
  "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01 + PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109",
- "next_atomic_action": "alla risposta di B (pfab-c-20261109-bb1-pr617-verify-ack-001): patch minima lato C per I1 (profondita' 20) e, se deciso, I2; rieseguire l'harness sulla classe reale; handoff con hash e ACK di B; INTEGRATED_VERIFIED solo dopo merge di #617",
+ "next_atomic_action": "allo SHA di B con I2 (BLACKBOX_OUTAGE -> UNKNOWN): rieseguire l'harness sulla classe reale con 7daadf8; se tutto PASS salvo R2 dichiarato, handoff con hash e ACK di B; INTEGRATED_VERIFIED solo dopo merge di #617",
  "pr_505": "N/A (repository MCP)",
  "schema": "pf-task-state/1",
  "tests_missing": []
