@@ -1,9 +1,9 @@
-8417accf2c0409b492d3734c29db74842ed7f1b6e9f3eb9b10e20e5e30cb5aa3  ./AGENT_LEASE.json
-d5733c4197cf473c037e596ac65b287e594242fd899de0278fcbcbd0cde448c5  ./CURRENT.json
-682762669aca16cd2983bd61fd1feba8de68b672e1dcd6b791e30e4269122541  ./HANDOFF.md
+c3e59dad95e84f31f215830695d5aee85252577f33005e09ad3148d2cbb6044f  ./AGENT_LEASE.json
+cf084a0fca4517b0b42de06f377fbd1460346af87f66c7019112fac49db5f27e  ./CURRENT.json
+df739d8c7875d692f33e379a58b3c06509c78c10dd22ed5d0342fe601b587302  ./HANDOFF.md
 25c0ecdedb79ade0d3dbeb201fd97ce9e419dc277c71c9f79803190681c5f834  ./RUNBOOK.md
-bf96ede25a43e43de5c77e92d9d997bdf27b82545303519837f648c6eddbc1ea  ./STATE.json
-854a03df8b4a9d0d7f2f05dc98b25dd39ecfa338513b86cbb1e30168a4876e5b  ./TASK_STATE.json
+d86e8f4be2601362f6af435f869892fdcb83acf84f73b5692eb1fe18360e19c0  ./STATE.json
+51752718446532a0c3d462b0f3578bdadfddb730e7debb22a56be1335c2c0646  ./TASK_STATE.json
 03dac6bb026b72eb3d0fc45910815b446d28743a73de0497586a279c8d6caa3c  ./results/evidence-01ir2-e2e.txt
 3865b8f2e9cf47d8c012ea107b2ff94f78ede19462957740709ad8e4a2992661  ./results/evidence-01ir2-mcp-l.txt
 614559deb160e196c148dc6eceaae962e89226573a2844f3ff0e5a250cf53905  ./results/evidence-01ir2-mcp-suite.txt
@@ -49,6 +49,7 @@ fbea5bf73993e2c28123ada7fdafe09a5ac9416703f86473bb25585af36714b4  ./results/evid
 19245ce11fdd8f3792fe201bc34b2e32c8e706b1cc967524fe0190fa89db2e4a  ./results/evidence-mut-campaign-540a932.jsonl
 b35711f8cdae1418ab31d5e99816e0b3610d6fbf1b0eebb57b4412b429a53847  ./results/evidence-mut-campaign-90e7d45.jsonl
 2c8474c064aa441a32a138e2d47ffe6e4074a4a5b83204cbbbf0617c122da943  ./results/evidence-mutants-realign.txt
+620f050d2b6baa1fdd4202526fb8b39bd4c3effbe80eed49c1d27bbbe1d21f0f  ./results/evidence-roserpina-mcp-observability-matrix.md
 f50cb71cf379c4129438104f53f09697343cf34d69c907bae74fa90e18fe5e92  ./results/evidence-sec01-e2e.txt
 7bd032126986f4dc2cde7b0481183e12112de69fa2b1e9c823602ac02435a08b  ./results/evidence-sec01-mcp-suite.txt
 8b3dd49f8f0be2b624538e7c4074118c2099905ac67708973fe1ccb5ccd0f9c2  ./results/evidence-sec01-mcp-x.txt

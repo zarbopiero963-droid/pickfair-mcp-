@@ -45,3 +45,7 @@ d1454af3 + patch MCP 7daadf8: 15 PASS / 1 FAIL (R2 dichiarato). Non INTEGRATED_V
 ## Seq 18 (09/11/2026): health_scope
 
 #617 @ dd7b7369 + patch MCP 75e7280: 17/18 (R2 dichiarato). Correzione fail-closed di health_scope READER_LOCAL.
+
+## Seq 19 (09/11/2026): matrice di osservabilita' Roserpina
+
+results/evidence-roserpina-mcp-observability-matrix.md; lacune G1-G7 a B. Codice congelato.

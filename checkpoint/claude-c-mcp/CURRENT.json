@@ -5,9 +5,9 @@
   "branch": "ccr-edf04c7d-e7vtj1-mcp01r-bb1-chain-depth",
   "sha": "75e7280a81d5a26ccea05999a5f7a692fc0379c8"
  },
- "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01 + PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109",
+ "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01 + PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109 + PF-ROSERPINA-MCP-OBSERVABILITY-CLAUDE-C-20261109",
  "next_atomic_action": "al merge della #617: harness v4 sullo SHA di main; handoff integrazione ponte core (make_providers sul BlackBoxReader del runtime, scope RUNTIME) + patch 869d2c0..75e7280 in forma mergiabile, con hash e ACK di B",
- "previous_checkpoint_sha": "ab1b996f84a4ec24f8fbf2ade7cdf084e628e642",
+ "previous_checkpoint_sha": "22f4213d2819c406deced7bcdc009314f685eb4e",
  "schema": "pf-current/1",
- "seq": 18
+ "seq": 19
 }

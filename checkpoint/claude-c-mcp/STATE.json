@@ -1,11 +1,11 @@
 {
  "schema": "pf-checkpoint/3",
  "repository": "zarbopiero963-droid/pickfair-mcp-",
- "seq": 18,
+ "seq": 19,
  "agent": "claude-c",
  "agent_identity": "Claude C — MCP + Control API (sessione session_013X2mCaF4fE5YMWGVrM8LtR)",
- "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01 + PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109",
- "previous_checkpoint_sha": "ab1b996f84a4ec24f8fbf2ade7cdf084e628e642",
+ "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01 + PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109 + PF-ROSERPINA-MCP-OBSERVABILITY-CLAUDE-C-20261109",
+ "previous_checkpoint_sha": "22f4213d2819c406deced7bcdc009314f685eb4e",
  "code": {
   "branch": "ccr-edf04c7d-e7vtj1-mcp01r-bb1-chain-depth",
   "sha": "75e7280a81d5a26ccea05999a5f7a692fc0379c8",
@@ -57,7 +57,7 @@
   "MCP-01o lettura della scatola nera (dopo l'interfaccia di lettura di B)",
   "MCP-MUTANTS-REALIGN (solo catalogo e guardia, sopra 01o)"
  ],
- "lotto_corrente": "classe reale BB-1 #617 @ dd7b7369: con la patch MCP 75e7280 (I1 + health_scope) 17/18 PASS, unico FAIL R2 dichiarato -> COMPATIBLE_ON_PR_HEAD; NON INTEGRATED_VERIFIED",
+ "lotto_corrente": "matrice di osservabilita' Roserpina consegnata (analisi read-only); codice MCP congelato; in attesa del merge della #617",
  "lotti_completati": [
   "MCP-01j get_config (305b843)",
   "MCP-01k compatibilità P0/F-16 (4cd3e75)",
@@ -586,5 +586,20 @@
   "branch": "ccr-edf04c7d-e7vtj1-mcp01p-bb1-ready",
   "sha": "869d2c0f00ec866d022f4ca2589ef1926d7447ae",
   "mandate": "PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109 FASE 1"
+ },
+ "roserpina_observability": {
+  "matrix": "results/evidence-roserpina-mcp-observability-matrix.md",
+  "sha256": "620f050d2b6baa1fdd4202526fb8b39bd4c3effbe80eed49c1d27bbbe1d21f0f",
+  "basis": "#617 @ dd7b7369; MCP 869d2c0/75e7280; Grok #586 c.6747305390",
+  "summary": "stato corrente coperto dal contratto MCP (non integrato nel core); storia finanziaria assente: BB-1 registra solo ciclo di vita; lacune G1-G7 consegnate a B",
+  "gaps": [
+   "G1 eventi finanziari BB-3",
+   "G2 tipo evento ribasamento picco",
+   "G3 prezzo/eta' book alla decisione",
+   "G4 picco/drawdown di cassa esposti",
+   "G5 picco non persistito",
+   "G6 Money float nel contratto MCP",
+   "G7 equity/drawdown per tavolo"
+  ]
  }
 }
