@@ -521,3 +521,26 @@ Allineamento al record reale del motore (`pf_blackbox_01.md` §3 di Claude B) pr
 Adapter puro motore → vista `pickfair_control_api.blackbox_bridge` (`make_providers`, `make_request_hook`,
 `check_reader`); condizioni di compatibilità in `docs/design/BLACKBOX_BB1_COMPATIBILITY.md`; contract test in
 `tests/contract/` (suite G8 `mcp-contract`).
+
+## MCP-01q — forma normativa di BB-1 (contratto 1.15.0)
+
+La forma del lettore reale di Claude B (`core.blackbox_query.BlackBoxReader`) è normativa (decisione C/B del
+09/11/2026). Cosa cambia nella vista:
+- filtri di `list_blackbox_events` / `GET /v1/blackbox/events`: quelli di BB-1;
+  - nuovi: `severity` (uguaglianza), `phase`, `selection_id`, `causation_id`;
+  - tolti: `severity_min` e `q`, che il lettore del motore non ha: ora sono rifiutati con `QUERY_PARAM`;
+- `order_id`, nei filtri e in `refs`: id del ledger (intero) oppure uuid canonico minuscolo con trattini;
+- `component`: ASCII stampabile, 1–64 caratteri (`thread:<nome>`);
+- `not_reported` dello stato può comprendere `gaps`: una lista vuota non riportata dal motore non significa
+  «nessuna lacuna».
+
+Adapter:
+- legge con `external=True`;
+- passa `table_id`, `selection_id` e `order_id` come testo, perché BB-1 confronta per uguale con il testo
+  registrato;
+- usa l'hook `request_hook`;
+- dà errore, mai una risposta parziale, su lacune per tempo, `get` in forma dict e qualunque forma non ancora
+  mappata.
+
+Compatibilità con la classe reale: NOT_VERIFIED finché B non fornisce le fixture JSON
+(`docs/design/BLACKBOX_BB1_COMPATIBILITY.md` §10).

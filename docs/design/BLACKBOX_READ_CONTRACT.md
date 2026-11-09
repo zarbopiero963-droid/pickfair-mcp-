@@ -60,9 +60,13 @@ resta «nessuna query».
 | `since`, `until` | `YYYY-MM-DDTHH:MM:SS(.mmm)?Z` (UTC) |
 | `after_seq` | intero ≥ 0 (cursore) |
 | `limit` | 1–500, default 200 |
-| `session_id`, `table_id`, `market_id`, `order_id`, `bet_id`, `strategy`, `correlation_id` | pattern dei rispettivi campi |
-| `category`, `origin`, `severity_min`, `event_type`, `outcome` | vocabolari del §1 |
-| `q` | ricerca testuale su `event_type`, `reason_code`, `reason`: 1–64 caratteri `[A-Za-z0-9 _.:-]` |
+| `session_id`, `table_id`, `market_id`, `selection_id`, `bet_id`, `strategy`, `correlation_id` | pattern dei rispettivi campi |
+| `order_id` | id del ledger (intero) oppure uuid canonico minuscolo con trattini |
+| `causation_id` | 32 hex minuscoli |
+| `category`, `origin`, `severity`, `event_type`, `outcome`, `phase` | vocabolari del §1 (uguaglianza esatta) |
+
+Dal contratto 1.15.0 (MCP-01q) i filtri sono quelli del lettore di BB-1: `severity_min` e `q` non esistono più
+(il lettore del motore non li ha) e sono rifiutati con `QUERY_PARAM`.
 
 Risposta: `events`, `next_after_seq` (ultimo `seq` restituito; `0` se non ci sono altre pagine), `truncated`,
 `gaps_in_range` (§4), `as_of_seq` (ultimo `seq` scritto al momento della lettura; `0` = registro vuoto),
@@ -117,17 +121,20 @@ Un'interfaccia di lettura pura, nel processo, senza scrittura:
 ```
 blackbox.status() -> dict            # §2 status
 blackbox.sessions() -> list[dict]
-blackbox.query(filters, after_seq, limit) -> (records, next_after_seq, gaps_in_range, as_of_seq)
-blackbox.get(event_id, chain_depth) -> (record | None, chain)
-blackbox.record_control_api_request(fields) -> bool   # hook del §6; False = non registrato
+blackbox.query(filters, after_seq, limit, *, external=True)
+    -> {records, next_after_seq, gaps_in_range, as_of_seq}
+blackbox.get(event_id, chain_depth, *, external=True) -> evento con la catena (forma da fissare)
+blackbox.request_hook(record) -> bool   # hook del §6; qualunque valore diverso da True = non registrato
 ```
 
-I record restituiti sono quelli del §1, con i nomi del motore mappati dal ponte. Le scelte di storage, sequenza
+Forma normativa: quella di BB-1 (`core.blackbox_query.BlackBoxReader`, decisione C/B del 09/11/2026); il
+dettaglio e ciò che resta da verificare sono in `BLACKBOX_BB1_COMPATIBILITY.md`. I record restituiti sono quelli
+del §1, con i nomi del motore mappati dal ponte. Le scelte di storage, sequenza
 multi-processo, fsync, rotazione e retention restano di B.
 
 ## 8. Implementazione lato MCP / Control API (MCP-01o)
 
-- `pickfair_control_api/blackbox_query.py`: whitelist chiusa (17 parametri) con codici fissi
+- `pickfair_control_api/blackbox_query.py`: whitelist chiusa (19 parametri dal contratto 1.15.0, prima 17) con codici fissi
   `QUERY_PARAM`, `QUERY_PARAM_REPEATED`, `QUERY_VALUE`, `QUERY_ENCODING`, `QUERY_TOO_LONG`, `QUERY_RANGE`.
 - `pickfair_control_api/blackbox_redact.py`: seconda redazione su lista, catena ed evento; `redacted` aggiornato.
 - `pickfair_control_api/server.py`: route, hook obbligatorio, «registra o rifiuta», aggregazione,

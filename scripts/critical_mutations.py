@@ -1682,8 +1682,8 @@ MUTANTS: tuple[Mutant, ...] = (
         (
             (
                 'src/pickfair_control_api/blackbox_bridge.py',
-                '        return reader.record_control_api_request(dict(record)) is True',
-                '        return bool(reader.record_control_api_request(dict(record)))',
+                '        return reader.request_hook(dict(record)) is True',
+                '        return bool(reader.request_hook(dict(record)))',
             ),
         ),
     ),
@@ -1750,6 +1750,72 @@ MUTANTS: tuple[Mutant, ...] = (
                 'src/pickfair_control_api/blackbox_bridge.py',
                 '_TS = re.compile(r"\\A(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})(?:\\.(\\d{1,9}))?(?:Z|\\+00:00)\\Z")',
                 '_TS = re.compile(r"\\A(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})(?:\\.(\\d{1,9}))?(?:Z|[+-]\\d{2}:\\d{2})\\Z")',
+            ),
+        ),
+    ),
+    Mutant(
+        "R11",
+        "id di BB-1 passati al lettore come interi (pagina vuota muta)",
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                '        elif name in _TEXT_IDS:',
+                '        elif False:',
+            ),
+        ),
+    ),
+    Mutant(
+        "R12",
+        "lacune per tempo di BB-1 nascoste: pagina mostrata come completa",
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                '        if page.get("gaps_in_range"):',
+                '        if False:',
+            ),
+        ),
+    ),
+    Mutant(
+        "R13",
+        "lettura della vista interna di BB-1 (external non richiesto)",
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                '        page = reader.query(engine, after_seq, limit, external=True)',
+                '        page = reader.query(engine, after_seq, limit, external=False)',
+            ),
+        ),
+    ),
+    Mutant(
+        "R14",
+        "order_id uuid accettato senza trattini (il lettore non lo troverebbe)",
+        (
+            (
+                'src/pickfair_control_api/blackbox_query.py',
+                '_UUID: Final = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"',
+                '_UUID: Final = r"[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}"',
+            ),
+        ),
+    ),
+    Mutant(
+        "R15",
+        "lacune non riportate dal motore mostrate come «nessuna lacuna»",
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                '        if "gaps" not in raw:',
+                '        if False:',
+            ),
+        ),
+    ),
+    Mutant(
+        "R16",
+        "get nella forma dict di BB-1 spacchettato in silenzio",
+        (
+            (
+                'src/pickfair_control_api/blackbox_bridge.py',
+                '        if not isinstance(got, tuple) or len(got) != 2:',
+                '        if False:',
             ),
         ),
     ),

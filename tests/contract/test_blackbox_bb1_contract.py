@@ -180,7 +180,8 @@ async def test_owner_question_reconstructed_from_recorded_events_only(tmp_path: 
             )
     assert ok is False, page
     events = page["data"]["events"]["events"]
-    assert [e["seq"] for e in events] == [1, 2, 3, 4, 5, 6, 7, 9]  # il seq 8 non è inventato
+    # Il seq 8 non è inventato: è una lacuna.
+    assert [e["seq"] for e in events] == [1, 2, 3, 4, 5, 6, 7, 9, 10, 11]
     assert page["data"]["events"]["gaps_in_range"] == [
         {"from_seq": 8, "to_seq": 8, "kind": "CORRUPT"}
     ]
@@ -249,6 +250,58 @@ async def test_filters_use_the_engine_names(tmp_path: Path) -> None:
     assert reader.queries[-1] == ({"source": "USER", "type": "CONFIG_CHANGE"}, 0, 200)
 
 
+async def test_new_bb1_filters_reach_the_reader_in_the_engine_text_form(tmp_path: Path) -> None:
+    """BB-1 confronta per uguale con il testo registrato: 3 != "3" sarebbe una pagina vuota muta."""
+    reader = FakeBlackboxQuery()
+    uuid_order = "0f8fad5b-d9cb-469f-a165-70867728950e"
+    with engine_api(tmp_path, reader) as (server, token_path):
+        async with session_for(adapter_for(server, token_path)) as s:
+            ok, page = await call(
+                s,
+                "list_blackbox_events",
+                {"table_id": 2, "selection_id": 47973, "order_id": uuid_order, "phase": "ATTEMPT"},
+            )
+            ok2, page2 = await call(
+                s, "list_blackbox_events", {"severity": "ERROR", "causation_id": uid(5)}
+            )
+            ok3, page3 = await call(s, "list_blackbox_events", {"order_id": 42})
+    assert reader.queries[0][0] == {
+        "table_id": "2", "selection_id": "47973", "order_id": uuid_order, "phase": "ATTEMPT"
+    }
+    assert ok is False and [e["seq"] for e in page["data"]["events"]["events"]] == [11]
+    (event,) = page["data"]["events"]["events"]
+    assert event["refs"]["table_id"] == 2 and event["refs"]["selection_id"] == 47973
+    assert event["refs"]["order_id"] == uuid_order
+    assert reader.queries[1][0] == {"severity": "ERROR", "causation_id": uid(5)}
+    # Il seq 6 (causato da 5) è INFO, non ERROR.
+    assert ok2 is False and page2["data"]["events"]["events"] == []
+    assert reader.queries[2][0] == {"order_id": "42"}
+    assert ok3 is False and [e["seq"] for e in page3["data"]["events"]["events"]] == [4, 5, 6]
+
+
+async def test_thread_component_is_shown_as_recorded(tmp_path: Path) -> None:
+    reader = FakeBlackboxQuery()
+    with engine_api(tmp_path, reader) as (server, token_path):
+        async with session_for(adapter_for(server, token_path)) as s:
+            ok, page = await call(s, "list_blackbox_events", {"event_type": "TASK_EXCEPTION"})
+    assert ok is False, page
+    (event,) = page["data"]["events"]["events"]
+    assert event["component"] == "thread:Thread-3 (poller)" and event["severity"] == "ERROR"
+
+
+async def test_time_gaps_from_bb1_are_never_hidden(tmp_path: Path) -> None:
+    """Lacune per tempo non ancora mappate (fixture di B attese): errore, mai pagina «completa»."""
+    reader = FakeBlackboxQuery()
+    reader.time_gaps = [
+        {"seq": 7, "from_ts": "2026-11-08T15:00:07Z", "to_ts": "2026-11-08T15:00:09Z",
+         "outcome": "UNKNOWN", "reason_code": "WRITER_DOWN"}
+    ]
+    with engine_api(tmp_path, reader) as (server, token_path):
+        async with session_for(adapter_for(server, token_path)) as s:
+            is_error, page = await call(s, "list_blackbox_events")
+    assert is_error is True and page["data"] is None
+
+
 async def test_paging_through_the_whole_range(tmp_path: Path) -> None:
     reader = FakeBlackboxQuery()
     seen: list[int] = []
@@ -262,7 +315,7 @@ async def test_paging_through_the_whole_range(tmp_path: Path) -> None:
                 cursor = page["data"]["events"]["next_after_seq"]
                 if not cursor:
                     break
-    assert seen == [1, 2, 3, 4, 5, 6, 7, 9]
+    assert seen == [1, 2, 3, 4, 5, 6, 7, 9, 10, 11]
 
 
 async def test_every_mcp_read_is_recorded_once_with_its_count(tmp_path: Path) -> None:
@@ -294,7 +347,7 @@ async def test_unavailable_register_gives_no_data_but_status_still_answers(tmp_p
 
 def test_a_truthy_non_true_answer_is_not_an_accepted_record() -> None:
     class Sloppy(FakeBlackboxQuery):
-        def record_control_api_request(self, fields: dict[str, Any]) -> bool:
+        def request_hook(self, record: dict[str, Any]) -> bool:
             return 1  # type: ignore[return-value]
 
     assert make_request_hook(Sloppy())({"phase": "ATTEMPT"}) is False
@@ -319,4 +372,31 @@ async def test_time_range_reaches_the_reader_as_from_ts_to_ts(tmp_path: Path) ->
 
 def test_the_fake_rejects_unknown_filters_like_bb1() -> None:
     with pytest.raises(ValueError):
-        FakeBlackboxQuery().query({"since": "x"}, 0, 10)
+        FakeBlackboxQuery().query({"since": "x"}, 0, 10, external=True)
+    with pytest.raises(ValueError):
+        FakeBlackboxQuery().query({"severity_min": "WARNING"}, 0, 10, external=True)
+
+
+class _Bb1StatusShape(FakeBlackboxQuery):
+    """status() nella forma statica di BB-1 vista da B ({ok, degraded, as_of_seq})."""
+
+    def status(self) -> dict[str, Any]:
+        return {"ok": True, "degraded": False, "as_of_seq": 11}
+
+
+def test_bb1_status_shape_is_never_shown_as_a_healthy_register() -> None:
+    """Finché la mappatura di status() non è scritta sulle fixture reali: mai «disponibile», mai
+    «nessuna lacuna» per una chiave che il motore non ha riportato."""
+    body = make_providers(_Bb1StatusShape())["blackbox_status"]()
+    assert body["available"] is False
+    assert "gaps" in body["not_reported"] and "seq_range" in body["not_reported"]
+    assert body["gaps"] == []  # vuota per forma, ma dichiarata non riportata
+
+
+def test_get_in_bb1_dict_shape_is_an_error_never_a_lookup() -> None:
+    class _Bb1GetShape(FakeBlackboxQuery):
+        def get(self, event_id: str, chain_depth: int, *, external: bool = False) -> Any:
+            return {"event": None, "chain": []}  # due chiavi: spacchettabili in silenzio
+
+    with pytest.raises(ValueError, match="get shape"):
+        make_providers(_Bb1GetShape())["blackbox_event"](uid(1))

@@ -168,12 +168,20 @@ def test_sessions_rejected(body: dict[str, Any]) -> None:
         bodies.bb_status(gaps=[], gaps_truncated=True),
         bodies.bb_status(not_reported=["corrupt_records"]),  # dichiarato ma con valore
         bodies.bb_status(not_reported=["sessions", "sessions"], sessions=None),
+        bodies.bb_status(  # lacune dichiarate non riportate ma con valore
+            not_reported=["gaps"], gaps=[{"from_seq": 2, "to_seq": 2, "kind": "LOST"}]
+        ),
         bodies.bb_status(requests_unrecorded=-1),
     ],
 )
 def test_status_rejected(body: dict[str, Any]) -> None:
     with pytest.raises(UpstreamInvalidResponse):
         parse_blackbox_status(raw(body))
+
+
+def test_gaps_not_reported_is_accepted_only_empty() -> None:
+    status = parse_blackbox_status(raw(bodies.bb_status(not_reported=["gaps"], gaps=[])))
+    assert status.gaps == () and "gaps" in status.not_reported
 
 
 def test_unavailable_register_with_its_reason() -> None:

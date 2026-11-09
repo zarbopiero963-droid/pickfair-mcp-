@@ -61,12 +61,12 @@ def record(seq: int, **over: Any) -> dict[str, Any]:
 
 def scenario() -> list[dict[str, Any]]:
     """Sessione con impostazione cambiata, comando MCP, decisione di Roserpina, ordine AMBIGUOUS."""
-    order = {
-        "table_id": 1,
+    order = {  # BB-1: table_id, selection_id e order_id come testo del motore (cifre o uuid)
+        "table_id": "1",
         "market_id": "1.234567",
-        "selection_id": 47972,
+        "selection_id": "47972",
         "order_ref": "cref-secret-1",
-        "order_id": 42,
+        "order_id": "42",
         "strategy": "roserpina",
         "correlation_id": "corr-1",
     }
@@ -146,6 +146,11 @@ def scenario() -> list[dict[str, Any]]:
             8, source="ROBOT"
         ),  # fuori vocabolario: deve diventare una lacuna CORRUPT, mai un evento
         {k: v for k, v in record(9, category="SYSTEM", type="HEARTBEAT").items() if k != "reason"},
+        record(10, component="thread:Thread-3 (poller)", category="SYSTEM", type="TASK_EXCEPTION",
+               severity="ERROR"),
+        record(11, source="STRATEGY", category="ORDER", type="ORDER_PLACE", phase="ATTEMPT",
+               outcome="PENDING", table_id="2", selection_id="47973",
+               order_id="0f8fad5b-d9cb-469f-a165-70867728950e"),  # BB-1: cifre come stringhe; uuid
     ]
 
 
@@ -153,25 +158,11 @@ class FakeBlackboxQuery:
     """Interfaccia di lettura di BB-1 (`core/blackbox_query`), in memoria."""
 
     # Filtri accettati dal lettore (nomi del motore); qualunque altro nome è un errore.
-    FILTERS = frozenset(
-        {
-            "from_ts",
-            "to_ts",
-            "session_id",
-            "table_id",
-            "market_id",
-            "order_id",
-            "bet_id",
-            "strategy",
-            "correlation_id",
-            "category",
-            "source",
-            "type",
-            "severity_min",
-            "outcome",
-            "q",
-        }
-    )
+    FILTERS = frozenset({  # i 17 filtri del lettore di BB-1 (pfab-b-20261109-adapter-check-001)
+        "from_ts", "to_ts", "session_id", "table_id", "market_id", "order_id", "bet_id", "strategy",
+        "correlation_id", "category", "source", "type", "outcome", "selection_id", "phase",
+        "causation_id", "severity",
+    })
 
     def __init__(self, records: list[dict[str, Any]] | None = None) -> None:
         self.records = records if records is not None else scenario()
@@ -180,6 +171,7 @@ class FakeBlackboxQuery:
         self.queries: list[tuple[dict[str, Any], int, int]] = []
         self.gets: list[tuple[str, int]] = []
         self.gaps: list[tuple[int, int, str]] = []
+        self.time_gaps: list[dict[str, Any]] = []
 
     def status(self) -> dict[str, Any]:
         seqs = [r["seq"] for r in self.records]
@@ -210,8 +202,9 @@ class FakeBlackboxQuery:
         ]
 
     def query(
-        self, filters: dict[str, Any], after_seq: int, limit: int
-    ) -> tuple[Any, int, Any, int]:
+        self, filters: dict[str, Any], after_seq: int, limit: int, *, external: bool = False
+    ) -> dict[str, Any]:
+        assert external is True  # la vista esterna di BB-1: order_ref/customer_ref già esclusi
         self.queries.append((dict(filters), after_seq, limit))
         unknown = set(filters) - self.FILTERS
         if unknown:
@@ -222,16 +215,19 @@ class FakeBlackboxQuery:
                 out = [r for r in out if r["ts_utc"][:23] >= str(value)[:23]]
             elif name == "to_ts":
                 out = [r for r in out if r["ts_utc"][:23] <= str(value)[:23]]
-            elif name in ("severity_min", "q"):
-                continue
             else:
                 out = [r for r in out if r.get(name) == value]
         page = out[:limit]
         more = len(out) > limit
-        gaps = [g for g in self.gaps if page and page[0]["seq"] <= g[0] <= page[-1]["seq"]]
-        return page, (page[-1]["seq"] if more else 0), gaps, max(r["seq"] for r in self.records)
+        # Forma di BB-1: dict; gaps_in_range sono lacune per tempo (vuote in questo scenario).
+        return {"records": page, "next_after_seq": page[-1]["seq"] if more else 0,
+                "gaps_in_range": list(self.time_gaps),
+                "as_of_seq": max(r["seq"] for r in self.records)}
 
-    def get(self, event_id: str, chain_depth: int) -> tuple[Any, list[Any]]:
+    def get(
+        self, event_id: str, chain_depth: int, *, external: bool = False
+    ) -> tuple[Any, list[Any]]:
+        assert external is True
         self.gets.append((event_id, chain_depth))
         by_id = {r["event_id"]: r for r in self.records}
         rec = by_id.get(event_id)
@@ -241,8 +237,8 @@ class FakeBlackboxQuery:
             cause = by_id[cause].get("causation_id")
         return rec, chain
 
-    def record_control_api_request(self, fields: dict[str, Any]) -> bool:
+    def request_hook(self, record: dict[str, Any]) -> bool:
         if not self.accept_requests:
             return False
-        self.requests.append(fields)
+        self.requests.append(record)
         return True

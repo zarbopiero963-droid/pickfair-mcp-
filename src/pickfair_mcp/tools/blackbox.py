@@ -33,6 +33,7 @@ from pickfair_mcp.contract.models import (
     BlackboxSessionsResponse,
     BlackboxStatusResponse,
     MarketId,
+    OrderUuid,
     SessionKey,
     StrategyName,
     StrictModel,
@@ -94,10 +95,11 @@ EVENTS_DESCRIPTION = (
     "Read-only. Events from Pickfair's black box in seq order (GET /v1/blackbox/events). Filters: "
     "since/until (UTC, YYYY-MM-DDTHH:MM:SS[.mmm]Z, at most 31 days), session_id (a session's "
     "history), "
-    "table_id (a table's history), order_id or bet_id (an order's lifecycle), market_id, strategy, "
-    "correlation_id, category, origin (USER, SYSTEM, MCP, CONTROL_API, STRATEGY, EXCHANGE, "
-    "TELEGRAM, CLI), "
-    "severity_min, event_type, outcome, q (text search). Pages of up to 500 events: if truncated, "
+    "table_id (a table's history), order_id (ledger integer or uuid) or bet_id (an order's "
+    "lifecycle), market_id, selection_id, strategy, correlation_id, causation_id, category, "
+    "origin (USER, SYSTEM, MCP, CONTROL_API, STRATEGY, EXCHANGE, TELEGRAM, CLI), severity "
+    "(exact), phase, event_type, outcome. No free-text search: filter by type, category or "
+    "reason_code instead. Pages of up to 500 events: if truncated, "
     "call "
     "again with after_seq = next_after_seq. To answer 'what happened between 15:00 and 17:00', "
     "convert "
@@ -119,7 +121,6 @@ UtcInput = Annotated[
         pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{3})?Z$"
     ),
 ]
-SearchText = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9 _.:-]{1,64}$")]
 
 
 def _instant(value: str) -> datetime:
@@ -135,16 +136,18 @@ class ListBlackboxEventsInput(StrictModel):
     session_id: SessionKey | None = None
     table_id: Annotated[int, Field(ge=1, le=9999)] | None = None
     market_id: MarketId | None = None
-    order_id: Annotated[int, Field(ge=1, le=10**15)] | None = None
+    order_id: Annotated[int, Field(ge=1, le=10**15)] | OrderUuid | None = None
     bet_id: BetIdText | None = None
     strategy: StrategyName | None = None
     correlation_id: SessionKey | None = None
     category: BlackboxCategory | None = None
     origin: BlackboxOrigin | None = None
-    severity_min: Literal["TRACE", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] | None = None
+    severity: Literal["TRACE", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] | None = None
     event_type: UpperCode | None = None
     outcome: BlackboxOutcome | None = None
-    q: SearchText | None = None
+    selection_id: Annotated[int, Field(ge=1, le=10**12)] | None = None
+    phase: Literal["ATTEMPT", "RESULT", "OBSERVATION"] | None = None
+    causation_id: BlackboxEventId | None = None
 
     @model_validator(mode="after")
     def _range(self) -> ListBlackboxEventsInput:

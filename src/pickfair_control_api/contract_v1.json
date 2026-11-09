@@ -1,6 +1,6 @@
 {
   "contract_name": "pickfair-control-api",
-  "contract_version": "1.14.0",
+  "contract_version": "1.15.0",
   "error_codes": {
     "control_api": [
       "BAD_HOST",
@@ -182,7 +182,7 @@
     ]
   ],
   "semantics": {
-    "blackbox": "PF-BLACKBOX-01, read-only. The engine's permanent chronological register; the reader never invents: a field the engine did not record is null and listed in the event's `unavailable`. seq is the persistent progressive number: missing seq are reported as gaps (LOST, CORRUPT, or RETENTION when removed by the configured retention), never repaired. phase ATTEMPT is what Pickfair tried (outcome always PENDING), RESULT what actually happened; an exchange AMBIGUOUS is outcome UNKNOWN, never FAILED. Timestamps are UTC with milliseconds; local time is the viewer's job. Values of sensitive names are always [REDACTED]. Filters only on GET /v1/blackbox/events, from a closed whitelist (since, until, after_seq, limit 1-500, session_id, table_id, market_id, order_id, bet_id, strategy, correlation_id, category, origin, severity_min, event_type, outcome, q); an unknown or repeated parameter, a value out of pattern or a range over 31 days is 400 without calling the core. Every Control API request is recorded once in the register (never once per returned event); a request that cannot be recorded is refused 503 BLACKBOX_UNAVAILABLE, except /v1/blackbox/status and /v1/meta (the handshake, no Pickfair data), so the register's failure stays visible.",
+    "blackbox": "PF-BLACKBOX-01, read-only. The engine's permanent chronological register; the reader never invents: a field the engine did not record is null and listed in the event's `unavailable`. seq is the persistent progressive number: missing seq are reported as gaps (LOST, CORRUPT, or RETENTION when removed by the configured retention), never repaired. phase ATTEMPT is what Pickfair tried (outcome always PENDING), RESULT what actually happened; an exchange AMBIGUOUS is outcome UNKNOWN, never FAILED. Timestamps are UTC with milliseconds; local time is the viewer's job. Values of sensitive names are always [REDACTED]. Filters only on GET /v1/blackbox/events, from a closed whitelist (since, until, after_seq, limit 1-500, session_id, table_id, market_id, order_id (integer or uuid), bet_id, selection_id, strategy, correlation_id, causation_id, category, origin, severity, phase, event_type, outcome: the filters of the engine's BB-1 reader); an unknown or repeated parameter, a value out of pattern or a range over 31 days is 400 without calling the core. Every Control API request is recorded once in the register (never once per returned event); a request that cannot be recorded is refused 503 BLACKBOX_UNAVAILABLE, except /v1/blackbox/status and /v1/meta (the handshake, no Pickfair data), so the register's failure stays visible.",
     "codes": "Codes and reasons match ^[A-Z][A-Z0-9_]{0,63}$; free text from the core becomes UNSTRUCTURED and never crosses the API.",
     "config": {
       "keys": {
@@ -864,7 +864,7 @@
               "component": {
                 "anyOf": [
                   {
-                    "pattern": "^[a-z][a-z0-9_.]{0,63}$",
+                    "pattern": "^[ -~]{1,64}$",
                     "type": "string"
                   },
                   {
@@ -1331,6 +1331,10 @@
                     "type": "integer"
                   },
                   {
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  {
                     "type": "null"
                   }
                 ],
@@ -1718,11 +1722,12 @@
                     "corrupt_records",
                     "sessions",
                     "last_durable_write_at",
-                    "retention_days"
+                    "retention_days",
+                    "gaps"
                   ],
                   "type": "string"
                 },
-                "maxItems": 5,
+                "maxItems": 6,
                 "title": "Not Reported",
                 "type": "array",
                 "uniqueItems": true
@@ -6339,6 +6344,19 @@
             "default": null,
             "title": "Category"
           },
+          "causation_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{32}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Causation Id"
+          },
           "correlation_id": {
             "anyOf": [
               {
@@ -6401,6 +6419,10 @@
                 "type": "integer"
               },
               {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
                 "type": "null"
               }
             ],
@@ -6449,10 +6471,14 @@
             "default": null,
             "title": "Outcome"
           },
-          "q": {
+          "phase": {
             "anyOf": [
               {
-                "pattern": "^[A-Za-z0-9 _.:-]{1,64}$",
+                "enum": [
+                  "ATTEMPT",
+                  "RESULT",
+                  "OBSERVATION"
+                ],
                 "type": "string"
               },
               {
@@ -6460,7 +6486,21 @@
               }
             ],
             "default": null,
-            "title": "Q"
+            "title": "Phase"
+          },
+          "selection_id": {
+            "anyOf": [
+              {
+                "maximum": 1000000000000,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Selection Id"
           },
           "session_id": {
             "anyOf": [
@@ -6475,7 +6515,7 @@
             "default": null,
             "title": "Session Id"
           },
-          "severity_min": {
+          "severity": {
             "anyOf": [
               {
                 "enum": [
@@ -6493,7 +6533,7 @@
               }
             ],
             "default": null,
-            "title": "Severity Min"
+            "title": "Severity"
           },
           "since": {
             "anyOf": [
@@ -6577,7 +6617,7 @@
               "component": {
                 "anyOf": [
                   {
-                    "pattern": "^[a-z][a-z0-9_.]{0,63}$",
+                    "pattern": "^[ -~]{1,64}$",
                     "type": "string"
                   },
                   {
@@ -7086,6 +7126,10 @@
                     "maximum": 1000000000000000,
                     "minimum": 1,
                     "type": "integer"
+                  },
+                  {
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                    "type": "string"
                   },
                   {
                     "type": "null"
@@ -9333,7 +9377,7 @@
             "component": {
               "anyOf": [
                 {
-                  "pattern": "^[a-z][a-z0-9_.]{0,63}$",
+                  "pattern": "^[ -~]{1,64}$",
                   "type": "string"
                 },
                 {
@@ -9684,6 +9728,10 @@
                   "type": "integer"
                 },
                 {
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                {
                   "type": "null"
                 }
               ],
@@ -9856,7 +9904,7 @@
             "component": {
               "anyOf": [
                 {
-                  "pattern": "^[a-z][a-z0-9_.]{0,63}$",
+                  "pattern": "^[ -~]{1,64}$",
                   "type": "string"
                 },
                 {
@@ -10238,6 +10286,10 @@
                   "maximum": 1000000000000000,
                   "minimum": 1,
                   "type": "integer"
+                },
+                {
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                  "type": "string"
                 },
                 {
                   "type": "null"
@@ -10691,11 +10743,12 @@
               "corrupt_records",
               "sessions",
               "last_durable_write_at",
-              "retention_days"
+              "retention_days",
+              "gaps"
             ],
             "type": "string"
           },
-          "maxItems": 5,
+          "maxItems": 6,
           "title": "Not Reported",
           "type": "array",
           "uniqueItems": true

@@ -48,12 +48,12 @@ def test_events_route_passes_only_validated_filters(api: Any) -> None:
     status, body = get(
         api,
         "/v1/blackbox/events?since=2026-11-07T15:00:00Z&until=2026-11-07T17:00:00Z"
-        "&origin=MCP&table_id=3&q=SETTINGS+risk",
+        "&origin=MCP&table_id=3&severity=WARNING",
     )
     assert status == 200 and [e["seq"] for e in body["events"]] == [1, 2]
     (filters,) = prov.bb_queries
     assert (
-        filters["origin"] == "MCP" and filters["table_id"] == 3 and filters["q"] == "SETTINGS risk"
+        filters["origin"] == "MCP" and filters["table_id"] == 3 and filters["severity"] == "WARNING"
     )
     assert filters["limit"] == 200 and filters["since"].hour == 15
 
@@ -73,7 +73,8 @@ def test_events_route_without_query_uses_the_defaults(api: Any) -> None:
             "/v1/blackbox/events?since=2026-11-07T17:00:00Z&until=2026-11-07T15:00:00Z",
             "QUERY_RANGE",
         ),
-        ("/v1/blackbox/events?q=%00", "QUERY_ENCODING"),
+        ("/v1/blackbox/events?strategy=%00", "QUERY_ENCODING"),
+        ("/v1/blackbox/events?q=x", "QUERY_PARAM"),
         ("/v1/blackbox/events?customer_ref=x", "QUERY_PARAM"),
     ],
 )
@@ -116,9 +117,9 @@ def test_one_record_per_request_never_one_per_event(api: Any) -> None:
 
 
 def test_record_params_are_validated_values_never_raw_text(api: Any) -> None:
-    get(api, "/v1/blackbox/events?since=2026-11-07T15:00:00Z&q=a+b")
+    get(api, "/v1/blackbox/events?since=2026-11-07T15:00:00Z&strategy=roserpina")
     params = api[3].records[0]["params"]
-    assert params == {"limit": 200, "q": "a b", "since": "2026-11-07T15:00:00.000Z"}
+    assert params == {"limit": 200, "strategy": "roserpina", "since": "2026-11-07T15:00:00.000Z"}
 
 
 def test_rejected_requests_are_recorded_with_their_code(api: Any) -> None:

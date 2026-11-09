@@ -1606,7 +1606,15 @@ BlackboxPhase = Literal["ATTEMPT", "RESULT", "OBSERVATION"]
 BlackboxOutcome = Literal["VERIFIED", "PENDING", "UNKNOWN", "REJECTED", "FAILED", "NOT_APPLICABLE"]
 UpperCode = Annotated[str, StringConstraints(pattern=r"^[A-Z][A-Z0-9_]{0,63}$")]
 BlackboxCategory = Annotated[str, StringConstraints(pattern=r"^[A-Z][A-Z0-9_]{0,31}$")]
-BlackboxComponent = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_.]{0,63}$")]
+# ASCII stampabile: BB-1 registra anche `thread:<nome del thread>` per le eccezioni dei thread.
+BlackboxComponent = Annotated[str, StringConstraints(pattern=r"^[ -~]{1,64}$")]
+# Id dell'ordine: intero del ledger, o uuid (str(uuid4()) del motore con il DB degradato).
+OrderUuid = Annotated[
+    str,
+    StringConstraints(
+        pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    ),
+]
 SessionKey = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{1,64}$")]
 ValueName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_.]{0,63}$")]
 ShortText = Annotated[str, StringConstraints(max_length=256)]
@@ -1650,7 +1658,7 @@ class BlackboxRefs(StrictModel):
     table_id: Annotated[int, Field(ge=1, le=9999)] | None
     market_id: MarketId | None
     selection_id: Annotated[int, Field(ge=1, le=10**12)] | None
-    order_id: Annotated[int, Field(ge=1, le=10**15)] | None
+    order_id: Annotated[int, Field(ge=1, le=10**15)] | OrderUuid | None
     bet_id: BetIdText | None
     strategy: StrategyName | None
 
@@ -1903,11 +1911,11 @@ class BlackboxStatusResponse(StrictModel):
         tuple[
             Literal[
                 "seq_range", "corrupt_records", "sessions", "last_durable_write_at",
-                "retention_days",
+                "retention_days", "gaps",
             ],
             ...,
         ],
-        Field(max_length=5, json_schema_extra={"uniqueItems": True}),
+        Field(max_length=6, json_schema_extra={"uniqueItems": True}),
     ]
 
     @model_validator(mode="after")
@@ -1931,6 +1939,8 @@ class BlackboxStatusResponse(StrictModel):
             raise ValueError("seq range inverted")
         if self.gaps_truncated and not self.gaps:
             raise ValueError("gaps truncated without gaps")
+        if "gaps" in self.not_reported and self.gaps:
+            raise ValueError("gaps declared not reported carry a value")
         no_cause = self.last_write_error_code is None and "seq_range" not in self.not_reported
         if not self.available and no_cause:
             raise ValueError("an unavailable register must say why")

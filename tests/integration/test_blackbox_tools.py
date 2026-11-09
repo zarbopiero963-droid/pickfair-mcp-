@@ -67,7 +67,11 @@ async def test_simulated_blackbox_tools_are_read_only_and_valid() -> None:
         ),
         ("list_blackbox_events", {"limit": 501}),
         ("list_blackbox_events", {"origin": "robot"}),
-        ("list_blackbox_events", {"q": "a&limit=500"}),  # nessuna iniezione di query
+        ("list_blackbox_events", {"strategy": "a&limit=500"}),  # nessuna iniezione di query
+        ("list_blackbox_events", {"q": "risk"}),  # non è un filtro di BB-1
+        ("list_blackbox_events", {"severity_min": "WARNING"}),  # idem
+        ("list_blackbox_events", {"phase": "DONE"}),
+        ("list_blackbox_events", {"order_id": "0f8fad5bd9cb469fa16570867728950e"}),
         ("list_blackbox_events", {"customer_ref": "c"}),
         ("get_blackbox_event", {"event_id": "../x"}),
         ("get_blackbox_event", {}),
@@ -128,13 +132,16 @@ async def test_real_control_api_round_trip_records_the_mcp_request(tmp_path: Pat
                 {
                     "since": "2026-11-07T15:00:00Z",
                     "until": "2026-11-07T17:00:00Z",
-                    "q": "risk stop",
+                    "severity": "WARNING",
+                    "phase": "RESULT",
+                    "order_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
                 },
             )
         assert ok[0] is False, ok
         (filters,) = providers.bb_queries
         assert (
-            filters["q"] == "risk stop"
+            (filters["severity"], filters["phase"]) == ("WARNING", "RESULT")
+            and filters["order_id"] == "0f8fad5b-d9cb-469f-a165-70867728950e"
             and filters["since"].hour == 15
             and filters["until"].hour == 17
         )
@@ -166,9 +173,11 @@ async def test_unrecordable_request_is_an_unavailable_upstream_never_data(tmp_pa
     "query",
     [
         (("customer_ref", "x"),),
-        (("q", "a&b"),),
+        (("strategy", "a&b"),),
+        (("q", "risk"),),
         (("limit", "1\n"),),
-        (("q", "a" * 65),),
+        (("strategy", "a" * 65),),
+        (("strategy", "a b"),),  # nessuno spazio: senza `q` non serve
         (("since", "%00"),),
     ],
 )

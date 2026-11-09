@@ -6,9 +6,11 @@ Funzioni pure, solo stdlib. Il ponte del core collega l'interfaccia di lettura d
 
     status() -> dict
     sessions() -> list[dict]
-    query(filters, after_seq, limit) -> (records, next_after_seq, gaps_in_range, as_of_seq)
-    get(event_id, chain_depth) -> (record | None, chain)
-    record_control_api_request(fields) -> bool
+    query(filters, after_seq, limit, *, external)
+        -> {records, next_after_seq, gaps_in_range, as_of_seq}
+    get(event_id, chain_depth, *, external)
+        -> evento con la catena (forma da fixture reali di B: NOT_VERIFIED, oggi fail-closed)
+    request_hook(record) -> bool
 
 e ottiene i quattro provider e il `request_hook` del server. Regole (mai inventare):
 - record del motore con i nomi di pf_blackbox_01 §3 (`source`, `type`, `pid`, `ts_utc` al µs,
@@ -64,12 +66,14 @@ RECORDABLE: Final = (
 FILTER_NAMES: Final = {
     "origin": "source", "event_type": "type", "since": "from_ts", "until": "to_ts",
 }
+# Forma del lettore = BB-1 (core.blackbox_query.BlackBoxReader), normativa per decisione C/B
+# del 09/11/2026.
 READER_SIGNATURES: Final = {
     "status": (),
     "sessions": (),
     "query": ("filters", "after_seq", "limit"),
     "get": ("event_id", "chain_depth"),
-    "record_control_api_request": ("fields",),
+    "request_hook": ("record",),
 }
 
 _TS = re.compile(r"\A(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,9}))?(?:Z|\+00:00)\Z")
@@ -77,7 +81,7 @@ _HEX32 = re.compile(r"\A[0-9a-f]{32}\Z")
 _NAME = re.compile(r"\A[a-z][a-z0-9_.]{0,63}\Z")
 _UPPER = re.compile(r"\A[A-Z][A-Z0-9_]{0,63}\Z")
 _CATEGORY = re.compile(r"\A[A-Z][A-Z0-9_]{0,31}\Z")
-_COMPONENT = re.compile(r"\A[a-z][a-z0-9_.]{0,63}\Z")
+_COMPONENT = re.compile(r"\A[ -~]{1,64}\Z")  # BB-1: anche `thread:<nome del thread>`
 _SESSION = re.compile(r"\A[A-Za-z0-9_-]{1,64}\Z")
 _MARKET = re.compile(r"\A[0-9]{1,4}\.[0-9]{1,15}\Z")
 _BET = re.compile(r"\A[0-9]{1,20}\Z")
@@ -164,12 +168,26 @@ def _opt(record: Mapping[str, Any], name: str, pattern: re.Pattern[str]) -> obje
 
 
 def _opt_int(record: Mapping[str, Any], name: str, low: int, high: int) -> int | None:
+    """Intero, o stringa di sole cifre (BB-1 registra table_id e selection_id come stringhe)."""
     value = record.get(name)
     if value is None:
         return None
+    if isinstance(value, str) and value.isdigit() and value.isascii():
+        value = int(value)
     if type(value) is not int or not low <= value <= high:
         raise Unmappable(name)
     return value
+
+
+_ORDER_UUID = re.compile(r"\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\Z")
+
+
+def _order_id(record: Mapping[str, Any]) -> int | str | None:
+    """Id del ledger (intero o cifre) oppure uuid (str(uuid4()) del motore con il DB degradato)."""
+    value = record.get("order_id")
+    if isinstance(value, str) and _ORDER_UUID.fullmatch(value):
+        return value
+    return _opt_int(record, "order_id", 1, 10**15)
 
 
 def event_view(record: Mapping[str, Any]) -> dict[str, Any]:
@@ -249,7 +267,7 @@ def event_view(record: Mapping[str, Any]) -> dict[str, Any]:
         "table_id": _opt_int(record, "table_id", 1, 9999),
         "market_id": _opt(record, "market_id", _MARKET),
         "selection_id": _opt_int(record, "selection_id", 1, 10**12),
-        "order_id": _opt_int(record, "order_id", 1, 10**15),
+        "order_id": _order_id(record),
         "bet_id": _opt(record, "bet_id", _BET),
         "strategy": _opt(record, "strategy", _STRATEGY),
     }
@@ -283,6 +301,9 @@ def merge_gaps(gaps: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
+_TEXT_IDS: Final = frozenset({"table_id", "selection_id", "order_id"})
+
+
 def engine_filters(filters: Mapping[str, object]) -> tuple[dict[str, object], int, int]:
     """Filtri validati della vista -> (filtri del motore, after_seq, limit)."""
     out: dict[str, object] = {}
@@ -291,6 +312,10 @@ def engine_filters(filters: Mapping[str, object]) -> tuple[dict[str, object], in
             continue
         if isinstance(value, datetime):  # già validato dalla whitelist
             value = value.strftime("%Y-%m-%dT%H:%M:%S.") + f"{value.microsecond // 1000:03d}Z"
+        elif name in _TEXT_IDS:
+            # BB-1 registra questi id come testo (cifre, o uuid per order_id) e confronta per
+            # uguale: un intero non troverebbe nulla, senza errore. Si passa la forma del motore.
+            value = str(value)
         out[FILTER_NAMES.get(name, name)] = value
     after_seq, limit = filters.get("after_seq", 0), filters.get("limit", 200)
     after = after_seq if isinstance(after_seq, int) else 0
@@ -307,7 +332,15 @@ def make_providers(
 
     def events(filters: Mapping[str, object]) -> dict[str, Any]:
         engine, after_seq, limit = engine_filters(filters)
-        records, next_after_seq, gaps, as_of_seq = reader.query(engine, after_seq, limit)
+        page = reader.query(engine, after_seq, limit, external=True)
+        records, as_of_seq = page["records"], page["as_of_seq"]
+        next_after_seq = page["next_after_seq"]
+        if page.get("gaps_in_range"):
+            # Lacune per tempo di BB-1 ({seq, from_ts, to_ts, outcome, reason_code}): la loro forma
+            # nella vista (unrecorded_windows) arriva con le fixture reali di B. Fino ad allora una
+            # pagina con lacune NON si mostra come completa: errore, mai una lacuna nascosta.
+            raise ValueError("time gaps not yet mapped")
+        gaps: list[Any] = []
         views, corrupt = [], []
         for record in records:
             try:
@@ -330,7 +363,12 @@ def make_providers(
         }
 
     def event(event_id: str) -> dict[str, Any]:
-        record, chain = reader.get(engine_id(event_id), MAX_CHAIN)
+        got = reader.get(engine_id(event_id), MAX_CHAIN, external=True)
+        if not isinstance(got, tuple) or len(got) != 2:
+            # BB-1 restituisce un dict con la catena dentro: la mappatura arriva con le fixture
+            # reali di B. Spacchettare un dict ne darebbe le chiavi: errore, mai una risposta.
+            raise ValueError("get shape not yet mapped")
+        record, chain = got
         body = {
             **envelope("SINGLE_READ_SNAPSHOT"),
             "event_id": event_id,
@@ -394,6 +432,8 @@ def make_providers(
         not_reported = [name for name in reportable if name not in raw]
         if "last_seq" not in raw:
             not_reported.insert(0, "seq_range")
+        if "gaps" not in raw:  # lista vuota per forma: mai «nessuna lacuna» se non riportata
+            not_reported.append("gaps")
         gaps = merge_gaps([_gap(g) for g in raw.get("gaps", [])])
         durable = raw.get("last_durable_write_at")
         return {
@@ -426,7 +466,7 @@ def make_request_hook(reader: Any) -> Callable[[dict[str, Any]], bool]:
     """Hook del server: accettato solo se il motore conferma la scrittura con True."""
 
     def hook(record: dict[str, Any]) -> bool:
-        return reader.record_control_api_request(dict(record)) is True
+        return reader.request_hook(dict(record)) is True
 
     return hook
 

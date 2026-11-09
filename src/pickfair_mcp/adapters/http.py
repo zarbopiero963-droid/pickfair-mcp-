@@ -48,10 +48,10 @@ _MARKET_ID_RE = re.compile(r"[0-9]{1,4}\.[0-9]{1,15}")
 # test).
 _BLACKBOX_PARAMS: Final = frozenset({
     "since", "until", "after_seq", "limit", "session_id", "table_id", "market_id", "order_id",
-    "bet_id", "strategy", "correlation_id", "category", "origin", "severity_min", "event_type",
-    "outcome", "q",
+    "bet_id", "strategy", "correlation_id", "category", "origin", "severity", "event_type",
+    "outcome", "selection_id", "phase", "causation_id",
 })
-_BLACKBOX_VALUE_RE = re.compile(r"[A-Za-z0-9 _.:-]{1,64}")
+_BLACKBOX_VALUE_RE = re.compile(r"[A-Za-z0-9_.:-]{1,64}")  # 1.15.0: senza `q`, niente spazi
 _EVENT_ID_RE = re.compile(r"[0-9a-f]{32}")
 
 LOOPBACK_HOST: Final = "127.0.0.1"
@@ -219,13 +219,12 @@ class HttpControlApiAdapter:
         return await self._get("/v1/blackbox/sessions")
 
     async def get_blackbox_events_raw(self, query: tuple[tuple[str, str], ...]) -> bytes:
-        # Seconda barriera: solo nomi della whitelist e valori nel loro alfabeto; '+' per lo spazio
-        # di `q`.
+        # Seconda barriera: solo nomi della whitelist e valori nel loro alfabeto (nessuno spazio).
         parts = []
         for name, value in query:
             if name not in _BLACKBOX_PARAMS or not _BLACKBOX_VALUE_RE.fullmatch(value):
                 raise ValueError("blackbox query")
-            parts.append(f"{name}={value.replace(' ', '+')}")
+            parts.append(f"{name}={value}")
         return await self._get("/v1/blackbox/events" + ("?" + "&".join(parts) if parts else ""))
 
     async def get_blackbox_event_raw(self, event_id: str) -> bytes:

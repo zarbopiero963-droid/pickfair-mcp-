@@ -30,21 +30,29 @@ OUTCOMES: Final = frozenset(
 )
 
 _TS = re.compile(r"\A(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{3}))?Z\Z")
+# uuid canonico, minuscolo e con trattini: la forma di str(uuid4()), confrontata per uguale.
+_UUID: Final = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 _PATTERNS: Final = {
     "after_seq": re.compile(r"\A(0|[1-9][0-9]{0,15})\Z"),
     "limit": re.compile(r"\A[1-9][0-9]{0,2}\Z"),
     "session_id": re.compile(r"\A[A-Za-z0-9_-]{1,64}\Z"),
     "table_id": re.compile(r"\A[1-9][0-9]{0,3}\Z"),
     "market_id": re.compile(r"\A[0-9]{1,4}\.[0-9]{1,15}\Z"),
-    "order_id": re.compile(r"\A[1-9][0-9]{0,15}\Z"),
+    # Id del ledger (intero) oppure uuid (con il DB degradato il motore usa str(uuid4())).
+    "order_id": re.compile(r"\A(?:[1-9][0-9]{0,15}|" + _UUID + r")\Z"),
+    "selection_id": re.compile(r"\A[1-9][0-9]{0,11}\Z"),
+    "causation_id": re.compile(r"\A[0-9a-f]{32}\Z"),
     "bet_id": re.compile(r"\A[0-9]{1,20}\Z"),
     "strategy": re.compile(r"\A[a-z][a-z0-9_]{0,31}\Z"),
     "correlation_id": re.compile(r"\A[A-Za-z0-9_-]{1,64}\Z"),
     "category": re.compile(r"\A[A-Z][A-Z0-9_]{0,31}\Z"),
     "event_type": re.compile(r"\A[A-Z][A-Z0-9_]{0,63}\Z"),
-    "q": re.compile(r"\A[A-Za-z0-9 _.:-]{1,64}\Z"),
 }
-_ENUMS: Final = {"origin": ORIGINS, "severity_min": frozenset(SEVERITIES), "outcome": OUTCOMES}
+# 1.15.0: filtri di BB-1 (Claude B). severity_min e q non esistono nel lettore del motore: tolti.
+PHASES: Final = frozenset({"ATTEMPT", "RESULT", "OBSERVATION"})
+_ENUMS: Final = {
+    "origin": ORIGINS, "severity": frozenset(SEVERITIES), "outcome": OUTCOMES, "phase": PHASES,
+}
 ALLOWED: Final = frozenset({"since", "until", *_PATTERNS, *_ENUMS})
 _PRINTABLE = re.compile(r"\A[\x21-\x7e]*\Z")
 _UNRESERVED = re.compile(r"%(?![0-9A-Fa-f]{2})")
@@ -115,7 +123,9 @@ def parse_events_query(raw: str) -> dict[str, object]:
             filters[name] = value
         elif not _PATTERNS[name].fullmatch(value):
             raise QueryRejected("QUERY_VALUE")
-        elif name in ("after_seq", "limit", "table_id", "order_id"):
+        elif name in ("after_seq", "limit", "table_id", "selection_id") or (
+            name == "order_id" and value.isdigit()
+        ):
             filters[name] = int(value)
         else:
             filters[name] = value
