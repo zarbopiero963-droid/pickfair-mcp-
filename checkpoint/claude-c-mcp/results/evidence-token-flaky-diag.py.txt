@@ -1,0 +1,43 @@
+"""Diagnosi di test_concurrent_processes_never_read_a_partial_token (codice congelato, non modificato).
+
+Replica il test e registra: rotazioni, durata media e massima di rotate() (fsync compresa), letture,
+token distinti ed errori per lettore (pid), istanti di inizio e fine dei lettori."""
+import json, os, subprocess, sys, tempfile, time
+from pathlib import Path
+sys.path.insert(0, sys.argv[1] + "/src")
+from pickfair_control_api.tokens import TokenStore, issue_token_file
+
+def once():
+    d = Path(tempfile.mkdtemp()); secure = d / "secure"; secure.mkdir(mode=0o700)
+    path = secure / "api.token"; store = TokenStore(issue_token_file(path))
+    reader = (
+        "import sys, time, os\n"
+        "from pickfair_mcp.auth.token_file import LocalTokenFile, TokenFileError\n"
+        "f = LocalTokenFile(sys.argv[1]); bad = []; ok = 0; seen = set(); t0 = time.monotonic()\n"
+        "for _ in range(2000):\n"
+        "    try:\n"
+        "        seen.add(f.read()); ok += 1\n"
+        "    except TokenFileError as e:\n"
+        "        bad.append(e.code)\n"
+        "import json; print(json.dumps({'pid': os.getpid(), 'reads': ok, 'distinct': len(seen), 'bad': bad, 'start': t0, 'end': time.monotonic()}))\n"
+    )
+    env = {**os.environ, "PYTHONPATH": sys.argv[1] + "/src"}
+    procs = [subprocess.Popen([sys.executable, "-c", reader, str(path)], stdout=subprocess.PIPE, text=True, env=env) for _ in range(3)]
+    durations = []
+    while any(p.poll() is None for p in procs):
+        t = time.monotonic(); store.rotate(path); durations.append(time.monotonic() - t)
+    outs = [json.loads(p.communicate(timeout=120)[0]) for p in procs]
+    fails = []
+    if not all(not o["bad"] for o in outs): fails.append("BAD")
+    if store.rotations < 20: fails.append("ROTATIONS<20")
+    if any(o["reads"] != 2000 for o in outs): fails.append("READS")
+    if any(o["distinct"] < 2 for o in outs): fails.append("DISTINCT<2")
+    if sorted(p.name for p in secure.iterdir()) != ["api.token"]: fails.append("LEFTOVER")
+    return {"fails": fails, "rotations": store.rotations,
+            "rotate_ms_avg": round(1000 * sum(durations) / max(len(durations), 1), 2),
+            "rotate_ms_max": round(1000 * max(durations or [0]), 2),
+            "readers": [{k: (round(v, 3) if isinstance(v, float) else v) for k, v in o.items()} for o in outs]}
+
+n = int(sys.argv[2])
+for _ in range(n):
+    print(json.dumps(once()), flush=True)

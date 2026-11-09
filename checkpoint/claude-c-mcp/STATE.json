@@ -1,11 +1,11 @@
 {
  "schema": "pf-checkpoint/3",
  "repository": "zarbopiero963-droid/pickfair-mcp-",
- "seq": 13,
+ "seq": 14,
  "agent": "claude-c",
  "agent_identity": "Claude C — MCP + Control API (sessione session_013X2mCaF4fE5YMWGVrM8LtR)",
- "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01",
- "previous_checkpoint_sha": "bfcbbc45631e06c610a608f4e4e9a58732fa3748",
+ "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01 + PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109",
+ "previous_checkpoint_sha": "405f6bac07a35eb1b7cfc950ca842c4a9fceed71",
  "code": {
   "branch": "ccr-edf04c7d-e7vtj1-mcp01p-bb1-ready",
   "sha": "869d2c0f00ec866d022f4ca2589ef1926d7447ae",
@@ -56,7 +56,7 @@
   "MCP-01o lettura della scatola nera (dopo l'interfaccia di lettura di B)",
   "MCP-MUTANTS-REALIGN (solo catalogo e guardia, sopra 01o)"
  ],
- "lotto_corrente": "MCP pronto per BB-1: contratto 1.15.0 sulle forme reali di BB-1 (fixture 74be0f92, schema D1-D2), campagna mutanti 241/241 KILLED su 540a932, esiti versionati in docs/mutation",
+ "lotto_corrente": "FASE 1 congelamento: branch ccr-edf04c7d-e7vtj1-mcp01p-bb1-ready fermo a 869d2c0; FASE 2 diagnosi del test instabile dei token completata (difetto del test, correzione proposta e non applicata); FASE 3 in attesa di #615 e BB-1",
  "lotti_completati": [
   "MCP-01j get_config (305b843)",
   "MCP-01k compatibilità P0/F-16 (4cd3e75)",
@@ -82,7 +82,7 @@
   "MCP-01o: record RESULT con `returned` (READ_REQUEST di B), contratto accettato da B (6580f91)",
   "mutanti critici: 9 riallineati, P01-P03, guardia di applicabilità; 12/12 KILLED (40c34c4)"
  ],
- "next_atomic_action": "alla integrazione di BB-1 (#615 su main, merge owner): eseguire check_reader(BlackBoxReader) e gli scenari dei contract test sulla classe reale; poi la vista del ponte nel core (task #30) come handoff per B",
+ "next_atomic_action": "attendere: merge owner di #615, verifica del nuovo main, PR BB-1 di Claude B, SHA della classe reale; poi FASE 4 (check_reader + contract test sulla classe reale) e FASE 5 (patch minima con hash, ACK di B)",
  "dependencies": {
   "F-04 su main": "MCP-01i r2",
   "F-03 su main (con F-02, F-04)": "MCP-01m",
@@ -120,7 +120,11 @@
   {
    "id": "MCP-TOKEN-TEST-FLAKY",
    "owner": "Claude C",
-   "descrizione": "tests/control_api/test_tokens.py::test_concurrent_processes_never_read_a_partial_token fallito una volta nella baseline della campagna su 540a932 (3 suite in parallelo); 15/15 da solo e 12/12 con CPU satura: osservato, non spiegato"
+   "descrizione": "tests/control_api/test_tokens.py::test_concurrent_processes_never_read_a_partial_token fallito una volta nella baseline della campagna su 540a932 (3 suite in parallelo); 15/15 da solo e 12/12 con CPU satura: osservato, non spiegato",
+   "stato": "APERTO - classificato DIFETTO DEL TEST (soglia di tempo rotations>=20 / distinct>=2 dipendente dalla latenza di fsync); proprieta' di sicurezza (nessuna lettura parziale) mai violata: 0 su tutte le prove",
+   "evidenza": "results/evidence-token-flaky-diagnosis.md",
+   "riproduzione": "carico fsync: test vero 5/8 FAIL (assert 14/15/18 >= 20), replica 7/10; riposo 0/20; CPU satura 0/12; 3 suite parallele 0/9; assertion del fallimento originale non registrata (ipotesi piu' probabile, non provata)",
+   "correzione_proposta": "results/evidence-token-flaky-proposed-test-fix.patch sha256 f8c1abf8c6b174f16c51a0ee50f108da05230faa36c149b00328bfdabd653914: 10/10 PASS sotto carico fsync; uccide ancora la scrittura non atomica (3/3 TOKEN_FILE_MALFORMED); NON applicata al branch congelato"
   }
  ],
  "github_evidence": [
@@ -517,5 +521,10 @@
    "jsonl": "results/evidence-mut-campaign-540a932.jsonl",
    "repo": "docs/mutation/ in 869d2c0"
   }
+ },
+ "frozen": {
+  "branch": "ccr-edf04c7d-e7vtj1-mcp01p-bb1-ready",
+  "sha": "869d2c0f00ec866d022f4ca2589ef1926d7447ae",
+  "mandate": "PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109 FASE 1"
  }
 }

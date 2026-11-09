@@ -38,9 +38,9 @@
   "MCP-01o: record RESULT con `returned` (READ_REQUEST di B), contratto accettato da B (6580f91)",
   "mutanti critici: 9 riallineati, P01-P03, guardia di applicabilit\u00e0; 12/12 KILLED (40c34c4)"
  ],
- "lotto_corrente": "MCP pronto per BB-1: contratto 1.15.0 sulle forme reali di BB-1 (fixture 74be0f92, schema D1-D2), campagna mutanti 241/241 KILLED su 540a932, esiti versionati in docs/mutation",
- "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01",
- "next_atomic_action": "alla integrazione di BB-1 (#615 su main, merge owner): eseguire check_reader(BlackBoxReader) e gli scenari dei contract test sulla classe reale; poi la vista del ponte nel core (task #30) come handoff per B",
+ "lotto_corrente": "FASE 1 congelamento: branch ccr-edf04c7d-e7vtj1-mcp01p-bb1-ready fermo a 869d2c0; FASE 2 diagnosi del test instabile dei token completata (difetto del test, correzione proposta e non applicata); FASE 3 in attesa di #615 e BB-1",
+ "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01 + PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109",
+ "next_atomic_action": "attendere: merge owner di #615, verifica del nuovo main, PR BB-1 di Claude B, SHA della classe reale; poi FASE 4 (check_reader + contract test sulla classe reale) e FASE 5 (patch minima con hash, ACK di B)",
  "pr_505": "N/A (repository MCP)",
  "schema": "pf-task-state/1",
  "tests_missing": []

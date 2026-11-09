@@ -1,9 +1,9 @@
-ae87b368ee01c7860b5e57eaf4de1f5fb4228f4fc9031769da88e79181098a13  ./AGENT_LEASE.json
-c1c4c56a0b598c924a90f73915b21dab850d97f905e403242832b882c5e8a1b1  ./CURRENT.json
-f8bd55c071d76e116064cb727e2cd65ab11a4c47312d9d955cc4a4df8107e2d0  ./HANDOFF.md
+31bdd2d209ff240824593db17031263a7c813665f04b6f4b5b149663c83a47fe  ./AGENT_LEASE.json
+093a4513a6aebbae5ba90544712ea5cf46a8050b98e2b8ddac3d0c8b6073d431  ./CURRENT.json
+3abe29f7803881f4b11da08aa9a65b2bb832669ad0c657fe697effc202e94d4a  ./HANDOFF.md
 25c0ecdedb79ade0d3dbeb201fd97ce9e419dc277c71c9f79803190681c5f834  ./RUNBOOK.md
-e817d0421397fb59f0e8c7a629c15cd0a3bbc76945f2ee528554d942df358a00  ./STATE.json
-1152920c1852e1e36245d7e0a4f08bbed12f9968af2a3eea6d7857fd9aa3b44b  ./TASK_STATE.json
+601e7552c751e68ee87ac5a693e0dddbd01650c85c774e836cffc1cecec76955  ./STATE.json
+3f8362fa15c5cbc355e86b19ae40ba93f44c7aa9c1f7dc40a125315ce75c9433  ./TASK_STATE.json
 03dac6bb026b72eb3d0fc45910815b446d28743a73de0497586a279c8d6caa3c  ./results/evidence-01ir2-e2e.txt
 3865b8f2e9cf47d8c012ea107b2ff94f78ede19462957740709ad8e4a2992661  ./results/evidence-01ir2-mcp-l.txt
 614559deb160e196c148dc6eceaae962e89226573a2844f3ff0e5a250cf53905  ./results/evidence-01ir2-mcp-suite.txt
@@ -45,3 +45,6 @@ f50cb71cf379c4129438104f53f09697343cf34d69c907bae74fa90e18fe5e92  ./results/evid
 8b3dd49f8f0be2b624538e7c4074118c2099905ac67708973fe1ccb5ccd0f9c2  ./results/evidence-sec01-mcp-x.txt
 11244756655e00dcb096bb7d31948280acd033b7463b6b7308646f055c21f154  ./results/evidence-sec01-red.txt
 d92b62843b1c4b1294517ad4777a8da23ca136a591e5841ebe3fbf1080b64dcd  ./results/evidence-sec01-regression.txt
+b36b303097af4c482f4460837eb0a85beb5b3df595bc1d91c6ddf4985fc4be08  ./results/evidence-token-flaky-diag.py.txt
+eaebbf3f8fc21e35d1c9a22a1fe2c20307110c5c020892a11df50956d850b84d  ./results/evidence-token-flaky-diagnosis.md
+f8c1abf8c6b174f16c51a0ee50f108da05230faa36c149b00328bfdabd653914  ./results/evidence-token-flaky-proposed-test-fix.patch

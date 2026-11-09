@@ -5,9 +5,9 @@
   "branch": "ccr-edf04c7d-e7vtj1-mcp01p-bb1-ready",
   "sha": "869d2c0f00ec866d022f4ca2589ef1926d7447ae"
  },
- "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01",
- "next_atomic_action": "alla integrazione di BB-1 (#615 su main, merge owner): eseguire check_reader(BlackBoxReader) e gli scenari dei contract test sulla classe reale; poi la vista del ponte nel core (task #30) come handoff per B",
- "previous_checkpoint_sha": "bfcbbc45631e06c610a608f4e4e9a58732fa3748",
+ "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01 + PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109",
+ "next_atomic_action": "attendere: merge owner di #615, verifica del nuovo main, PR BB-1 di Claude B, SHA della classe reale; poi FASE 4 (check_reader + contract test sulla classe reale) e FASE 5 (patch minima con hash, ACK di B)",
+ "previous_checkpoint_sha": "405f6bac07a35eb1b7cfc950ca842c4a9fceed71",
  "schema": "pf-current/1",
- "seq": 13
+ "seq": 14
 }

@@ -22,3 +22,8 @@ Prossimo passo: `next_atomic_action` in STATE.json.
 
 Codice finale `540a932`; `9d521f0` e `869d2c0` toccano solo docs ed esiti. Fixture BB-1 74be0f92 (schema D1-D2) VERIFIED.
 Mutanti 241/241 KILLED su 540a932 (docs/mutation/CAMPAIGN_REPORT.md). Aperto: test token instabile sotto carico.
+
+## Seq 14 (09/11/2026): congelamento e diagnosi del test dei token
+
+Codice congelato a 869d2c0 (mandato PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109). MCP-TOKEN-TEST-FLAKY: difetto del test
+(soglia di tempo), proprieta' di sicurezza mai violata; correzione proposta in results/, non applicata. In attesa di #615 e BB-1.
