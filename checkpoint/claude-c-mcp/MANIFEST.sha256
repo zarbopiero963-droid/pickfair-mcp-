@@ -1,9 +1,9 @@
-60a222bcfdfb55e2d0e551d9db4b990c52b467596a41dc72afa3875fa4263d0a  ./AGENT_LEASE.json
-0e3b1b2512fb3aed42e6ea4284c56b9677c2ecb5096b4e9615cae047cc993a61  ./CURRENT.json
-64fa4be5fdfeedcd264e8fbd20bc838ddd6282803c1903394406ed9e03961d00  ./HANDOFF.md
+02389e279dc5f52d03158dde6653ff80f740f3ff878455a9ca03429ac6bf521e  ./AGENT_LEASE.json
+955356aba3a6bd0cb6f7d2b8b23ddaa6e038de59f55a61dd9ef9f1e9ae3e5a1d  ./CURRENT.json
+22fa9bcdf7c3b50b69f66c32740b5119e0cbf2d5dd486a2a8d764f078307fb02  ./HANDOFF.md
 25c0ecdedb79ade0d3dbeb201fd97ce9e419dc277c71c9f79803190681c5f834  ./RUNBOOK.md
-0057f1b683bdfd7ad6f289cb493a4ffe34afb907ac5e086815dd0e4753f65363  ./STATE.json
-f0945a45ab1a1937374b216735b27e2d9c7ea5c78006d4302fe666858b2750a2  ./TASK_STATE.json
+b3ef548fde8423b64949fc71ce713e1983633e673df2e4c665b6768fde8de682  ./STATE.json
+32c53667613f4eebe5b56e5d55ce3a43bc6eda8a99baf162980d6fc1ebc00274  ./TASK_STATE.json
 03dac6bb026b72eb3d0fc45910815b446d28743a73de0497586a279c8d6caa3c  ./results/evidence-01ir2-e2e.txt
 3865b8f2e9cf47d8c012ea107b2ff94f78ede19462957740709ad8e4a2992661  ./results/evidence-01ir2-mcp-l.txt
 614559deb160e196c148dc6eceaae962e89226573a2844f3ff0e5a250cf53905  ./results/evidence-01ir2-mcp-suite.txt
@@ -51,6 +51,8 @@ fbea5bf73993e2c28123ada7fdafe09a5ac9416703f86473bb25585af36714b4  ./results/evid
 b35711f8cdae1418ab31d5e99816e0b3610d6fbf1b0eebb57b4412b429a53847  ./results/evidence-mut-campaign-90e7d45.jsonl
 2c8474c064aa441a32a138e2d47ffe6e4074a4a5b83204cbbbf0617c122da943  ./results/evidence-mutants-realign.txt
 2f501d1aeb8ee6ed9cfe398ff234c8b8e91ffdcfe17f423dc85429626ed2ec38  ./results/evidence-pf-api-491-compatibility-matrix.md
+ce2044cc5c0e3f5d150a09db396e185a62f420eeaf423167b4aab3a6821ac353  ./results/evidence-pf-api-491-plan-v2.md
+1ec4a8c10fc9483b09d55e0abcc0d2c2dc095277e0df161a13d3d1592fd75315  ./results/evidence-pf-api-vendor-procedure.md
 620f050d2b6baa1fdd4202526fb8b39bd4c3effbe80eed49c1d27bbbe1d21f0f  ./results/evidence-roserpina-mcp-observability-matrix.md
 f50cb71cf379c4129438104f53f09697343cf34d69c907bae74fa90e18fe5e92  ./results/evidence-sec01-e2e.txt
 7bd032126986f4dc2cde7b0481183e12112de69fa2b1e9c823602ac02435a08b  ./results/evidence-sec01-mcp-suite.txt

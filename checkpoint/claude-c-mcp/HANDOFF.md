@@ -53,3 +53,7 @@ results/evidence-roserpina-mcp-observability-matrix.md; lacune G1-G7 a B. Codice
 ## Seq 20 (09/11/2026): inventario PF-API #491
 
 Matrice in results/evidence-pf-api-491-compatibility-matrix.md (#491 c.6754243364). Nessun codice scritto.
+
+## Seq 21 (10/11/2026): contratto 1.16.0 deciso
+
+Piano #491 c.6754467747; procedura c.6754421452. Nessun codice.

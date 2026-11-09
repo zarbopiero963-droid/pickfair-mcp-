@@ -1,11 +1,11 @@
 {
  "schema": "pf-checkpoint/3",
  "repository": "zarbopiero963-droid/pickfair-mcp-",
- "seq": 20,
+ "seq": 21,
  "agent": "claude-c",
  "agent_identity": "Claude C — MCP + Control API (sessione session_013X2mCaF4fE5YMWGVrM8LtR)",
- "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01 + PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109 + PF-ROSERPINA-MCP-OBSERVABILITY-CLAUDE-C-20261109 + OWNER-PF-API-0-1-491 (inventario e piano)",
- "previous_checkpoint_sha": "7d79ba72aa8a4fa80c7974121e79a42fcf20494b",
+ "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01 + PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109 + PF-ROSERPINA-MCP-OBSERVABILITY-CLAUDE-C-20261109 + OWNER-PF-API-0-1-491 (inventario e piano) + OWNER-PF-CONTROL-API-CONTRACT-1.16.0",
+ "previous_checkpoint_sha": "d8b9b6bb30a91334ac5263d232cbde48dca7c907",
  "code": {
   "branch": "ccr-edf04c7d-e7vtj1-mcp01r-bb1-chain-depth",
   "sha": "75e7280a81d5a26ccea05999a5f7a692fc0379c8",
@@ -57,7 +57,7 @@
   "MCP-01o lettura della scatola nera (dopo l'interfaccia di lettura di B)",
   "MCP-MUTANTS-REALIGN (solo catalogo e guardia, sopra 01o)"
  ],
- "lotto_corrente": "inventario Control API/MCP/ponte e matrice di compatibilita' #491 pubblicati (c.6754243364): handoff 1-9 applicabili su main (solo 3 file di registro), ponte su main di oggi 211 test PASS, E2E 14/17 PASS (3 FAIL = funzioni di D)",
+ "lotto_corrente": "piano #491 aggiornato al contratto 1.16.0 (rate limiting prima dell'importazione; scatola nera obbligatoria fail-closed; copia versionata con manifest): c.6754467747; procedura di importazione c.6754421452",
  "lotti_completati": [
   "MCP-01j get_config (305b843)",
   "MCP-01k compatibilità P0/F-16 (4cd3e75)",
@@ -83,7 +83,7 @@
   "MCP-01o: record RESULT con `returned` (READ_REQUEST di B), contratto accettato da B (6580f91)",
   "mutanti critici: 9 riallineati, P01-P03, guardia di applicabilità; 12/12 KILLED (40c34c4)"
  ],
- "next_atomic_action": "attendere: merge #617, PR Roserpina, GO owner per PF-API-0/1 (B) e per la PR MCP della catena 36bbef1..75e7280 (C); poi E2E a 1.15.0 sul main del core",
+ "next_atomic_action": "al GO dello sviluppo (dopo #617 e Roserpina): una PR nel repository MCP con la catena 36bbef1..75e7280 + rate limiter + contratto 1.16.0, test di race/saturazione/recupero/isolamento e mutanti; pubblicare l'hash completo 1.16.0",
  "dependencies": {
   "F-04 su main": "MCP-01i r2",
   "F-03 su main (con F-02, F-04)": "MCP-01m",
@@ -618,6 +618,10 @@
    "cartella token (ciclo 13 #617)",
    "RATE_LIMITED opzionale",
    "segnali/strategie (RC-10 bad873b)"
-  ]
+  ],
+  "contract_target": "1.16.0 (hash da ricalcolare dopo l'implementazione)",
+  "plan_v2": "#491 c.6754467747 sha256 ce2044cc5c0e3f5d150a09db396e185a62f420eeaf423167b4aab3a6821ac353",
+  "vendor_procedure": "#491 c.6754421452 sha256 1ec4a8c10fc9483b09d55e0abcc0d2c2dc095277e0df161a13d3d1592fd75315",
+  "hash_1_15_0": "81a81884c80c3bb269ce20d214f5e064d66159336a6063b7c9922436ed245bed (non piu' obiettivo)"
  }
 }
