@@ -1,9 +1,9 @@
-31bdd2d209ff240824593db17031263a7c813665f04b6f4b5b149663c83a47fe  ./AGENT_LEASE.json
-093a4513a6aebbae5ba90544712ea5cf46a8050b98e2b8ddac3d0c8b6073d431  ./CURRENT.json
-3abe29f7803881f4b11da08aa9a65b2bb832669ad0c657fe697effc202e94d4a  ./HANDOFF.md
+29007635845e7d73363d7f074adf5af52972b3104016f12dc066b9c30e533e2e  ./AGENT_LEASE.json
+015a3ca45f4fe2646343463c42a7ac221119680ae38bed7154c58773d6469678  ./CURRENT.json
+0d77bf329c0505a1bbd1b705ce22cf2f6037974a18bb5d04df74e5cc36e27dcb  ./HANDOFF.md
 25c0ecdedb79ade0d3dbeb201fd97ce9e419dc277c71c9f79803190681c5f834  ./RUNBOOK.md
-601e7552c751e68ee87ac5a693e0dddbd01650c85c774e836cffc1cecec76955  ./STATE.json
-3f8362fa15c5cbc355e86b19ae40ba93f44c7aa9c1f7dc40a125315ce75c9433  ./TASK_STATE.json
+8cda029f18af249c178fe4517742b84d352a148693d8658cf1ee6eb6c322838d  ./STATE.json
+8f90dd9cbaf2b4ff068755f93b2b49962cd464093cd7d81ea665baa2410e54e7  ./TASK_STATE.json
 03dac6bb026b72eb3d0fc45910815b446d28743a73de0497586a279c8d6caa3c  ./results/evidence-01ir2-e2e.txt
 3865b8f2e9cf47d8c012ea107b2ff94f78ede19462957740709ad8e4a2992661  ./results/evidence-01ir2-mcp-l.txt
 614559deb160e196c148dc6eceaae962e89226573a2844f3ff0e5a250cf53905  ./results/evidence-01ir2-mcp-suite.txt
@@ -25,6 +25,8 @@ cdcaf04aac2a7d32a667383a4a29f1b8f6a635bc4579a3ccaf8972455f207af8  ./results/evid
 9ecd2d46cd1c7a924203ae8f0406b5b7d6775c47b77fd33d8841209be04243d1  ./results/evidence-01n-mutations.txt
 5b1155f873097a0eeb2dae953eb03a6b4fc464a8ee2a1d69fb0c05f2a7b646b7  ./results/evidence-01n-regression.txt
 390dd9ccbb73823bf6f2ad4bec5f3664321a11a5be3224c284e6a19c3ff7cedd  ./results/evidence-01o.txt
+bbeed81c7b68f8c4464910cfb6a6556cb735f1088f32dcba49e0fe7b8707dcd3  ./results/evidence-bb1-pr617-real-class-harness.py.txt
+e51c808d9a3a346c8dc1ca9b941fcfa270a106a218c0edda2f2fe3c904c93fab  ./results/evidence-bb1-pr617-real-class-result.txt
 fe988e4c02c6c7b8ec6a1a855b6ad2ad199373e64aa67809f321446eb93cdd21  ./results/evidence-ckpt-restore-seq2.txt
 19a6acf9df46854b3fa19c2b21eb346f3f5b3fa59c3942f94190a893d959a244  ./results/evidence-ckpt-save-refused-seq4.json
 f8f72d8627234f4fc593b43b2a0d943914f1837fdbd3b63d3c4ab5de3057a0e4  ./results/evidence-ckpt-verify-seq1.txt

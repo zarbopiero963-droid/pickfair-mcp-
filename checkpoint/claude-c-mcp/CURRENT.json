@@ -6,8 +6,8 @@
   "sha": "869d2c0f00ec866d022f4ca2589ef1926d7447ae"
  },
  "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01 + PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109",
- "next_atomic_action": "attendere: merge owner di #615, verifica del nuovo main, PR BB-1 di Claude B, SHA della classe reale; poi FASE 4 (check_reader + contract test sulla classe reale) e FASE 5 (patch minima con hash, ACK di B)",
- "previous_checkpoint_sha": "405f6bac07a35eb1b7cfc950ca842c4a9fceed71",
+ "next_atomic_action": "alla risposta di B (pfab-c-20261109-bb1-pr617-verify-ack-001): patch minima lato C per I1 (profondita' 20) e, se deciso, I2; rieseguire l'harness sulla classe reale; handoff con hash e ACK di B; INTEGRATED_VERIFIED solo dopo merge di #617",
+ "previous_checkpoint_sha": "2bc90431a0dfa9133397ba35895265278010d674",
  "schema": "pf-current/1",
- "seq": 14
+ "seq": 15
 }

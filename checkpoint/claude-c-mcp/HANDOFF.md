@@ -27,3 +27,8 @@ Mutanti 241/241 KILLED su 540a932 (docs/mutation/CAMPAIGN_REPORT.md). Aperto: te
 
 Codice congelato a 869d2c0 (mandato PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109). MCP-TOKEN-TEST-FLAKY: difetto del test
 (soglia di tempo), proprieta' di sicurezza mai violata; correzione proposta in results/, non applicata. In attesa di #615 e BB-1.
+
+## Seq 15 (09/11/2026): verifica sulla classe reale BB-1 (PR #617 @ 3b6848d6)
+
+9 PASS / 4 FAIL, NOT_COMPATIBLE_YET: I1 profondita' catena (lato C), I2 esito della lacuna di guasto (lato B o contratto),
+rischi R1 (gaps_in_range non limitato) e R2 (segreto in testo libero). Codice MCP ancora congelato a 869d2c0.

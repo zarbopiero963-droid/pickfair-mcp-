@@ -1,11 +1,11 @@
 {
  "schema": "pf-checkpoint/3",
  "repository": "zarbopiero963-droid/pickfair-mcp-",
- "seq": 14,
+ "seq": 15,
  "agent": "claude-c",
  "agent_identity": "Claude C — MCP + Control API (sessione session_013X2mCaF4fE5YMWGVrM8LtR)",
  "mandate_id": "OWNER-20261105-CLAUDE-C-MCP-AUTONOMO + PF-UNIVERSAL-CHECKPOINT-ALL-AGENTS + OWNER-20261105-CKPT-HANDOFF-C + PF-MCP-CROSS-REPO-HANDOFF-01 (opzione A) + PF-MCP-CONTINUE-01 + PF-CKPT-CROSS-REPO-PROOF-02 + PF-BLACKBOX-01 + PF-CLAUDE-C-MCP-FINAL-INTEGRATION-20261109",
- "previous_checkpoint_sha": "405f6bac07a35eb1b7cfc950ca842c4a9fceed71",
+ "previous_checkpoint_sha": "2bc90431a0dfa9133397ba35895265278010d674",
  "code": {
   "branch": "ccr-edf04c7d-e7vtj1-mcp01p-bb1-ready",
   "sha": "869d2c0f00ec866d022f4ca2589ef1926d7447ae",
@@ -56,7 +56,7 @@
   "MCP-01o lettura della scatola nera (dopo l'interfaccia di lettura di B)",
   "MCP-MUTANTS-REALIGN (solo catalogo e guardia, sopra 01o)"
  ],
- "lotto_corrente": "FASE 1 congelamento: branch ccr-edf04c7d-e7vtj1-mcp01p-bb1-ready fermo a 869d2c0; FASE 2 diagnosi del test instabile dei token completata (difetto del test, correzione proposta e non applicata); FASE 3 in attesa di #615 e BB-1",
+ "lotto_corrente": "FASE 4 eseguita sulla classe reale BB-1 (PR #617 @ 3b6848d6, non mergiata) col codice MCP congelato 869d2c0: 9 PASS, 4 FAIL -> NOT_COMPATIBLE_YET (I1 profondita' catena 32>20 lato C; I2 outcome VERIFIED della lacuna BLACKBOX_OUTAGE lato B/contratto); in attesa della risposta di B",
  "lotti_completati": [
   "MCP-01j get_config (305b843)",
   "MCP-01k compatibilità P0/F-16 (4cd3e75)",
@@ -82,7 +82,7 @@
   "MCP-01o: record RESULT con `returned` (READ_REQUEST di B), contratto accettato da B (6580f91)",
   "mutanti critici: 9 riallineati, P01-P03, guardia di applicabilità; 12/12 KILLED (40c34c4)"
  ],
- "next_atomic_action": "attendere: merge owner di #615, verifica del nuovo main, PR BB-1 di Claude B, SHA della classe reale; poi FASE 4 (check_reader + contract test sulla classe reale) e FASE 5 (patch minima con hash, ACK di B)",
+ "next_atomic_action": "alla risposta di B (pfab-c-20261109-bb1-pr617-verify-ack-001): patch minima lato C per I1 (profondita' 20) e, se deciso, I2; rieseguire l'harness sulla classe reale; handoff con hash e ACK di B; INTEGRATED_VERIFIED solo dopo merge di #617",
  "dependencies": {
   "F-04 su main": "MCP-01i r2",
   "F-03 su main (con F-02, F-04)": "MCP-01m",
@@ -489,7 +489,32 @@
   "verdict_fixture": "VERIFIED (RED 7 su 907423e -> GREEN; fixture attuale 74be0f92 GREEN su 540a932)",
   "verdict_real_class": "NOT_RUN (check_reader e scenari sulla classe integrata, dopo #615)",
   "requests_to_b": "chiuse (returned, ATTEMPT, request_id mcp- invariato) - pfab-b-20261109-bb1-fixtures-002",
-  "owner_decision_d1_d3": "PF-BB1-IDENTITY-TIMESTAMP-SESSION-20261109, data in sessione a B, registrata da B in Pickfair-nogui #586 c.6740764129"
+  "owner_decision_d1_d3": "PF-BB1-IDENTITY-TIMESTAMP-SESSION-20261109, data in sessione a B, registrata da B in Pickfair-nogui #586 c.6740764129",
+  "real_class_verification": {
+   "target": "Pickfair-nogui PR #617 @ 3b6848d6067482716743e5ff9cac6e9afda55f00 (non mergiata; #615 chiusa senza merge)",
+   "mcp_code": "869d2c0 (congelato)",
+   "harness_sha256": "bbeed81c7b68f8c4464910cfb6a6556cb735f1088f32dcba49e0fe7b8707dcd3",
+   "result": "9 PASS / 4 FAIL (+2 test di diagnosi che confermano le cause)",
+   "verdict": "NOT_COMPATIBLE_YET",
+   "PASS": [
+    "01 check_reader",
+    "02 pagina completa",
+    "03 D1 alias",
+    "06 status/sessions",
+    "07 request_hook reale",
+    "08 filtri e paginazione",
+    "10 registro degradato",
+    "11 sola lettura e campi nascosti"
+   ],
+   "FAIL": {
+    "04/05 get_blackbox_event": "I1: adapter chain_depth 32 > MAX_CHAIN_DEPTH 20 della classe reale (difetto lato C)",
+    "09 eventi dopo un guasto": "I2: BLACKBOX_GAP BLACKBOX_OUTAGE con outcome VERIFIED; adapter fail-closed rifiuta la pagina (decisione B/contratto)",
+    "02b segreto in testo libero": "R2: reason con segreto non registrato non mascherato (limite dichiarato)"
+   },
+   "risks": [
+    "R1 gaps_in_range non limitato: oltre 64 lacune la lettura non filtrata si blocca"
+   ]
+  }
  },
  "mutant_campaigns": {
   "40c34c4": {
