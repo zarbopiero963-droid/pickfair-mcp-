@@ -1952,6 +1952,28 @@ MUTANTS: tuple[Mutant, ...] = (
         ),
     ),
     Mutant(
+        "R29",
+        "sorgente assente ripiega sui dati simulati (default implicito, C-AUD-10)",
+        (
+            (
+                'src/pickfair_mcp/cli.py',
+                '        default=None,\n        help="sorgente dati, obbligatoria',
+                '        default="simulated",\n        help="sorgente dati, obbligatoria',
+            ),
+        ),
+    ),
+    Mutant(
+        "R30",
+        "controllo della sorgente obbligatoria rimosso (C-AUD-10)",
+        (
+            (
+                'src/pickfair_mcp/cli.py',
+                '    if args.adapter is None:\n        _usage_error("SOURCE_REQUIRED")\n        return None\n',
+                '',
+            ),
+        ),
+    ),
+    Mutant(
         "O01",
         "ordine AMBIGUOUS accettato come FAILED",
         (

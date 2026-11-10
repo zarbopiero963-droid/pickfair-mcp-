@@ -1007,6 +1007,22 @@
         "tests/contract/test_blackbox_bb1_fixture.py"
       ],
       "max_files": 8
+    },
+    "mcp116-source-explicit": {
+      "issue": "PF-OWNER-MCP-SOURCE-EXPLICIT-20261110 (C-AUD-10, Pickfair-nogui #491 c.6778842673); preparazione tecnica isolata, nessuna PR",
+      "scheda": "MCP 1.16.0 (preparazione) — sorgente dati obbligatoria ed esplicita",
+      "description": "`--adapter` senza default: sorgente assente -> CONFIG_ERROR: SOURCE_REQUIRED (exit 2) prima di costruire qualsiasi adapter; nessuna sorgente dedotta da altre opzioni o dall'ambiente; ogni avvio la richiede di nuovo; valore invalido -> exit 2. Nessun fallback a SIM gia' coperto (test_http_adapter, SOURCE_MISMATCH in tutti i tool). Test esistenti resi espliciti senza indebolirli (casi di argomento invalido con sorgente esplicita). Mutanti R29/R30. Contratto e hash invariati (1.15.0, 81a81884...).",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "README.md",
+        "docs/contract_v1.md",
+        "scripts/critical_mutations.py",
+        "src/pickfair_mcp/cli.py",
+        "tests/e2e/test_stdio_subprocess.py",
+        "tests/unit/test_cli.py",
+        "tests/unit/test_source_explicit.py"
+      ],
+      "max_files": 8
     }
   }
 }

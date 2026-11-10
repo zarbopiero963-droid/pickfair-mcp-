@@ -162,7 +162,7 @@ def test_invalid_timeout_exits_with_usage_error(
     value: str, capsys: pytest.CaptureFixture[str]
 ) -> None:
     with pytest.raises(SystemExit) as excinfo:
-        main(["serve", "--upstream-timeout", value])
+        main(["serve", "--adapter", "simulated", "--upstream-timeout", value])
     assert excinfo.value.code == 2
     assert capsys.readouterr().out == ""
 
@@ -188,7 +188,7 @@ def test_interrupt_is_classified_even_inside_exception_groups(
     monkeypatch.setattr(cli.anyio, "run", fake_run)
     monkeypatch.setattr(cli, "configure_stderr_logging", lambda: None)
     monkeypatch.setattr(cli.os, "dup2", lambda *_: None)
-    assert main(["serve"]) == 130
+    assert main(["serve", "--adapter", "simulated"]) == 130
 
 
 def test_transport_failure_is_not_reported_as_interrupt(
@@ -202,7 +202,7 @@ def test_transport_failure_is_not_reported_as_interrupt(
     monkeypatch.setattr(cli.anyio, "run", fake_run)
     monkeypatch.setattr(cli, "configure_stderr_logging", lambda: None)
     monkeypatch.setattr(cli.os, "dup2", lambda *_: None)
-    assert main(["serve"]) == 1
+    assert main(["serve", "--adapter", "simulated"]) == 1
 
 
 def _patch_serve_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -226,7 +226,7 @@ def test_sigint_is_classified_even_when_the_runtime_loses_the_interrupt(
 
     monkeypatch.setattr(cli.anyio, "run", fake_run)
     _patch_serve_env(monkeypatch)
-    assert main(["serve"]) == 130
+    assert main(["serve", "--adapter", "simulated"]) == 130
 
 
 def test_interrupt_on_the_normal_exit_path_is_reported(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -237,7 +237,7 @@ def test_interrupt_on_the_normal_exit_path_is_reported(monkeypatch: pytest.Monke
 
     monkeypatch.setattr(cli.anyio, "run", fake_run)
     _patch_serve_env(monkeypatch)
-    assert main(["serve"]) == 130
+    assert main(["serve", "--adapter", "simulated"]) == 130
 
 
 def test_asyncio_runner_keeps_its_own_sigint_handling(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -255,7 +255,7 @@ def test_asyncio_runner_keeps_its_own_sigint_handling(monkeypatch: pytest.Monkey
     try:
         monkeypatch.setattr(cli.anyio, "run", fake_run)
         _patch_serve_env(monkeypatch)
-        main(["serve"])
+        main(["serve", "--adapter", "simulated"])
     finally:
         signal_module.signal(signal_module.SIGINT, previous)
     assert seen == [signal_module.default_int_handler]
@@ -276,7 +276,7 @@ def test_inherited_ignored_sigint_stays_ignored(monkeypatch: pytest.MonkeyPatch)
     try:
         monkeypatch.setattr(cli.anyio, "run", fake_run)
         _patch_serve_env(monkeypatch)
-        main(["serve"])
+        main(["serve", "--adapter", "simulated"])
         after = signal_module.getsignal(signal_module.SIGINT)
     finally:
         signal_module.signal(signal_module.SIGINT, previous)
@@ -416,7 +416,7 @@ def test_main_disarms_the_watchdog_on_every_exit_path(monkeypatch: pytest.Monkey
 
     for fake_run in (ok_run, broken_run):
         monkeypatch.setattr(cli.anyio, "run", fake_run)
-        cli.main(["serve"])
+        cli.main(["serve", "--adapter", "simulated"])
     assert disarmed == [True, True]
 
 
@@ -470,7 +470,7 @@ def test_every_interrupted_exit_goes_through_the_forced_exit_once(
 
     monkeypatch.setattr(cli.anyio, "run", fake_run)
     _patch_serve_env(monkeypatch)
-    assert main(["serve"]) == 130
+    assert main(["serve", "--adapter", "simulated"]) == 130
     assert forced_exits == [True]
 
 
@@ -484,7 +484,7 @@ def test_transport_error_does_not_use_the_forced_exit(
 
     monkeypatch.setattr(cli.anyio, "run", fake_run)
     _patch_serve_env(monkeypatch)
-    assert main(["serve"]) == 1
+    assert main(["serve", "--adapter", "simulated"]) == 1
     assert forced_exits == []
 
 
@@ -638,7 +638,7 @@ def test_main_ignores_late_sigint_before_deciding_the_exit(
     monkeypatch.setattr(cli.anyio, "run", fake_run)
     _patch_serve_env(monkeypatch)
     signal.signal(signal.SIGINT, signal.default_int_handler)
-    assert main(["serve"]) == (0 if outcome == "ok" else 1)
+    assert main(["serve", "--adapter", "simulated"]) == (0 if outcome == "ok" else 1)
     assert signal.getsignal(signal.SIGINT) is signal.SIG_IGN
 
 

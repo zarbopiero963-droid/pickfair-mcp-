@@ -115,9 +115,10 @@ def test_http_adapter_without_configuration_exits_without_fallback() -> None:
 @pytest.mark.parametrize(
     "args",
     [
-        ("serve", "--sim-scenario", "does_not_exist"),
-        ("serve", "--upstream-timeout", "nan"),
-        ("serve", "--upstream-timeout", "0"),
+        # sorgente esplicita: l'uscita 2 deve venire dall'argomento invalido, non da SOURCE_REQUIRED
+        ("serve", "--adapter", "simulated", "--sim-scenario", "does_not_exist"),
+        ("serve", "--adapter", "simulated", "--upstream-timeout", "nan"),
+        ("serve", "--adapter", "simulated", "--upstream-timeout", "0"),
         ("serve", "--adapter", "betfair"),
     ],
 )

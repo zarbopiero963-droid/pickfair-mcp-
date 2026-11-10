@@ -46,9 +46,15 @@ pip install --no-deps -e .
 ```bash
 pickfair-mcp contract-info                      # versione e schema hash supportati
 pickfair-mcp serve --adapter simulated          # server MCP su stdio
-pickfair-mcp serve --sim-scenario incompatible_major   # prova del fail-closed
-pickfair-mcp serve --sim-status-scenario live_blocked  # scenario di stato simulato
+pickfair-mcp serve --adapter simulated --sim-scenario incompatible_major   # prova del fail-closed
+pickfair-mcp serve --adapter simulated --sim-status-scenario live_blocked  # scenario di stato simulato
 ```
+
+La sorgente dati è **obbligatoria ed esplicita** (C-AUD-10, decisione owner
+PF-OWNER-MCP-SOURCE-EXPLICIT-20261110): `--adapter simulated` (SIMULATED) oppure
+`--adapter http` (CONTROL_API). Senza `--adapter` il server non parte (exit 2,
+`CONFIG_ERROR: SOURCE_REQUIRED`) e non sceglie mai i dati simulati da solo; nessuna altra
+opzione o variabile d'ambiente sceglie la sorgente. Un valore diverso è rifiutato (exit 2).
 
 Esempio di configurazione per un client MCP desktop (stdio):
 

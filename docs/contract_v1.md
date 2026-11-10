@@ -224,6 +224,8 @@ Limiti noti:
   Nessun fallback verso il simulato.
 - **CLI**: `pickfair-mcp serve --adapter http --control-api-port <p> --control-api-token-file <path>`;
   configurazione errata ⇒ exit 2 con `CONFIG_ERROR: <codice>`, mai un adapter diverso.
+  La sorgente è obbligatoria (C-AUD-10): senza `--adapter` ⇒ exit 2 con
+  `CONFIG_ERROR: SOURCE_REQUIRED`, prima di costruire qualsiasi adapter; nessun default simulato.
 - **Token (D-11, prima implementazione)**: file 0600 dello stesso utente, cartella non scrivibile da
   altri, niente symlink, alfabeto URL-safe 43–128 caratteri; su 401 una rilettura e un solo nuovo
   tentativo (rotazione). Su sistemi non POSIX il file è rifiutato (`TOKEN_PLATFORM_UNSUPPORTED`; dal 05/11/2026 anche in avvio, come errore d'uso della CLI e mai come traceback: prima `os.getuid` assente su Windows dava `AttributeError`. Lato Control API la scrittura del token su Windows fallisce ancora con un'eccezione non dichiarata, catturata dal launcher del core (`CONTROL_API_NOT_STARTED: AttributeError`, fail-closed); il codice dichiarato arriva con il prossimo cambio di versione del package)

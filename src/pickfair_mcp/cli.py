@@ -49,7 +49,16 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="pickfair-mcp", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     serve = sub.add_parser("serve", help="avvia il server MCP su stdio")
-    serve.add_argument("--adapter", choices=("simulated", "http"), default="simulated")
+    # Sorgente dati obbligatoria ed esplicita (C-AUD-10, PF-OWNER-MCP-SOURCE-EXPLICIT-20261110):
+    # nessun default. `simulated` = SIMULATED, `http` = CONTROL_API su 127.0.0.1. Senza
+    # `--adapter` l'avvio è rifiutato con CONFIG_ERROR: SOURCE_REQUIRED; nessuna opzione
+    # o variabile d'ambiente sceglie la sorgente al suo posto.
+    serve.add_argument(
+        "--adapter",
+        choices=("simulated", "http"),
+        default=None,
+        help="sorgente dati, obbligatoria: simulated (SIMULATED) o http (CONTROL_API)",
+    )
     serve.add_argument(
         "--sim-scenario",
         choices=[s.value for s in Scenario],
@@ -202,7 +211,13 @@ def _usage_error(code: str) -> None:
 
 
 def _build_adapter(args: argparse.Namespace, timeout_s: float) -> ControlApiAdapter | None:
-    """Adapter esplicito. Nessun fallback: un adapter http mal configurato non diventa simulato."""
+    """Adapter esplicito. Nessun fallback: un adapter http mal configurato non diventa simulato.
+
+    Sorgente assente → ``SOURCE_REQUIRED`` prima di costruire qualsiasi adapter (C-AUD-10).
+    """
+    if args.adapter is None:
+        _usage_error("SOURCE_REQUIRED")
+        return None
     http_args = (args.control_api_port, args.control_api_token_file)
     if args.adapter == "simulated":
         if any(a is not None for a in http_args):
