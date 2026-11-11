@@ -36,6 +36,54 @@
         "tests.unit.test_journal::test_file_mode_private": {
           "dependency": "MCP-WIN",
           "reason": "modo 0600 non applicabile su Windows (st_mode 0o666): la riservatezza del journal richiede una DACL solo-utente, prevista in MCP-WIN"
+        },
+        "tests.e2e.test_stdio_raw::test_sigint_shutdown_writes_only_audit_to_stderr": {
+          "dependency": "MCP-WIN",
+          "reason": "chiusura del server con SIGINT: su Windows Popen.send_signal(SIGINT) non esiste (ValueError: Unsupported signal: 2); la parità richiede CTRL_C_EVENT/CTRL_BREAK_EVENT con un gruppo di processi dedicato e la stessa garanzia di uscita (MCP-WIN, terminazione dei processi)"
+        },
+        "tests.e2e.test_stdio_raw::test_sigint_never_hangs_the_server": {
+          "dependency": "MCP-WIN",
+          "reason": "chiusura del server con SIGINT: su Windows Popen.send_signal(SIGINT) non esiste (ValueError: Unsupported signal: 2); la parità richiede CTRL_C_EVENT/CTRL_BREAK_EVENT con un gruppo di processi dedicato e la stessa garanzia di uscita (MCP-WIN, terminazione dei processi)"
+        },
+        "tests.e2e.test_stdio_raw::test_sigint_stops_an_idle_server_with_stdin_still_open": {
+          "dependency": "MCP-WIN",
+          "reason": "chiusura del server con SIGINT: su Windows Popen.send_signal(SIGINT) non esiste (ValueError: Unsupported signal: 2); la parità richiede CTRL_C_EVENT/CTRL_BREAK_EVENT con un gruppo di processi dedicato e la stessa garanzia di uscita (MCP-WIN, terminazione dei processi)"
+        },
+        "tests.e2e.test_stdio_raw::test_repeated_sigint_never_waits_for_stdin[gaps0]": {
+          "dependency": "MCP-WIN",
+          "reason": "chiusura del server con SIGINT: su Windows Popen.send_signal(SIGINT) non esiste (ValueError: Unsupported signal: 2); la parità richiede CTRL_C_EVENT/CTRL_BREAK_EVENT con un gruppo di processi dedicato e la stessa garanzia di uscita (MCP-WIN, terminazione dei processi)"
+        },
+        "tests.e2e.test_stdio_raw::test_repeated_sigint_never_waits_for_stdin[gaps1]": {
+          "dependency": "MCP-WIN",
+          "reason": "chiusura del server con SIGINT: su Windows Popen.send_signal(SIGINT) non esiste (ValueError: Unsupported signal: 2); la parità richiede CTRL_C_EVENT/CTRL_BREAK_EVENT con un gruppo di processi dedicato e la stessa garanzia di uscita (MCP-WIN, terminazione dei processi)"
+        },
+        "tests.e2e.test_stdio_raw::test_repeated_sigint_never_waits_for_stdin[gaps2]": {
+          "dependency": "MCP-WIN",
+          "reason": "chiusura del server con SIGINT: su Windows Popen.send_signal(SIGINT) non esiste (ValueError: Unsupported signal: 2); la parità richiede CTRL_C_EVENT/CTRL_BREAK_EVENT con un gruppo di processi dedicato e la stessa garanzia di uscita (MCP-WIN, terminazione dei processi)"
+        },
+        "tests.e2e.test_stdio_raw::test_repeated_sigint_never_waits_for_stdin[gaps3]": {
+          "dependency": "MCP-WIN",
+          "reason": "chiusura del server con SIGINT: su Windows Popen.send_signal(SIGINT) non esiste (ValueError: Unsupported signal: 2); la parità richiede CTRL_C_EVENT/CTRL_BREAK_EVENT con un gruppo di processi dedicato e la stessa garanzia di uscita (MCP-WIN, terminazione dei processi)"
+        },
+        "tests.e2e.test_stdio_raw::test_late_sigint_during_the_interrupted_exit_never_hangs": {
+          "dependency": "MCP-WIN",
+          "reason": "chiusura del server con SIGINT: su Windows Popen.send_signal(SIGINT) non esiste (ValueError: Unsupported signal: 2); la parità richiede CTRL_C_EVENT/CTRL_BREAK_EVENT con un gruppo di processi dedicato e la stessa garanzia di uscita (MCP-WIN, terminazione dei processi)"
+        },
+        "tests.e2e.test_stdio_raw::test_sigint_storm_after_stdin_close_keeps_the_exit_contract": {
+          "dependency": "MCP-WIN",
+          "reason": "chiusura del server con SIGINT: su Windows Popen.send_signal(SIGINT) non esiste (ValueError: Unsupported signal: 2); la parità richiede CTRL_C_EVENT/CTRL_BREAK_EVENT con un gruppo di processi dedicato e la stessa garanzia di uscita (MCP-WIN, terminazione dei processi)"
+        },
+        "tests.e2e.test_stdio_raw::test_sigint_storm_with_stdin_open_never_hangs_or_aborts[0.0]": {
+          "dependency": "MCP-WIN",
+          "reason": "chiusura del server con SIGINT: su Windows Popen.send_signal(SIGINT) non esiste (ValueError: Unsupported signal: 2); la parità richiede CTRL_C_EVENT/CTRL_BREAK_EVENT con un gruppo di processi dedicato e la stessa garanzia di uscita (MCP-WIN, terminazione dei processi)"
+        },
+        "tests.e2e.test_stdio_raw::test_sigint_storm_with_stdin_open_never_hangs_or_aborts[0.3]": {
+          "dependency": "MCP-WIN",
+          "reason": "chiusura del server con SIGINT: su Windows Popen.send_signal(SIGINT) non esiste (ValueError: Unsupported signal: 2); la parità richiede CTRL_C_EVENT/CTRL_BREAK_EVENT con un gruppo di processi dedicato e la stessa garanzia di uscita (MCP-WIN, terminazione dei processi)"
+        },
+        "tests.e2e.test_stdio_raw::test_sigint_storm_right_after_server_start_keeps_the_exit_contract": {
+          "dependency": "MCP-WIN",
+          "reason": "chiusura del server con SIGINT: su Windows Popen.send_signal(SIGINT) non esiste (ValueError: Unsupported signal: 2); la parità richiede CTRL_C_EVENT/CTRL_BREAK_EVENT con un gruppo di processi dedicato e la stessa garanzia di uscita (MCP-WIN, terminazione dei processi)"
         }
       },
       "skips": {}
