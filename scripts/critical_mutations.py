@@ -21,8 +21,18 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-COPY = ("src", "tests", "docs", "pyproject.toml", "AGENTS.md", ".guardrails")
-TEST_ARGS = ("tests/unit", "tests/integration")
+COPY = (
+    "src",
+    "tests",
+    "docs",
+    "scripts",
+    "ci",
+    ".github",
+    "pyproject.toml",
+    "AGENTS.md",
+    ".guardrails",
+)
+TEST_ARGS = ("tests/unit", "tests/integration", "tests/guards/test_ci_platform_report.py")
 
 
 @dataclass(frozen=True)
@@ -643,6 +653,72 @@ MUTANTS: tuple[Mutant, ...] = (
         "A15",
         "resume declassato a write (revoca stop EMERGENCY da non-owner)",
         ((APO, '"resume": Scope.OWNER', '"resume": Scope.WRITE'),),
+    ),
+    Mutant(
+        "C01",
+        "un blocco dichiarato dà PASS (falso verde su Windows)",
+        (
+            (
+                "scripts/ci_platform_report.py",
+                "    if res.blocked:\n",
+                "    if False:\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "C02",
+        "skip non dichiarato accettato (skip silenzioso)",
+        (
+            (
+                "scripts/ci_platform_report.py",
+                "                res.undeclared_skips.append(test_id)\n",
+                "                res.env_skips.append(test_id)\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "C03",
+        "blocco dichiarato che ora passa non segnalato (blocco stantio)",
+        (
+            (
+                "scripts/ci_platform_report.py",
+                "                res.stale.append(test_id)\n",
+                "                res.passed += 1\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "C04",
+        "codice d'uscita anomalo di pytest ignorato",
+        (
+            (
+                "scripts/ci_platform_report.py",
+                "    if pytest_rc not in (0, 1):\n",
+                "    if False:\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "C05",
+        "blocco dichiarato per un test inesistente non segnalato",
+        (
+            (
+                "scripts/ci_platform_report.py",
+                "    res.missing = sorted(set(blocked_decl) - seen)\n",
+                "    res.missing = []\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "C06",
+        "pytest fallito senza fallimenti nel rapporto accettato",
+        (
+            (
+                "scripts/ci_platform_report.py",
+                "    if pytest_rc == 1 and failures == 0:\n",
+                "    if False:\n",
+            ),
+        ),
     ),
 )
 

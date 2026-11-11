@@ -119,6 +119,27 @@
         "tests/unit/test_auth.py",
         "tests/unit/test_registry_guard.py"
       ]
+    },
+    "mcp-ci-matrix": {
+      "issue": "PF-OWNER-MCP-PARALLEL-EXECUTION-20261111 (Pickfair-nogui #628, priorità 1); #625 parità Windows/Linux; C-AUD-09",
+      "scheda": "MCP-CI — matrice {ubuntu, windows} × {3.11, 3.12}",
+      "description": "CI: Ubuntu 3.11/3.12/3.13 (i check richiesti py3.11/py3.13 mantengono il nome) e Windows 3.11/3.12 (non richiesto finché MCP-WIN non è verificata). Esito per piattaforma deciso da scripts/ci_platform_report.py su JUnit + ci/platform_expectations.json: nessuno skip silenzioso, blocchi dichiarati = BLOCKED_BY_DEPENDENCY:MCP-WIN (mai PASS), blocco che passa o scompare = FAIL. requirements/dev.lock rigenerato con --universal: stesse versioni e stessi hash, aggiunti solo pywin32==312 e colorama==0.4.6 con marcatore win32 (dipendenze di mcp e pytest su Windows), marcatori su cffi/pycparser/tomli/uvicorn. File protetti (.github, lock): merge owner. Mutanti critici C01–C06 sul classificatore (scripts/critical_mutations.py: COPY include scripts, ci e .github; TEST_ARGS include il test del classificatore). Guardia di rete dei test: su Windows socket.socketpair() (usato dall'event loop asyncio) si collega a un proprio listener su 127.0.0.1; ammesso solo durante quella chiamata e solo verso un letterale di loopback, ogni altra connessione resta vietata (tests/conftest.py, test in tests/unit/test_network_guard.py). Classificatore: output sempre UTF-8 (console cp1252 su Windows). Sottoprocessi dei test: ambiente minimo con le sole variabili di sistema indispensabili su Windows (SYSTEMROOT, altrimenti WinError 10106), helper subprocess_env in tests/conftest.py.",
+      "files": [
+        ".github/workflows/ci.yml",
+        ".guardrails/allowed_scope.json",
+        "README.md",
+        "ci/platform_expectations.json",
+        "requirements/dev.lock",
+        "scripts/ci_platform_report.py",
+        "scripts/critical_mutations.py",
+        "tests/conftest.py",
+        "tests/e2e/test_stdio_raw.py",
+        "tests/e2e/test_stdio_subprocess.py",
+        "tests/guards/test_ci_platform_report.py",
+        "tests/guards/test_no_bypass.py",
+        "tests/unit/test_network_guard.py"
+      ],
+      "max_files": 13
     }
   }
 }

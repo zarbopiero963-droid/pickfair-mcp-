@@ -14,6 +14,8 @@ import pytest
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+from tests.conftest import subprocess_env
+
 pytestmark = [pytest.mark.anyio, pytest.mark.e2e]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -79,7 +81,7 @@ async def test_stdio_incompatible_contract_is_fail_closed(tmp_path: Path) -> Non
 
 
 def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
-    env = {"PATH": os.environ.get("PATH", ""), "PYTHONPATH": str(REPO_ROOT / "src")}
+    env = subprocess_env(PYTHONPATH=str(REPO_ROOT / "src"))
     return subprocess.run(
         [sys.executable, "-m", "pickfair_mcp", *args],
         capture_output=True,
