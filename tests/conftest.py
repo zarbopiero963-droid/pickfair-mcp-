@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import socket
 import sys
-from collections.abc import Iterator
+import threading
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
@@ -38,6 +39,32 @@ _NETWORK_AUDIT_EVENTS = {
 _network_guard_active = False
 _hook_attempts: list[object] = []
 
+# MCP-CI (Windows): dove manca un socketpair nativo (Windows), `socket.socketpair()` è
+# implementato in Python con un listener su 127.0.0.1 e una connessione a sé stesso; l'event
+# loop di asyncio (Proactor) lo usa per svegliarsi. Solo DURANTE quella chiamata, e solo verso un
+# indirizzo letterale di loopback, la connessione è ammessa. Ogni altra connessione resta vietata.
+_socketpair_state = threading.local()
+_LOOPBACK_LITERALS = frozenset({"127.0.0.1", "::1"})
+
+
+def _inside_socketpair_to_loopback(address: object) -> bool:
+    if getattr(_socketpair_state, "depth", 0) <= 0:
+        return False
+    return isinstance(address, tuple) and bool(address) and address[0] in _LOOPBACK_LITERALS
+
+
+def guarded_socketpair(original: Callable[..., object]) -> Callable[..., object]:
+    """`socketpair` che consente, solo al suo interno, la connessione loopback a sé stesso."""
+
+    def socketpair(*args: object, **kwargs: object) -> object:
+        _socketpair_state.depth = getattr(_socketpair_state, "depth", 0) + 1
+        try:
+            return original(*args, **kwargs)
+        finally:
+            _socketpair_state.depth -= 1
+
+    return socketpair
+
 
 def _audit_hook(event: str, args: tuple[object, ...]) -> None:
     if not _network_guard_active or event not in _NETWORK_AUDIT_EVENTS:
@@ -45,6 +72,8 @@ def _audit_hook(event: str, args: tuple[object, ...]) -> None:
     if event in {"socket.connect", "socket.sendto", "socket.sendmsg"}:
         sock = args[0]
         if getattr(sock, "family", None) not in _INET_FAMILIES:
+            return
+        if event == "socket.connect" and _inside_socketpair_to_loopback(args[1]):
             return
     _hook_attempts.append(event)
     raise NetworkAttemptError(f"operazione di rete vietata: {event}")
@@ -73,7 +102,7 @@ def forbid_network(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[object]]:
     original_connect_ex = socket.socket.connect_ex
 
     def guarded_connect(self: socket.socket, address: object) -> None:
-        if self.family in _INET_FAMILIES:
+        if self.family in _INET_FAMILIES and not _inside_socketpair_to_loopback(address):
             attempts.append(address)
             raise NetworkAttemptError(f"connessione di rete vietata: {address!r}")
         original_connect(self, address)  # type: ignore[arg-type]
@@ -104,6 +133,7 @@ def forbid_network(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[object]]:
     monkeypatch.setattr(socket.socket, "connect", guarded_connect)
     monkeypatch.setattr(socket.socket, "connect_ex", guarded_connect_ex)
     monkeypatch.setattr(socket, "create_connection", guarded_create_connection)
+    monkeypatch.setattr(socket, "socketpair", guarded_socketpair(socket.socketpair))
     yield attempts
     assert attempts == [], f"tentativi di rete rilevati: {attempts!r}"
 

@@ -265,3 +265,31 @@ def test_workflow_runs_the_classifier_on_both_platforms_without_masking() -> Non
     assert "|| true" not in wf.split("ci_platform_report.py")[1].split("\n")[0]
     # l'installazione resta con hash anche su Windows (nessun fallback senza hash)
     assert wf.count("--require-hashes") >= 3
+
+
+def test_main_never_crashes_on_a_non_utf8_console(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Su Windows la console è cp1252: il riepilogo (con «→» e «—») non deve far cadere il job."""
+    import io
+
+    mod = load()
+    report = junit(tmp_path / "r.xml", [("tests.unit.test_a", "test_x", "fail")])
+    exp = expectations(tmp_path / "e.json", "windows", {"tests.unit.test_a::test_x": BLOCK})
+    raw = io.BytesIO()
+    monkeypatch.setattr(sys, "stdout", io.TextIOWrapper(raw, encoding="cp1252"))
+    rc = mod.main(
+        [
+            "--junit",
+            str(report),
+            "--expectations",
+            str(exp),
+            "--platform",
+            "windows",
+            "--pytest-rc",
+            "1",
+        ]
+    )
+    sys.stdout.flush()
+    assert rc == 3  # BLOCKED, non un crash (uscita 1)
+    assert "→ BLOCKED_BY_DEPENDENCY:MCP-WIN".encode() in raw.getvalue()

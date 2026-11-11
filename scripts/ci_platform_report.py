@@ -197,7 +197,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"MANIFEST_INVALID: {exc}", file=sys.stderr)
         return EXIT_FAIL
     text = render(res, args.platform)
-    sys.stdout.write(text)
+    # UTF-8 sempre: su Windows la console è cp1252 e «→» farebbe cadere il job (crash ≠ verdetto).
+    buffer = getattr(sys.stdout, "buffer", None)
+    if buffer is not None:
+        sys.stdout.flush()
+        buffer.write(text.encode("utf-8"))
+        buffer.flush()
+    else:
+        sys.stdout.write(text)
     if args.summary is not None:
         with args.summary.open("a", encoding="utf-8") as fh:
             fh.write(text)
