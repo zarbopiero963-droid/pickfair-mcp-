@@ -50,5 +50,5 @@ def test_unresolvable_is_an_error(tmp_path: Path) -> None:
     bad = tmp_path / "bad"
     bad.mkdir()
     (bad / ".git").write_text("gitdir: missing\n")
-    with pytest.raises(Exception):
+    with pytest.raises((ValueError, OSError)):
         resolve_git_sha(bad)

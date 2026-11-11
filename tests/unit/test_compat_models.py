@@ -1,7 +1,9 @@
-"""MCP-01k: contratto 1.7.0 — un ordine con esito non confermato (AMBIGUOUS, PENDING) non porta importi.
+"""MCP-01k: contratto 1.7.0 — un ordine con esito non confermato (AMBIGUOUS, PENDING)
+non porta importi.
 
 Forma di riferimento: la riga AMBIGUOUS del fix P0 di Claude D conserva un report con `sizeMatched`
-(`RISPOSTE_SENZA_ESITO`, branch `claude/pickfair-core-audit-slu9su`): quel numero non è un dato confermato.
+(`RISPOSTE_SENZA_ESITO`, branch `claude/pickfair-core-audit-slu9su`): quel numero non è un dato
+confermato.
 """
 
 from __future__ import annotations

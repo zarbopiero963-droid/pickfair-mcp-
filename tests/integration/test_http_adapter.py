@@ -322,7 +322,7 @@ async def test_adapter_never_reads_more_than_the_limit(tmp_path: Path) -> None:
 async def test_rate_limited_is_a_retryable_error_never_retried_automatically(
     tmp_path: Path,
 ) -> None:
-    """C-AUD-06: 429 → RATE_LIMITED, retryable=true per il client, nessun nuovo tentativo del MCP."""
+    """C-AUD-06: 429 → RATE_LIMITED, retryable per il client, nessun nuovo tentativo del MCP."""
     from pickfair_control_api.rate_limit import RateLimit
 
     clock = [5000.0]

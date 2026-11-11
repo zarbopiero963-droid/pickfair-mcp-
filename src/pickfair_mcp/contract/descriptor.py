@@ -112,21 +112,26 @@ SEMANTICS: Final = {
     },
     "sl_tp": (
         "Per Roserpina table, read from the table meta as the core writes it: NOT_ARMED (no "
-        "SL/TP amount), ARMED, TRIGGERED (core marked an SL or TP trigger) or UNKNOWN (unreadable). "
-        "trailing (MCP-01m, F-03): NOT_IN_CORE without the core's trailing logic, OFF, WAITING_PROFIT, "
-        "ARMED (peak and threshold computed by the core's trailing_stop module), TRIGGERED or UNKNOWN "
+        "SL/TP amount), ARMED, TRIGGERED (core marked an SL or TP trigger) or UNKNOWN "
+        "(unreadable). "
+        "trailing (MCP-01m, F-03): NOT_IN_CORE without the core's trailing logic, OFF, "
+        "WAITING_PROFIT, "
+        "ARMED (peak and threshold computed by the core's trailing_stop module), TRIGGERED or "
+        "UNKNOWN "
         "(persisted peak unreadable); peak from the table meta (MEMORY) or the persisted "
         "risk.trailing_peak record (PERSISTED). A trailing trigger never changes the SL/TP state."
     ),
     "sl_tp_closes": (
         "get_exposure.sl_tp_closes: closes persisted by the core's SL/TP close (F-04, settings "
-        "`risk.sl_tp_close.*`), read in one read-only transaction with the position's orders and the "
+        "`risk.sl_tp_close.*`), read in one read-only transaction with the position's orders and "
+        "the "
         "ledger hedge rows: table, position, trigger, close state (CLAIMED/ROUTED/NOT_EXECUTED/"
         "UNCERTAIN, unreadable UNKNOWN), retryable as the core decides, detail code, residual "
         "exposure only from the table that still holds the position. Hedges of the close are the "
         "ledger rows whose cashout_request_id is recorded in the close (cashout_request_ids); null "
         "when the record does not carry them. Closes rejected before the claim "
-        "are not persisted by the core and never appear. Without F-04: UNAVAILABLE CORE_PENDING_F04."
+        "are not persisted by the core and never appear. Without F-04: UNAVAILABLE "
+        "CORE_PENDING_F04."
     ),
     "settlement": (
         "Counts only (no payload, reference or event name): unrecorded settlements, held "
@@ -212,7 +217,8 @@ SEMANTICS: Final = {
         "Control API: token of at least 43 URL-safe characters (shorter or malformed tokens are "
         "refused at construction), rotations serialized end to end; at most 16 connections served "
         "at once (others closed without a thread), each closed within 10 s; protocol errors answer "
-        "400 BAD_REQUEST or 405 METHOD_NOT_ALLOWED with a fixed JSON body, never echoing the input; "
+        "400 BAD_REQUEST or 405 METHOD_NOT_ALLOWED with a fixed JSON body, never echoing the "
+        "input; "
         "no per-request log or traceback."
     ),
     "transport": (

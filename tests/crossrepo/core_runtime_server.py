@@ -357,7 +357,8 @@ for line in sys.stdin:
             commission_pct=cfg.commission_pct,
         )
     elif cmd[0] == "COMPAT_P0":
-        # Comando al CORE: riga AMBIGUOUS con la risposta senza esito come la persiste il fix P0 di Claude D
+        # Comando al CORE: riga AMBIGUOUS con la risposta senza esito come la persiste il fix P0 di
+        # Claude D
         # (report con betId e sizeMatched non confermati).
         oid = rc.db.insert_order(
             {
@@ -393,8 +394,10 @@ for line in sys.stdin:
             open_bet_ids=sorted(c["bet_id"] for c in list(cands) + list(unattr)),
         )
     elif cmd[0] == "MARKET":
-        # Comando al CORE: un book Betfair nella forma di listMarketBook entra dal percorso reale del runtime
-        # (`_stream_market_book_callback` -> MarketTracker, come lo stream; in SIM anche al broker simulato).
+        # Comando al CORE: un book Betfair nella forma di listMarketBook entra dal percorso reale
+        # del runtime
+        # (`_stream_market_book_callback` -> MarketTracker, come lo stream; in SIM anche al broker
+        # simulato).
         rc._stream_market_book_callback(
             {
                 "marketId": "1.987654",
@@ -418,7 +421,8 @@ for line in sys.stdin:
         )
         reply(event="MARKET")
     elif cmd[0] == "SL_TP_CLOSE":
-        # Comando al CORE: chiusura SL/TP persistita con le funzioni di F-04 (`core.sl_tp_close`) per un tavolo
+        # Comando al CORE: chiusura SL/TP persistita con le funzioni di F-04 (`core.sl_tp_close`)
+        # per un tavolo
         # attivo con il suo ordine nel ledger. Richiede un core con F-04.
         from core import sl_tp_close
 
@@ -477,7 +481,8 @@ for line in sys.stdin:
         )
         reply(event="SL_TP_CLOSE")
     elif cmd[0] == "TRAILING":
-        # Comando al CORE (con F-03): tavolo con trailing al 20 % e picco persistito con le funzioni del core,
+        # Comando al CORE (con F-03): tavolo con trailing al 20 % e picco persistito con le funzioni
+        # del core,
         # come dopo un riavvio prima che il runtime ricarichi il picco nel meta.
         from decimal import Decimal
 

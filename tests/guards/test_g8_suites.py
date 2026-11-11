@@ -14,7 +14,8 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import run_suites  # noqa: E402
 
-# Campi chiusi delle suite del catalogo canonico (scripts/pf_test_dispatch.py, Pickfair-nogui main 911562ad).
+# Campi chiusi delle suite del catalogo canonico (scripts/pf_test_dispatch.py, Pickfair-nogui main
+# 911562ad).
 PF_SUITE_FIELDS = {
     "id",
     "component",
@@ -103,7 +104,8 @@ def write_junit(path: Path, cases: str) -> None:
         ('<testcase classname="tests.unit.test_a" name="t1"><error/></testcase>', 1, "FAIL"),
         ('<testcase classname="tests.unit.test_a" name="t1"><skipped/></testcase>', 0, "BLOCKED"),
         (
-            '<testcase classname="tests.unit.test_journal" name="test_permission_denied_fails_closed">'
+            '<testcase classname="tests.unit.test_journal" '
+            'name="test_permission_denied_fails_closed">'
             '<skipped/></testcase><testcase classname="tests.unit.test_a" name="t2"/>',
             0,
             "PASS",

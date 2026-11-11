@@ -1,4 +1,5 @@
-"""MCP-01i: chiusure SL/TP in get_exposure attraverso il server MCP reale (simulato e Control API reale)."""
+"""MCP-01i: chiusure SL/TP in get_exposure attraverso il server MCP reale (simulato e Control API
+reale)."""
 
 from __future__ import annotations
 

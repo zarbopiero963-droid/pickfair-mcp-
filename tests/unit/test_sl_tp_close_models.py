@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 
 from pickfair_control_api.contract import response_schema
+from pickfair_control_api.schema_check import SchemaViolation
 from pickfair_control_api.schema_check import validate as server_validate
 from pickfair_mcp.contract.parsing import UpstreamInvalidResponse, parse_exposure
 from tests.control_api import bodies
@@ -127,7 +128,7 @@ def test_close_rules_are_enforced_by_the_mcp(overrides: dict[str, Any]) -> None:
 )
 def test_close_shape_is_closed_in_the_schema(overrides: dict[str, Any]) -> None:
     b = body(bodies.sl_tp_close(**overrides))
-    with pytest.raises(Exception):
+    with pytest.raises(SchemaViolation):
         server_validate(b, response_schema("exposure"))
     rejected(b)
 

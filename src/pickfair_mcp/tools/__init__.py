@@ -13,20 +13,20 @@ from __future__ import annotations
 from pickfair_mcp.adapters.base import ControlApiAdapter
 from pickfair_mcp.adapters.simulated import SimulatedControlApiAdapter
 from pickfair_mcp.policy.handshake import HandshakeGuard
-from pickfair_mcp.tools.config import make_get_config
 from pickfair_mcp.tools.blackbox import (
     make_get_blackbox_event,
     make_get_blackbox_status,
     make_list_blackbox_events,
     make_list_blackbox_sessions,
 )
-from pickfair_mcp.tools.markets import make_get_market_book, make_list_markets
+from pickfair_mcp.tools.config import make_get_config
 from pickfair_mcp.tools.finance import (
     make_get_account,
     make_get_exposure,
     make_list_orders,
     make_list_positions,
 )
+from pickfair_mcp.tools.markets import make_get_market_book, make_list_markets
 from pickfair_mcp.tools.meta import make_get_meta
 from pickfair_mcp.tools.registry import ToolRegistry
 from pickfair_mcp.tools.status import make_get_reconciliation_status, make_get_status

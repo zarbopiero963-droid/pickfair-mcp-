@@ -5,7 +5,7 @@ from __future__ import annotations
 import itertools
 import re
 from decimal import Decimal
-from typing import Annotated, Literal
+from typing import TYPE_CHECKING, Annotated, Literal
 
 from pydantic import (
     AfterValidator,
@@ -204,7 +204,8 @@ class ProtectionItems(StrictModel):
     anti_duplication: Protection
     order_circuit_breaker: Protection
     recovery_state: Protection
-    # MCP-01m (F-18 di Claude D): impostazioni persistite illeggibili => il core nega ogni nuova entrata.
+    # MCP-01m (F-18 di Claude D): impostazioni persistite illeggibili => il core nega ogni nuova
+    # entrata.
     config_validity: Protection
 
 
@@ -739,13 +740,14 @@ TableStatus = Literal["FREE", "ACTIVE", "RECOVERY", "LOCKED"]
 
 
 class Trailing(StrictModel):
-    """Trailing stop del tavolo (MCP-01m, F-03 di Claude D), dal `meta` del tavolo e dal picco persistito.
+    """Trailing stop del tavolo (MCP-01m, F-03 di Claude D), dal `meta` del tavolo e dal picco
+    persistito.
 
-    NOT_IN_CORE: il core non ha la logica di trailing (prima di F-03): la percentuale, se configurata, non è
-    applicata. OFF: percentuale assente o non valida (il core lo tratta come spento). WAITING_PROFIT: attivo, nessun
-    profitto garantito ancora (nessun picco). ARMED: picco > 0, soglia calcolata dal core. TRIGGERED: il core ha
-    segnato lo scatto del trailing. UNKNOWN: picco persistito illeggibile (il core non decide: fail-closed).
-    """
+    NOT_IN_CORE: il core non ha la logica di trailing (prima di F-03): la percentuale, se
+    configurata, non è applicata. OFF: percentuale assente o non valida (il core lo tratta come
+    spento). WAITING_PROFIT: attivo, nessun profitto garantito ancora (nessun picco). ARMED: picco >
+    0, soglia calcolata dal core. TRIGGERED: il core ha segnato lo scatto del trailing. UNKNOWN:
+    picco persistito illeggibile (il core non decide: fail-closed)."""
 
     state: Literal["NOT_IN_CORE", "OFF", "WAITING_PROFIT", "ARMED", "TRIGGERED", "UNKNOWN"]
     pct: NonNegativeDecimal | None
@@ -780,11 +782,10 @@ class Trailing(StrictModel):
 class SlTp(StrictModel):
     """SL/TP del tavolo (MCP-01h, contratto 1.5.0), letto dal `meta` del tavolo del core.
 
-    NOT_ARMED: nessun importo SL/TP sul tavolo (oggi sempre, sul `main` del core: nessun percorso
-    li arma prima di F-02 di Claude D). ARMED: almeno un importo. TRIGGERED: il core ha segnato lo
-    scatto di SL o TP (`sl_tp_triggered`). UNKNOWN: valori presenti ma illeggibili. Il trailing ha il suo
-    stato in `trailing` (MCP-01m): uno scatto del trailing non cambia lo stato di SL/TP.
-    """
+    NOT_ARMED: nessun importo SL/TP sul tavolo (oggi sempre, sul `main` del core: nessun percorso li
+    arma prima di F-02 di Claude D). ARMED: almeno un importo. TRIGGERED: il core ha segnato lo
+    scatto di SL o TP (`sl_tp_triggered`). UNKNOWN: valori presenti ma illeggibili. Il trailing ha
+    il suo stato in `trailing` (MCP-01m): uno scatto del trailing non cambia lo stato di SL/TP."""
 
     state: Literal["NOT_ARMED", "ARMED", "TRIGGERED", "UNKNOWN"]
     stop_loss: NonNegativeDecimal | None
@@ -856,8 +857,9 @@ class ClosePosition(StrictModel):
 
 
 class CloseHedges(StrictModel):
-    """Righe d'hedge della chiusura: legate dal record F-04 (`cashout_request_ids`) alla riga del ledger
-    (`cashout_request_id`). `not_in_ledger`: richieste pubblicate senza riga d'hedge nel ledger."""
+    """Righe d'hedge della chiusura: legate dal record F-04 (`cashout_request_ids`) alla riga del
+    ledger (`cashout_request_id`). `not_in_ledger`: richieste pubblicate senza riga d'hedge nel
+    ledger."""
 
     requests: Count
     pending: Count
@@ -879,7 +881,8 @@ class CloseHedges(StrictModel):
 
 
 class SlTpClose(StrictModel):
-    """Chiusura SL/TP persistita da F-04 (`risk.sl_tp_close.<customer_ref>`; il riferimento non esce)."""
+    """Chiusura SL/TP persistita da F-04 (`risk.sl_tp_close.<customer_ref>`; il riferimento non
+    esce)."""
 
     table_id: Annotated[int, Field(ge=1, le=10_000)]
     market_id: Identifier
@@ -929,7 +932,7 @@ class SlTpClosesRead(StrictModel):
 
 
 class SlTpClosesMissing(StrictModel):
-    """UNAVAILABLE (core senza F-04: CORE_PENDING_F04, o DB non leggibile) o UNKNOWN (DB occupato)."""
+    """UNAVAILABLE (core senza F-04: CORE_PENDING_F04, o DB illeggibile) o UNKNOWN (DB occupato)."""
 
     state: Literal["UNKNOWN", "UNAVAILABLE"]
     reason: Code
@@ -1114,8 +1117,10 @@ ORDER_OPTIONAL_FIELDS: tuple[str, ...] = (
 MAX_ORDERS = 500
 
 
-# MCP-01k: esito non confermato dal core (AMBIGUOUS, PENDING). Un report conservato nella risposta (es. la
-# risposta senza esito del fix P0 di Claude D) non è un dato: importi abbinati e residui sempre null.
+# MCP-01k: esito non confermato dal core (AMBIGUOUS, PENDING). Un report conservato nella risposta
+# (es. la
+# risposta senza esito del fix P0 di Claude D) non è un dato: importi abbinati e residui sempre
+# null.
 UNCONFIRMED_ORDER_STATUSES: frozenset[str] = frozenset({"AMBIGUOUS", "PENDING"})
 
 
@@ -1353,7 +1358,10 @@ SENSITIVE_NAME_FRAGMENTS: tuple[str, ...] = (
     "pin",
 )
 
-ConfigKey = Literal[tuple(CONFIG_KEYS)]  # type: ignore[valid-type]
+if TYPE_CHECKING:  # per mypy un nome qualsiasi; a runtime il Literal chiuso delle chiavi
+    ConfigKey = str
+else:
+    ConfigKey = Literal[tuple(CONFIG_KEYS)]
 SettingState = Literal["SET", "NOT_SET", "INVALID"]
 RiskProfile = Literal["CONSERVATIVE", "BALANCED", "AGGRESSIVE"]
 FieldName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,63}$")]
@@ -1422,7 +1430,8 @@ def _check_unlisted(values: tuple[str, ...]) -> tuple[str, ...]:
     return values
 
 
-# Solo impostazioni di Roserpina (`roserpina.<nome>`) o nomi semplici: credenziali Betfair/Telegram escluse per forma.
+# Solo impostazioni di Roserpina (`roserpina.<nome>`) o nomi semplici: credenziali Betfair/Telegram
+# escluse per forma.
 SettingKeyName = Annotated[
     str, StringConstraints(pattern=r"^(roserpina\.)?[a-z][a-z0-9_]{0,63}$", max_length=80)
 ]
@@ -1449,7 +1458,8 @@ class ConfigResponse(StrictModel):
         tuple[FieldName, ...], Field(max_length=MAX_UNLISTED), AfterValidator(_check_unlisted)
     ]
     redacted: Count
-    # MCP-01m (F-18 di Claude D): chiavi persistite illeggibili o fuori dominio (il core nega ogni nuova
+    # MCP-01m (F-18 di Claude D): chiavi persistite illeggibili o fuori dominio (il core nega ogni
+    # nuova
     # entrata finché ce n'è una). null se il core non le registra (prima di F-18).
     invalid_persisted: (
         Annotated[
@@ -1487,7 +1497,8 @@ class ConfigResponse(StrictModel):
 # Identificativo di mercato Betfair («1.234567»): stretto, mai «.» o «..», usabile in un percorso.
 MARKET_ID_PATTERN = r"^[0-9]{1,4}\.[0-9]{1,15}$"
 MarketId = Annotated[str, StringConstraints(pattern=MARKET_ID_PATTERN, max_length=20)]
-# Stato del mercato COME LO RIPORTA IL BOOK ricevuto (dato Betfair), non un giudizio di negoziabilità del
+# Stato del mercato COME LO RIPORTA IL BOOK ricevuto (dato Betfair), non un giudizio di
+# negoziabilità del
 # core: quello è F-23 (Claude D), la protezione `market_tradability` resta la fonte del giudizio.
 BookStatus = Literal["OPEN", "SUSPENDED", "CLOSED", "INACTIVE", "UNKNOWN"]
 RunnerStatus = Literal["ACTIVE", "REMOVED", "WINNER", "LOSER", "PLACED", "HIDDEN", "UNKNOWN"]
@@ -1555,7 +1566,8 @@ class RunnerBook(StrictModel):
     status: RunnerStatus
     last_price_traded: NonNegativeDecimal | None
     total_matched: NonNegativeDecimal | None
-    # Migliori livelli disponibili: BACK in ordine di prezzo decrescente, LAY crescente, come nel book.
+    # Migliori livelli disponibili: BACK in ordine di prezzo decrescente, LAY crescente, come nel
+    # book.
     back: Annotated[tuple[PriceLevel, ...], Field(max_length=MAX_LEVELS)]
     lay: Annotated[tuple[PriceLevel, ...], Field(max_length=MAX_LEVELS)]
 
@@ -1590,7 +1602,8 @@ class MarketBookResponse(StrictModel):
     observed_at: ObservedAt
     consistency: Literal["SINGLE_REFERENCE_READ"]
     market_id: MarketId
-    # OK: book presente; NOT_TRACKED: Pickfair non ha un book per questo mercato (nessuna chiamata di rete
+    # OK: book presente; NOT_TRACKED: Pickfair non ha un book per questo mercato (nessuna chiamata
+    # di rete
     # per procurarlo); UNAVAILABLE: book presente ma illeggibile o tracker non raggiungibile.
     state: Literal["OK", "NOT_TRACKED", "UNAVAILABLE"]
     book: MarketBook | None

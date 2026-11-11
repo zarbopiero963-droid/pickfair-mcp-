@@ -1,4 +1,5 @@
-"""C-AUD-04 (decisione owner D05, PF-CROSS-PLATFORM-EXECUTION-20261110): journal fail-closed su Windows.
+"""C-AUD-04 (decisione owner D05, PF-CROSS-PLATFORM-EXECUTION-20261110): journal fail-closed
+su Windows.
 
 Su una piattaforma senza le protezioni richieste (O_NOFOLLOW + O_CLOEXEC e lock verificato) il
 journal non apre nessun file: nessun ramo «più debole» che segua i reparse point o ignori i

@@ -136,7 +136,8 @@ def test_unlisted_rules(unlisted: list[str]) -> None:
 
 
 def test_invalid_persisted_f18() -> None:
-    """MCP-01m: chiavi persistite illeggibili (F-18) per nome; nomi sensibili mai elencati; null dichiarato."""
+    """MCP-01m: chiavi persistite illeggibili (F-18) per nome; nomi sensibili mai elencati; null
+    dichiarato."""
     parse_config(raw(bodies.config(invalid_persisted=["roserpina.profit_epsilon"])))
     parse_config(raw(bodies.config(invalid_persisted=None, unavailable=["invalid_persisted"])))
     parse_config(raw(bodies.config(invalid_persisted=["max_win", "roserpina.trailing_stop_pct"])))

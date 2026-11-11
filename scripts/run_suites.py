@@ -1,8 +1,11 @@
 """G8: esecuzione delle suite MCP/Control API del manifest `catalog/g8/pf-mcp-suites.json`.
 
-Stesse regole del catalogo canonico di Pickfair-nogui (`scripts/pf_test_dispatch.py`): runner `pytest`, argv
-FISSO dal manifest (solo percorsi `tests/` esistenti, nessun flag, nessuna risalita), evidenze junit + log,
-verdetto PASS / FAIL / BLOCKED. Un test saltato fuori da `allowed_skips` non è mai PASS (BLOCKED); un
+Stesse regole del catalogo canonico di Pickfair-nogui (`scripts/pf_test_dispatch.py`): runner
+`pytest`, argv
+FISSO dal manifest (solo percorsi `tests/` esistenti, nessun flag, nessuna risalita), evidenze junit
++ log,
+verdetto PASS / FAIL / BLOCKED. Un test saltato fuori da `allowed_skips` non è mai PASS (BLOCKED);
+un
 prerequisito mancante (`requires`) è BLOCKED senza eseguire nulla.
 Il rapporto registra la provenienza (SHA e albero pulito del codice MCP e, se usato, del core):
 un esito non attribuibile a uno SHA preciso non è mai PASS (BLOCKED `UNATTRIBUTABLE_TREE`).
@@ -141,7 +144,7 @@ def _junit_counts(path: Path) -> tuple[dict[str, int], list[str]]:
     skipped: list[str] = []
     if not path.is_file():
         return counts, skipped
-    root = ET.parse(path).getroot()
+    root = ET.parse(path).getroot()  # noqa: S314 - rapporto JUnit prodotto dalla stessa suite
     for case in root.iter("testcase"):
         counts["tests"] += 1
         if case.find("failure") is not None:

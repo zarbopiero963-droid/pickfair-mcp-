@@ -2,7 +2,7 @@
 
 Token bucket per token Bearer, controllo e scalata del gettone sotto lo stesso lock, orologio
 monotono iniettabile. Valori iniziali di test 2 richieste/s, raffica 5 (decisione owner: valori
-di test, il limite operativo resta da validare). Limiti ammessi 0,1–20/s e raffica 1–50: fuori
+di test, il limite operativo resta da validare). Limiti ammessi 0,1-20/s e raffica 1-50: fuori
 limite l'avvio è rifiutato, mai un limite «infinito».
 """
 
@@ -61,11 +61,12 @@ def test_race_with_frozen_clock_admits_exactly_burst_200_times() -> None:
         admitted: list[bool] = []
         lock = threading.Lock()
 
+        # I thread finiscono (join) dentro la stessa iterazione: nessuna cattura tardiva.
         def worker() -> None:
-            barrier.wait()
-            ok = tb.acquire(KEY) is None
-            with lock:
-                admitted.append(ok)
+            barrier.wait()  # noqa: B023
+            ok = tb.acquire(KEY) is None  # noqa: B023
+            with lock:  # noqa: B023
+                admitted.append(ok)  # noqa: B023
 
         threads = [threading.Thread(target=worker) for _ in range(threads_n)]
         for t in threads:
@@ -244,7 +245,7 @@ def test_raising_audit_write_is_counted_as_unrecorded() -> None:
     assert lost == [2]
 
 
-# 3–5, 8. Il limite nel server reale (loopback, token reale, orologio controllato).
+# 3-5, 8. Il limite nel server reale (loopback, token reale, orologio controllato).
 
 
 def _server_with(tmp_path: Any, clock: Clock, rate: float = 2.0, burst: int = 5) -> Any:

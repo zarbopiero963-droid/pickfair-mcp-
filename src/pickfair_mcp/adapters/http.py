@@ -189,7 +189,8 @@ class HttpControlApiAdapter:
         if status == 501:
             raise UpstreamNotImplemented
         if status == 429:
-            # C-AUD-06: limite di frequenza; il core non è stato interrogato. Nessun nuovo tentativo.
+            # C-AUD-06: limite di frequenza; il core non è stato interrogato. Nessun nuovo
+            # tentativo.
             raise UpstreamRateLimited
         if status == 503:
             # PF-BLACKBOX-01: il core non ha potuto registrare la richiesta e non ha dato dati.

@@ -74,7 +74,8 @@ class Core:
         work.mkdir()
         env = {
             "PATH": os.environ.get("PATH", ""),
-            # Il core usa il package pickfair_control_api dello STESSO albero sotto test (non l'installazione
+            # Il core usa il package pickfair_control_api dello STESSO albero sotto test (non
+            # l'installazione
             # editabile di un altro checkout): il pin del ponte confronta versione e schema hash.
             "PYTHONPATH": str(REPO_ROOT / "src"),
             "HOME": str(tmp_path),
@@ -225,7 +226,8 @@ async def test_e2e_reads_have_no_side_effects_on_the_core(core: Core, tmp_path: 
     async with mcp(core, errlog) as s:
         results: list[bool] = []
 
-        # MCP-01l: get_market_book ha un parametro; un mercato non seguito è una lettura valida (NOT_TRACKED).
+        # MCP-01l: get_market_book ha un parametro; un mercato non seguito è una lettura valida
+        # (NOT_TRACKED).
         tool_args = {"get_market_book": {"market_id": "1.1"}}
 
         async def one(name: str) -> None:
@@ -548,7 +550,8 @@ async def test_e2e_config_is_read_only_and_redacted(core: Core, tmp_path: Path) 
 
 
 async def test_e2e_p0_ambiguous_row_without_unconfirmed_amounts(core: Core, tmp_path: Path) -> None:
-    """MCP-01k: riga AMBIGUOUS nella forma del fix P0 di Claude D: betId visibile, importi mai esposti."""
+    """MCP-01k: riga AMBIGUOUS nella forma del fix P0 di Claude D: betId visibile, importi mai
+    esposti."""
     errlog = (tmp_path / "mcp.err").open("w+")
     async with mcp(core, errlog) as s:
         tools = {t.name: t for t in (await s.list_tools()).tools}
@@ -611,7 +614,8 @@ async def test_e2e_markets_and_book_from_the_real_tracker(core: Core, tmp_path: 
 
 
 async def test_e2e_sl_tp_close_from_the_core_record(core: Core, tmp_path: Path) -> None:
-    """MCP-01i: chiusura SL/TP persistita con le funzioni di F-04 nel core reale (SIM), letta da get_exposure."""
+    """MCP-01i: chiusura SL/TP persistita con le funzioni di F-04 nel core reale (SIM), letta da
+    get_exposure."""
     errlog = (tmp_path / "mcp.err").open("w+")
     async with mcp(core, errlog) as s:
         tools = {t.name: t for t in (await s.list_tools()).tools}
@@ -638,7 +642,7 @@ async def test_e2e_sl_tp_close_from_the_core_record(core: Core, tmp_path: Path) 
 
 
 async def test_e2e_trailing_from_the_core_trailing_module(core: Core, tmp_path: Path) -> None:
-    """MCP-01m: trailing F-03 con picco persistito, letto dal core reale (fusione locale con F-03)."""
+    """MCP-01m: trailing F-03 con picco persistito, letto dal core reale (fusione locale F-03)."""
     errlog = (tmp_path / "mcp.err").open("w+")
     async with mcp(core, errlog) as s:
         tools = {t.name: t for t in (await s.list_tools()).tools}

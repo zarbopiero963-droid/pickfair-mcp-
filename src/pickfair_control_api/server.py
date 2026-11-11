@@ -15,9 +15,11 @@ Regole:
   un percorso fuori contratto ``404 NOT_FOUND``; ogni metodo diverso da GET ``405``;
 - ogni risposta è validata contro lo schema del contratto PRIMA dell'invio: una risposta fuori
   contratto diventa ``500 CONTRACT_SELF_CHECK``, mai un dato apparentemente valido;
-- corpi d'errore fissi, anche per gli errori di protocollo della libreria standard (mai l'eco dell'input);
+- corpi d'errore fissi, anche per gli errori di protocollo della libreria standard (mai l'eco
+dell'input);
   nessun log né traceback per richiesta; token mai nei log;
-- risorse limitate per chiunque, anche senza token: al più ``MAX_CONNECTIONS`` connessioni servite insieme,
+- risorse limitate per chiunque, anche senza token: al più ``MAX_CONNECTIONS`` connessioni servite
+insieme,
   ognuna chiusa entro ``REQUEST_DEADLINE_S`` (MCP-SEC-01);
 - MCP-01o (PF-BLACKBOX-01): l'unica query string ammessa è quella di ``/v1/blackbox/events``, in
 whitelist
@@ -85,12 +87,15 @@ logger = logging.getLogger(__name__)
 LOOPBACK_HOST: Final = "127.0.0.1"
 MIN_TOKEN_CHARS: Final = 43
 REQUEST_TIMEOUT_S: Final = 5.0
-# MCP-SEC-01: risorse limitate anche per client senza token (slowloris). Al più MAX_CONNECTIONS connessioni
-# servite insieme (le altre chiuse subito, nessun thread); ogni connessione chiusa entro REQUEST_DEADLINE_S
+# MCP-SEC-01: risorse limitate anche per client senza token (slowloris). Al più MAX_CONNECTIONS
+# connessioni
+# servite insieme (le altre chiuse subito, nessun thread); ogni connessione chiusa entro
+# REQUEST_DEADLINE_S
 # dall'accettazione, qualunque sia il ritmo con cui il client invia i byte.
 MAX_CONNECTIONS = 16  # ogni connessione servita usa due thread (gestore + timer della scadenza)
 REQUEST_DEADLINE_S = 10.0
-# Errori di protocollo della libreria standard (riga di richiesta, versione, URI o header troppo lunghi):
+# Errori di protocollo della libreria standard (riga di richiesta, versione, URI o header troppo
+# lunghi):
 # corpo JSON fisso, mai l'eco dell'input. Un metodo sconosciuto è METHOD_NOT_ALLOWED come gli altri.
 _PROTOCOL_ERRORS: Final = {501: (405, "METHOD_NOT_ALLOWED")}
 MAX_RESPONSE_BYTES: Final = 64 * 1024
@@ -146,7 +151,8 @@ class _Handler(BaseHTTPRequestHandler):
     def setup(self) -> None:
         super().setup()
         self.connection.settimeout(REQUEST_TIMEOUT_S)
-        # Scadenza complessiva della connessione: il timeout del socket vale per ogni singola ricezione,
+        # Scadenza complessiva della connessione: il timeout del socket vale per ogni singola
+        # ricezione,
         # un client lento lo rinnoverebbe all'infinito.
         self._deadline = threading.Timer(REQUEST_DEADLINE_S, self._expire)
         self._deadline.daemon = True
@@ -288,7 +294,13 @@ class _Handler(BaseHTTPRequestHandler):
                     provider = app.param_routes[template]
                     route, schema_name = template, PARAM_ROUTE_SCHEMAS[template]
                     self._params = {"id": value}
-                    read = lambda: provider(value)  # noqa: E731
+
+                    def read_param(
+                        provider: ParamProvider = provider, value: str = value
+                    ) -> dict[str, Any]:
+                        return provider(value)  # valori legati qui, non al ciclo (B023)
+
+                    read = read_param
                     break
         if route is None or read is None or schema_name is None:
             if exact and any(p.fullmatch(raw_path) for p in unserved_read_routes()):

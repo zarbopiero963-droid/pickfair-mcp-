@@ -2697,7 +2697,7 @@
         "$defs": {
           "CloseHedges": {
             "additionalProperties": false,
-            "description": "Righe d'hedge della chiusura: legate dal record F-04 (`cashout_request_ids`) alla riga del ledger\n(`cashout_request_id`). `not_in_ledger`: richieste pubblicate senza riga d'hedge nel ledger.",
+            "description": "Righe d'hedge della chiusura: legate dal record F-04 (`cashout_request_ids`) alla riga del\nledger (`cashout_request_id`). `not_in_ledger`: richieste pubblicate senza riga d'hedge nel\nledger.",
             "properties": {
               "ambiguous": {
                 "maximum": 1000000,
@@ -3114,7 +3114,7 @@
           },
           "SlTp": {
             "additionalProperties": false,
-            "description": "SL/TP del tavolo (MCP-01h, contratto 1.5.0), letto dal `meta` del tavolo del core.\n\nNOT_ARMED: nessun importo SL/TP sul tavolo (oggi sempre, sul `main` del core: nessun percorso\nli arma prima di F-02 di Claude D). ARMED: almeno un importo. TRIGGERED: il core ha segnato lo\nscatto di SL o TP (`sl_tp_triggered`). UNKNOWN: valori presenti ma illeggibili. Il trailing ha il suo\nstato in `trailing` (MCP-01m): uno scatto del trailing non cambia lo stato di SL/TP.",
+            "description": "SL/TP del tavolo (MCP-01h, contratto 1.5.0), letto dal `meta` del tavolo del core.\n\nNOT_ARMED: nessun importo SL/TP sul tavolo (oggi sempre, sul `main` del core: nessun percorso li\narma prima di F-02 di Claude D). ARMED: almeno un importo. TRIGGERED: il core ha segnato lo\nscatto di SL o TP (`sl_tp_triggered`). UNKNOWN: valori presenti ma illeggibili. Il trailing ha\nil suo stato in `trailing` (MCP-01m): uno scatto del trailing non cambia lo stato di SL/TP.",
             "properties": {
               "state": {
                 "enum": [
@@ -3209,7 +3209,7 @@
           },
           "SlTpClose": {
             "additionalProperties": false,
-            "description": "Chiusura SL/TP persistita da F-04 (`risk.sl_tp_close.<customer_ref>`; il riferimento non esce).",
+            "description": "Chiusura SL/TP persistita da F-04 (`risk.sl_tp_close.<customer_ref>`; il riferimento non\nesce).",
             "properties": {
               "bet_ids": {
                 "items": {
@@ -3355,7 +3355,7 @@
           },
           "SlTpClosesMissing": {
             "additionalProperties": false,
-            "description": "UNAVAILABLE (core senza F-04: CORE_PENDING_F04, o DB non leggibile) o UNKNOWN (DB occupato).",
+            "description": "UNAVAILABLE (core senza F-04: CORE_PENDING_F04, o DB illeggibile) o UNKNOWN (DB occupato).",
             "properties": {
               "reason": {
                 "maxLength": 64,
@@ -3434,7 +3434,7 @@
           },
           "Trailing": {
             "additionalProperties": false,
-            "description": "Trailing stop del tavolo (MCP-01m, F-03 di Claude D), dal `meta` del tavolo e dal picco persistito.\n\nNOT_IN_CORE: il core non ha la logica di trailing (prima di F-03): la percentuale, se configurata, non \u00e8\napplicata. OFF: percentuale assente o non valida (il core lo tratta come spento). WAITING_PROFIT: attivo, nessun\nprofitto garantito ancora (nessun picco). ARMED: picco > 0, soglia calcolata dal core. TRIGGERED: il core ha\nsegnato lo scatto del trailing. UNKNOWN: picco persistito illeggibile (il core non decide: fail-closed).",
+            "description": "Trailing stop del tavolo (MCP-01m, F-03 di Claude D), dal `meta` del tavolo e dal picco\npersistito.\n\nNOT_IN_CORE: il core non ha la logica di trailing (prima di F-03): la percentuale, se\nconfigurata, non \u00e8 applicata. OFF: percentuale assente o non valida (il core lo tratta come\nspento). WAITING_PROFIT: attivo, nessun profitto garantito ancora (nessun picco). ARMED: picco >\n0, soglia calcolata dal core. TRIGGERED: il core ha segnato lo scatto del trailing. UNKNOWN:\npicco persistito illeggibile (il core non decide: fail-closed).",
             "properties": {
               "pct": {
                 "anyOf": [
@@ -11574,7 +11574,7 @@
       "$defs": {
         "CloseHedges": {
           "additionalProperties": false,
-          "description": "Righe d'hedge della chiusura: legate dal record F-04 (`cashout_request_ids`) alla riga del ledger\n(`cashout_request_id`). `not_in_ledger`: richieste pubblicate senza riga d'hedge nel ledger.",
+          "description": "Righe d'hedge della chiusura: legate dal record F-04 (`cashout_request_ids`) alla riga del\nledger (`cashout_request_id`). `not_in_ledger`: richieste pubblicate senza riga d'hedge nel\nledger.",
           "properties": {
             "ambiguous": {
               "maximum": 1000000,
@@ -11789,7 +11789,7 @@
         },
         "SlTp": {
           "additionalProperties": false,
-          "description": "SL/TP del tavolo (MCP-01h, contratto 1.5.0), letto dal `meta` del tavolo del core.\n\nNOT_ARMED: nessun importo SL/TP sul tavolo (oggi sempre, sul `main` del core: nessun percorso\nli arma prima di F-02 di Claude D). ARMED: almeno un importo. TRIGGERED: il core ha segnato lo\nscatto di SL o TP (`sl_tp_triggered`). UNKNOWN: valori presenti ma illeggibili. Il trailing ha il suo\nstato in `trailing` (MCP-01m): uno scatto del trailing non cambia lo stato di SL/TP.",
+          "description": "SL/TP del tavolo (MCP-01h, contratto 1.5.0), letto dal `meta` del tavolo del core.\n\nNOT_ARMED: nessun importo SL/TP sul tavolo (oggi sempre, sul `main` del core: nessun percorso li\narma prima di F-02 di Claude D). ARMED: almeno un importo. TRIGGERED: il core ha segnato lo\nscatto di SL o TP (`sl_tp_triggered`). UNKNOWN: valori presenti ma illeggibili. Il trailing ha\nil suo stato in `trailing` (MCP-01m): uno scatto del trailing non cambia lo stato di SL/TP.",
           "properties": {
             "state": {
               "enum": [
@@ -11884,7 +11884,7 @@
         },
         "SlTpClose": {
           "additionalProperties": false,
-          "description": "Chiusura SL/TP persistita da F-04 (`risk.sl_tp_close.<customer_ref>`; il riferimento non esce).",
+          "description": "Chiusura SL/TP persistita da F-04 (`risk.sl_tp_close.<customer_ref>`; il riferimento non\nesce).",
           "properties": {
             "bet_ids": {
               "items": {
@@ -12030,7 +12030,7 @@
         },
         "SlTpClosesMissing": {
           "additionalProperties": false,
-          "description": "UNAVAILABLE (core senza F-04: CORE_PENDING_F04, o DB non leggibile) o UNKNOWN (DB occupato).",
+          "description": "UNAVAILABLE (core senza F-04: CORE_PENDING_F04, o DB illeggibile) o UNKNOWN (DB occupato).",
           "properties": {
             "reason": {
               "maxLength": 64,
@@ -12109,7 +12109,7 @@
         },
         "Trailing": {
           "additionalProperties": false,
-          "description": "Trailing stop del tavolo (MCP-01m, F-03 di Claude D), dal `meta` del tavolo e dal picco persistito.\n\nNOT_IN_CORE: il core non ha la logica di trailing (prima di F-03): la percentuale, se configurata, non \u00e8\napplicata. OFF: percentuale assente o non valida (il core lo tratta come spento). WAITING_PROFIT: attivo, nessun\nprofitto garantito ancora (nessun picco). ARMED: picco > 0, soglia calcolata dal core. TRIGGERED: il core ha\nsegnato lo scatto del trailing. UNKNOWN: picco persistito illeggibile (il core non decide: fail-closed).",
+          "description": "Trailing stop del tavolo (MCP-01m, F-03 di Claude D), dal `meta` del tavolo e dal picco\npersistito.\n\nNOT_IN_CORE: il core non ha la logica di trailing (prima di F-03): la percentuale, se\nconfigurata, non \u00e8 applicata. OFF: percentuale assente o non valida (il core lo tratta come\nspento). WAITING_PROFIT: attivo, nessun profitto garantito ancora (nessun picco). ARMED: picco >\n0, soglia calcolata dal core. TRIGGERED: il core ha segnato lo scatto del trailing. UNKNOWN:\npicco persistito illeggibile (il core non decide: fail-closed).",
           "properties": {
             "pct": {
               "anyOf": [

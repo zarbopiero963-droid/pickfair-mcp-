@@ -28,7 +28,10 @@ from pickfair_mcp.contract.models import (
     BlackboxEventsResponse,
     BlackboxSessionsResponse,
     BlackboxStatusResponse,
+    ConfigResponse,
     ExposureResponse,
+    MarketBookResponse,
+    MarketsResponse,
     OrdersResponse,
     PositionsResponse,
     ReconciliationStatusResponse,
@@ -104,6 +107,9 @@ SnapshotT = TypeVar(
     BlackboxSessionsResponse,
     BlackboxEventsResponse,
     BlackboxEventResponse,
+    ConfigResponse,
+    MarketsResponse,
+    MarketBookResponse,
 )
 
 

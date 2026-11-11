@@ -93,7 +93,7 @@ class ControlApiAdapter(Protocol):
         ...
 
     async def get_market_book_raw(self, market_id: str) -> bytes:
-        """Corpo grezzo di GET /v1/markets/{id}/book (MCP-01l); `market_id` già validato dal tool."""
+        """Corpo grezzo di GET /v1/markets/{id}/book (MCP-01l); `market_id` validato dal tool."""
         ...
 
     async def get_blackbox_status_raw(self) -> bytes:

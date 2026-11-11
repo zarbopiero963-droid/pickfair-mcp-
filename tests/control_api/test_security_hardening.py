@@ -1,8 +1,11 @@
-"""MCP-SEC-01: debolezze riprodotte dalla revisione di sicurezza indipendente del 05/11/2026 (test RED → GREEN).
+"""MCP-SEC-01: debolezze riprodotte dalla revisione di sicurezza indipendente del 05/11/2026
+(test RED → GREEN).
 
 1. token vuoto o corto accettato da `TokenStore`;
-2. rotazioni concorrenti con scrittura fallita: token revocato di nuovo valido, token del file rifiutato;
-3. connessioni senza token tenute aperte senza limite (slowloris): thread illimitati nel processo Pickfair;
+2. rotazioni concorrenti con scrittura fallita: token revocato di nuovo valido, token del file
+rifiutato;
+3. connessioni senza token tenute aperte senza limite (slowloris): thread illimitati nel processo
+Pickfair;
 4. risposte d'errore della libreria standard non JSON, con eco dell'input; traceback su stderr alla
    disconnessione del client.
 """
@@ -26,7 +29,8 @@ pytestmark = pytest.mark.loopback
 
 
 def connect(port: int) -> socket.socket:
-    """Connessione TCP diretta a 127.0.0.1 (create_connection risolverebbe un nome: vietato nei test)."""
+    """Connessione TCP diretta a 127.0.0.1 (create_connection risolverebbe un nome: vietato nei
+    test)."""
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(5)
     s.connect(("127.0.0.1", port))
@@ -132,7 +136,8 @@ def test_idle_connections_are_bounded_and_expire(
         held = [s for s in socks if s not in early]
         assert len(early) == 22 and len(held) == 8
         assert providers.calls == 0
-        # le servite chiudono per la scadenza complessiva (2 s), mai per il timeout per ricezione (30 s)
+        # le servite chiudono per la scadenza complessiva (2 s), mai per il timeout per ricezione
+        # (30 s)
         assert all(_closed(s, max(0.1, 2.0 + 2.0 - (time.monotonic() - started))) for s in held)
         assert time.monotonic() - started < 6.0
         for s in socks:
@@ -141,7 +146,8 @@ def test_idle_connections_are_bounded_and_expire(
         assert request(server.port, "GET", "/v1/status", token=token_path.read_text())[0] == 200
 
 
-# ------------------------------------------------------------------ 4. errori della libreria standard
+# ------------------------------------------------------------------ 4. errori della libreria
+# standard
 
 
 def raw_exchange(port: int, data: bytes) -> bytes:

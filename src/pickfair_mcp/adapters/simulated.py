@@ -865,22 +865,23 @@ _CONFIG_SAMPLE: dict[str, Any] = {
 
 def _config_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
     """Impostazioni fittizie: i limiti opzionali non presenti in `_CONFIG_SAMPLE` sono NOT_SET."""
-    settings: list[dict[str, Any]] | None = []
+    rows: list[dict[str, Any]] = []
     for key, kind in CONFIG_KEYS.items():
         value = _CONFIG_SAMPLE.get(key)
         state = "SET" if value is not None else "NOT_SET"
-        settings.append({"key": key, "kind": kind, "state": state, "value": value})
+        rows.append({"key": key, "kind": kind, "state": state, "value": value})
+    settings: list[dict[str, Any]] | None = rows
     unlisted: list[str] = []
     unavailable: list[str] = []
     invalid: list[str] | None = []
     if scenario is StatusScenario.NOT_STARTED:
         settings, invalid, unavailable = None, None, ["settings", "invalid_persisted"]
     elif scenario is StatusScenario.EXTRA_FIELD:
-        settings[0] = {**settings[0], "raw": 1.0}
+        rows[0] = {**rows[0], "raw": 1.0}
     elif scenario is StatusScenario.INJECTION_TEXT:
         unlisted = ["telegram_bot_token"]  # nome di un segreto: deve essere rifiutato
     elif scenario is StatusScenario.INCONSISTENT:
-        settings[0] = {**settings[0], "state": "SET", "value": None}  # mai SET senza valore
+        rows[0] = {**rows[0], "state": "SET", "value": None}  # mai SET senza valore
     return {
         "source": "core" if scenario is StatusScenario.WRONG_SOURCE else "simulated",
         "observed_at": _observed_at(scenario, now),

@@ -6,8 +6,8 @@ Piano #491 v2, approvato dall'owner (D01; precisazioni del 10/11/2026):
   provider: una richiesta rifiutata non tocca il runtime;
 - controllo e scalata del gettone in **un'unica operazione sotto lo stesso lock**: due richieste
   simultanee non consumano lo stesso gettone; orologio monotono iniettabile;
-- limiti ammessi ``RATE_MIN_PER_S``–``RATE_MAX_PER_S`` richieste/s e raffica
-  ``BURST_MIN``–``BURST_MAX``: un valore fuori limite o non numerico rifiuta l'avvio (fail-closed),
+- limiti ammessi ``RATE_MIN_PER_S``-``RATE_MAX_PER_S`` richieste/s e raffica
+  ``BURST_MIN``-``BURST_MAX``: un valore fuori limite o non numerico rifiuta l'avvio (fail-closed),
   mai un limite «infinito». Nessun valore predefinito: il chiamante (launcher del core) lo
   dichiara sempre;
 - ogni rifiuto è contato e registrato nella scatola nera in record RESULT ``RATE_LIMITED``
@@ -134,7 +134,7 @@ class RejectionAudit:
         self._cumulative = 0
 
     def note(self) -> None:
-        """Conta un rifiuto; se la finestra corrente è chiusa la scrive prima di aprirne una nuova."""
+        """Conta un rifiuto; una finestra già chiusa viene scritta prima di aprirne una nuova."""
         with self._lock:
             now = self._clock()
             closed = self._close_if(now, force=False)

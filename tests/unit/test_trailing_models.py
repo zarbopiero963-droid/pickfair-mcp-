@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 
 from pickfair_control_api.contract import response_schema
+from pickfair_control_api.schema_check import SchemaViolation
 from pickfair_control_api.schema_check import validate as server_validate
 from pickfair_mcp.contract.parsing import UpstreamInvalidResponse, parse_exposure
 from tests.control_api import bodies
@@ -79,7 +80,7 @@ def test_incoherent_trailing_is_rejected_by_the_mcp(tr: dict[str, Any]) -> None:
     "bad", [trailing(state="ACTIVE"), trailing(peak="-1"), trailing(peak=15.0), trailing(extra=1)]
 )
 def test_trailing_shape_is_closed_in_the_schema(bad: dict[str, Any]) -> None:
-    with pytest.raises(Exception):
+    with pytest.raises(SchemaViolation):
         server_validate(body(bad), response_schema("exposure"))
 
 

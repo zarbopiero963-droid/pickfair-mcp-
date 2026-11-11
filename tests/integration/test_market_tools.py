@@ -1,4 +1,5 @@
-"""MCP-01l: list_markets e get_market_book attraverso il server MCP reale (simulato e Control API reale)."""
+"""MCP-01l: list_markets e get_market_book attraverso il server MCP reale (simulato e Control API
+reale)."""
 
 from __future__ import annotations
 
@@ -128,7 +129,8 @@ async def test_real_control_api_book_round_trip_and_id_echo(tmp_path: Path) -> N
 async def test_http_adapter_never_builds_a_path_from_an_unvalidated_id(
     tmp_path: Path, bad: str
 ) -> None:
-    """Seconda barriera (MCP-01l): anche chiamato direttamente, l'adapter non costruisce il percorso."""
+    """Seconda barriera (MCP-01l): anche chiamato direttamente, l'adapter non costruisce il
+    percorso."""
     token = tmp_path / "t"
     adapter = HttpControlApiAdapter(port=1, token_file=LocalTokenFile(token), timeout_s=0.1)
     with pytest.raises(ValueError):

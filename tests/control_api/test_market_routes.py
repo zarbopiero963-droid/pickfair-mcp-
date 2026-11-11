@@ -1,4 +1,5 @@
-"""MCP-01l: route con parametro `/v1/markets/{id}/book` e `/v1/markets` sul server Control API reale."""
+"""MCP-01l: route con parametro `/v1/markets/{id}/book` e `/v1/markets` sul server Control API
+reale."""
 
 from __future__ import annotations
 
@@ -21,7 +22,7 @@ def api(tmp_path: Path) -> Any:
 
 
 def test_markets_route_serves_the_provider(api: Any) -> None:
-    server, _s, token_path, providers = api
+    server, _s, token_path, _providers = api
     status, _h, body = request(server.port, "GET", "/v1/markets", token=token_path.read_text())
     assert status == 200 and body["markets"][0]["market_id"] == "1.200000001"
 

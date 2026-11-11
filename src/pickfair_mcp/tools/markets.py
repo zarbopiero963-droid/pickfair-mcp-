@@ -1,9 +1,12 @@
 """MCP-01l: `list_markets` e `get_market_book` (sola lettura, contratto 1.8.0).
 
-Fonte: il `MarketTracker` del core, cioè l'ultimo book che Pickfair ha ricevuto per ogni mercato. Nessuna
-chiamata di rete: un mercato che Pickfair non segue risponde `NOT_TRACKED`. Lo stato del mercato è quello
+Fonte: il `MarketTracker` del core, cioè l'ultimo book che Pickfair ha ricevuto per ogni mercato.
+Nessuna
+chiamata di rete: un mercato che Pickfair non segue risponde `NOT_TRACKED`. Lo stato del mercato è
+quello
 riportato dal book (dato Betfair), non un giudizio di negoziabilità: quello è la protezione
-`market_tradability` di `get_status` (F-23, Claude D). Prezzi e importi sono stringhe decimali esatte.
+`market_tradability` di `get_status` (F-23, Claude D). Prezzi e importi sono stringhe decimali
+esatte.
 """
 
 from __future__ import annotations

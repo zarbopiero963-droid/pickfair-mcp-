@@ -1678,8 +1678,8 @@ MUTANTS: tuple[Mutant, ...] = (
         (
             (
                 "src/pickfair_mcp/contract/models.py",
-                'class SlTpClosesMissing(StrictModel):\n    """UNAVAILABLE (core senza F-04: CORE_PENDING_F04, o DB non leggibile) o UNKNOWN (DB occupato)."""\n\n    state: Literal["UNKNOWN", "UNAVAILABLE"]\n    reason: Code\n',
-                'class SlTpClosesMissing(StrictModel):\n    """UNAVAILABLE (core senza F-04: CORE_PENDING_F04, o DB non leggibile) o UNKNOWN (DB occupato)."""\n\n    state: Literal["UNKNOWN", "UNAVAILABLE"]\n    reason: Code | None\n',
+                'class SlTpClosesMissing(StrictModel):\n    """UNAVAILABLE (core senza F-04: CORE_PENDING_F04, o DB illeggibile) o UNKNOWN (DB occupato)."""\n\n    state: Literal["UNKNOWN", "UNAVAILABLE"]\n    reason: Code\n',
+                'class SlTpClosesMissing(StrictModel):\n    """UNAVAILABLE (core senza F-04: CORE_PENDING_F04, o DB illeggibile) o UNKNOWN (DB occupato)."""\n\n    state: Literal["UNKNOWN", "UNAVAILABLE"]\n    reason: Code | None\n',
             ),
         ),
     ),

@@ -42,7 +42,8 @@ BLACKBOX_STATUS_ROUTE: Final = "/v1/blackbox/status"
 # cui
 # l'MCP non arriverebbe nemmeno allo stato.
 UNRECORDED_ALLOWED_ROUTES: Final = frozenset({BLACKBOX_STATUS_ROUTE, "/v1/meta"})
-# MCP-01l: route servite con UN parametro di percorso. Il parametro deve rispettare il proprio pattern
+# MCP-01l: route servite con UN parametro di percorso. Il parametro deve rispettare il proprio
+# pattern
 # (mai «.» o «..»); fuori pattern la route risponde 404. Il provider riceve il valore validato.
 MARKET_ID_RE: Final = re.compile(r"[0-9]{1,4}\.[0-9]{1,15}")
 PARAM_ROUTE_SCHEMAS: Final = {
