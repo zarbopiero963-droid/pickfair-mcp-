@@ -13,7 +13,6 @@ import socket
 import threading
 import time
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -37,8 +36,9 @@ def connect(port: int) -> socket.socket:
 # ------------------------------------------------------------------ 1. token deboli
 
 
-@pytest.mark.parametrize("weak", ["", "a", "a" * 42, "a" * 42 + " ", "é" * 43, "a" * 42 + "/",
-                                  "a" * 42 + "\n"])
+@pytest.mark.parametrize(
+    "weak", ["", "a", "a" * 42, "a" * 42 + " ", "é" * 43, "a" * 42 + "/", "a" * 42 + "\n"]
+)
 def test_weak_or_malformed_tokens_are_refused(weak: str) -> None:
     with pytest.raises(ValueError) as err:
         TokenStore(weak)
@@ -53,7 +53,8 @@ def test_strong_token_is_accepted() -> None:
 
 
 def test_concurrent_rotation_with_a_failed_write_never_revives_the_old_token(
-        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     path = tmp_path / "api.token"
     t0 = issue_token_file(path)
     store = TokenStore(t0)
@@ -91,8 +92,8 @@ def test_concurrent_rotation_with_a_failed_write_never_revives_the_old_token(
     assert len(errors) == 1
     current = path.read_text()
     assert current == b_result["tb"]
-    assert store.accepts(current.encode())      # il token del file è valido
-    assert not store.accepts(t0.encode())       # il token revocato non torna mai valido
+    assert store.accepts(current.encode())  # il token del file è valido
+    assert not store.accepts(t0.encode())  # il token revocato non torna mai valido
 
 
 # ------------------------------------------------------------------ 3. connessioni senza token
@@ -103,16 +104,20 @@ def _closed(s: socket.socket, wait: float) -> bool:
     s.settimeout(wait)
     try:
         return s.recv(1) == b""
-    except socket.timeout:
+    except TimeoutError:
         return False
     except OSError:
         return True
 
 
-def test_idle_connections_are_bounded_and_expire(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_idle_connections_are_bounded_and_expire(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(server_mod, "MAX_CONNECTIONS", 8)
     monkeypatch.setattr(server_mod, "REQUEST_DEADLINE_S", 2.0)
-    monkeypatch.setattr(server_mod, "REQUEST_TIMEOUT_S", 30.0)  # solo la scadenza può chiudere le servite
+    monkeypatch.setattr(
+        server_mod, "REQUEST_TIMEOUT_S", 30.0
+    )  # solo la scadenza può chiudere le servite
     with control_api(tmp_path) as (server, _s, token_path, providers):
         socks = []
         for _ in range(30):  # slowloris: connessione aperta, mai una richiesta completa
@@ -169,20 +174,35 @@ def test_protocol_errors_are_fixed_json_without_echo(tmp_path: Path, data: bytes
         response = raw_exchange(server.port, data)
     head, _, body = response.partition(b"\r\n\r\n")
     assert b"application/json" in head
-    assert body in (b'{"error": {"code": "BAD_REQUEST"}}', b'{"error": {"code": "METHOD_NOT_ALLOWED"}}')
+    assert body in (
+        b'{"error": {"code": "BAD_REQUEST"}}',
+        b'{"error": {"code": "METHOD_NOT_ALLOWED"}}',
+    )
     for echoed in (b"<script>", b"evil", b"aaaa", b"bbbb", b"FOO"):
         assert echoed not in response
     assert providers.calls == 0
 
 
-def test_client_disconnect_prints_no_traceback(tmp_path: Path, capfd: pytest.CaptureFixture[str]) -> None:
+def test_client_disconnect_prints_no_traceback(
+    tmp_path: Path, capfd: pytest.CaptureFixture[str]
+) -> None:
     with control_api(tmp_path) as (server, _s, token_path, _p):
         for _ in range(5):
             s = connect(server.port)
             s.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, b"\x01\x00\x00\x00\x00\x00\x00\x00")
-            s.sendall(f"GET /v1/status HTTP/1.1\r\nHost: 127.0.0.1:{server.port}\r\n"
-                      f"Authorization: Bearer {token_path.read_text()}\r\n\r\n".encode())
+            s.sendall(
+                f"GET /v1/status HTTP/1.1\r\nHost: 127.0.0.1:{server.port}\r\n"
+                f"Authorization: Bearer {token_path.read_text()}\r\n\r\n".encode()
+            )
             s.close()  # RST prima di leggere la risposta
         time.sleep(0.5)
     err = capfd.readouterr().err
     assert "Traceback" not in err and "Exception occurred" not in err
+
+
+def test_protocol_errors_never_fall_back_to_http09_on_any_python() -> None:
+    """Python < 3.13 risponde in stile HTTP/0.9 (senza stato né header) a una versione non
+    valida, se il gestore non dichiara una versione di default: la Control API non lo fa mai."""
+    from pickfair_control_api.server import _Handler
+
+    assert _Handler.default_request_version == "HTTP/1.0"

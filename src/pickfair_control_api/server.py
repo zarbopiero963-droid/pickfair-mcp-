@@ -28,12 +28,19 @@ whitelist
   riceve ``503 BLACKBOX_UNAVAILABLE``, tranne ``/v1/blackbox/status``; oltre ``RECORD_RATE_PER_S``
   le
   registrazioni si aggregano in un conteggio (``coalesced_before``) portato dal record successivo.
+- C-AUD-06 (contratto 1.16.0): limite di frequenza per token (``rate_limit``), applicato dopo
+  l'autenticazione e prima di qualsiasi provider. Oltre il limite: ``429 RATE_LIMITED`` con
+  ``Retry-After`` in secondi interi; il core non viene interrogato. I rifiuti sono registrati
+  nella scatola nera aggregati per finestra (``RejectionAudit``); un rifiuto non registrato
+  entra in ``requests_unrecorded``. Il limite è obbligatorio: senza, il server non parte.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
+import math
 import os
 import re
 import socket
@@ -61,6 +68,14 @@ from pickfair_control_api.contract import (
     response_schema,
     schema_hash,
     unserved_read_routes,
+)
+from pickfair_control_api.rate_limit import (
+    RATE_LIMITED_CODE,
+    RATE_LIMITED_STATUS,
+    REJECTION_WINDOW_S,
+    RateLimit,
+    RejectionAudit,
+    TokenBucket,
 )
 from pickfair_control_api.schema_check import SchemaUnsupported, SchemaViolation, validate
 from pickfair_control_api.tokens import TokenStore
@@ -121,6 +136,10 @@ class ControlApiConfigError(Exception):
 class _Handler(BaseHTTPRequestHandler):
     server: _Server
     protocol_version = "HTTP/1.1"
+    # Python < 3.13 lascia «HTTP/0.9» finché non ha letto una versione valida: un errore di
+    # protocollo (versione assente o non valida) partirebbe senza riga di stato né header. La
+    # Control API non serve HTTP/0.9: ogni risposta, anche d'errore, ha stato e header.
+    default_request_version = "HTTP/1.0"
     server_version = "pickfair-control-api"
     sys_version = ""
 
@@ -157,9 +176,13 @@ class _Handler(BaseHTTPRequestHandler):
     def log_message(self, format: str, *args: Any) -> None:
         """Nessun log per richiesta: percorso e header non escono."""
 
-    def _send(self, status: int, body: dict[str, Any]) -> None:
+    def _send(
+        self, status: int, body: dict[str, Any], extra_headers: dict[str, str] | None = None
+    ) -> None:
         payload = json.dumps(body, sort_keys=True, allow_nan=False).encode("utf-8")
         self.send_response(status)
+        for name, value in (extra_headers or {}).items():
+            self.send_header(name, value)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(payload)))
         self.send_header("Cache-Control", "no-store")
@@ -204,7 +227,22 @@ class _Handler(BaseHTTPRequestHandler):
         if not header.startswith("Bearer "):
             return False
         presented = header[len("Bearer ") :].encode("utf-8", "surrogateescape")
-        return self.server.app.tokens.accepts(presented)
+        if not self.server.app.tokens.accepts(presented):
+            return False
+        # Chiave del limite: digest del token accettato, mai il token stesso.
+        self._limit_key = hashlib.sha256(presented).digest()
+        return True
+
+    def _reject_rate_limited(self, wait: float) -> None:
+        """429 senza toccare il core; il rifiuto è contato nella finestra della scatola nera."""
+        app = self.server.app
+        app.count(RATE_LIMITED_CODE)
+        self._send(
+            RATE_LIMITED_STATUS,
+            {"error": {"code": RATE_LIMITED_CODE}},
+            {"Retry-After": str(max(1, math.ceil(wait)))},
+        )
+        app.rejections.note()
 
     def do_GET(self) -> None:
         app = self.server.app
@@ -213,6 +251,9 @@ class _Handler(BaseHTTPRequestHandler):
             return self._error(400, "BAD_HOST")
         if not self._authorized():
             return self._error(401, "UNAUTHORIZED")
+        wait = app.limiter.acquire(self._limit_key)  # controllo e scalata atomici, prima del core
+        if wait is not None:
+            return self._reject_rate_limited(wait)
         length = self.headers.get("Content-Length")
         if self.headers.get("Transfer-Encoding") or (length not in (None, "0")):
             return self._error(400, "BODY_NOT_ALLOWED")
@@ -257,8 +298,12 @@ class _Handler(BaseHTTPRequestHandler):
         # Registra o rifiuta: senza un record della richiesta nessun dato esce, tranne lo stato del
         # registro, che serve proprio a vedere il guasto.
         attempt = {
-            "phase": "ATTEMPT", "route": route, "params": getattr(self, "_params", None),
-            "request_id": getattr(self, "_request_id", None), "status": None, "code": None,
+            "phase": "ATTEMPT",
+            "route": route,
+            "params": getattr(self, "_params", None),
+            "request_id": getattr(self, "_request_id", None),
+            "status": None,
+            "code": None,
             "duration_ms": None,
         }
         if not app.record(attempt):
@@ -305,7 +350,12 @@ class _App:
         query_routes: dict[str, QueryProvider] | None = None,
         request_hook: RequestHook | None = None,
         clock: Callable[[], float] = time.monotonic,
+        rate_limit: RateLimit | None = None,
     ) -> None:
+        if not isinstance(rate_limit, RateLimit):
+            raise ControlApiConfigError("RATE_LIMIT_REQUIRED")
+        self.limiter = TokenBucket(rate_limit, clock=clock)
+        self.rejections = RejectionAudit(self._write_window, self.add_unrecorded, clock=clock)
         self.routes = routes
         self.param_routes = param_routes or {}
         self.query_routes = query_routes or {}
@@ -345,6 +395,11 @@ class _App:
         if not ok and carried:
             self.add_unrecorded(carried)
         return ok
+
+    def _write_window(self, record: dict[str, Any]) -> bool:
+        """Record di finestra dei rifiuti: già aggregato, va all'hook senza il budget dei record."""
+        hook = self._hook
+        return hook is not None and hook(record) is True
 
     def add_unrecorded(self, n: int) -> None:
         with self._lock:
@@ -388,6 +443,7 @@ class _Server(ThreadingHTTPServer):
     def handle_error(self, request: Any, client_address: Any) -> None:
         """Nessun traceback su stderr per richiesta (un client disconnesso non riempie i log)."""
         logger.debug("control_api: connessione chiusa con errore")
+
     # Il server chiude le connessioni: senza SO_REUSEADDR un riavvio sulla stessa porta
     # fallirebbe per TIME_WAIT (~60 s). Su Linux SO_REUSEADDR NON permette due server in
     # ascolto sulla stessa porta. Su Windows resterebbe possibile il dirottamento: disattivato.
@@ -413,6 +469,8 @@ class ControlApiServer:
         tokens: TokenStore,
         git_sha: str,
         request_hook: RequestHook | None = None,
+        rate_limit: RateLimit | None = None,
+        clock: Callable[[], float] = time.monotonic,
         host: str = LOOPBACK_HOST,
         allow_ephemeral_port: bool = False,
     ) -> None:
@@ -433,6 +491,9 @@ class ControlApiServer:
         if not callable(request_hook):
             # PF-BLACKBOX-01: ogni richiesta va registrata; senza hook il server non parte.
             raise ControlApiConfigError("REQUEST_HOOK_REQUIRED")
+        if not isinstance(rate_limit, RateLimit):
+            # C-AUD-06: nessun limite implicito né «infinito»; il launcher lo dichiara sempre.
+            raise ControlApiConfigError("RATE_LIMIT_REQUIRED")
         meta = {
             "contract_version": CONTRACT_VERSION,
             "capabilities": list(CAPABILITIES),
@@ -452,8 +513,19 @@ class ControlApiServer:
         query_routes: dict[str, QueryProvider] = {
             template: providers[name] for template, name in QUERY_ROUTE_SCHEMAS.items()
         }
-        self._httpd.app = _App(routes, tokens, self.port, param_routes, query_routes, request_hook)
+        self._httpd.app = _App(
+            routes,
+            tokens,
+            self.port,
+            param_routes,
+            query_routes,
+            request_hook,
+            clock=clock,
+            rate_limit=rate_limit,
+        )
         self._thread: threading.Thread | None = None
+        self._flusher: threading.Thread | None = None
+        self._stopping = threading.Event()
         self._lock = threading.Lock()
 
     @property
@@ -474,13 +546,28 @@ class ControlApiServer:
                 daemon=True,
             )
             self._thread.start()
+            self._stopping.clear()
+            self._flusher = threading.Thread(
+                target=self._flush_windows, name="control-api-rejections", daemon=True
+            )
+            self._flusher.start()
+
+    def _flush_windows(self) -> None:
+        """Chiude e scrive le finestre dei rifiuti scadute: nessuna resta solo in memoria."""
+        while not self._stopping.wait(REJECTION_WINDOW_S / 2):
+            self._httpd.app.rejections.flush()
 
     def stop(self) -> None:
         with self._lock:
             thread, self._thread = self._thread, None
+            flusher, self._flusher = self._flusher, None
         if thread is not None:
             self._httpd.shutdown()
             thread.join(timeout=5)
+        self._stopping.set()
+        if flusher is not None:
+            flusher.join(timeout=5)
+        self._httpd.app.rejections.flush(force=True)  # all'arresto la finestra aperta si scrive
         self._httpd.server_close()
 
     def __enter__(self) -> ControlApiServer:

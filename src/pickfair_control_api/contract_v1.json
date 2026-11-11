@@ -1,6 +1,6 @@
 {
   "contract_name": "pickfair-control-api",
-  "contract_version": "1.15.0",
+  "contract_version": "1.16.0",
   "error_codes": {
     "control_api": [
       "BAD_HOST",
@@ -18,6 +18,7 @@
       "QUERY_RANGE",
       "QUERY_TOO_LONG",
       "QUERY_VALUE",
+      "RATE_LIMITED",
       "UNAUTHORIZED"
     ],
     "mcp": [
@@ -26,6 +27,7 @@
       "INTERNAL_ERROR",
       "INVALID_REQUEST",
       "JOURNAL_UNAVAILABLE",
+      "RATE_LIMITED",
       "UNKNOWN_TOOL",
       "UPSTREAM_INVALID_RESPONSE",
       "UPSTREAM_NOT_IMPLEMENTED",
@@ -326,6 +328,7 @@
       "status_map_rule": "A core status outside the map is UNKNOWN. UNMATCHED / PARTIALLY_MATCHED / MATCHED for an accepted order only with explicit size_matched and size_remaining. AMBIGUOUS stays AMBIGUOUS, never FAILED or absent. AMBIGUOUS and PENDING orders never carry size_matched, avg_price_matched or size_remaining: an unconfirmed report is not data; their bet_id stays (the core's reconciliation identity)."
     },
     "protections": "Each protection is ACTIVE, INACTIVE, TRIGGERED, UNKNOWN or UNAVAILABLE; only ACTIVE has no reason. A protection that cannot be verified is UNKNOWN (core has it, value not readable) or UNAVAILABLE (core does not expose it yet), never ACTIVE or INACTIVE; the derived lists `disabled` and `unverifiable` must match the items.",
+    "rate_limit": "C-AUD-06, contract 1.16.0. The Control API limits requests per Bearer token with a token bucket configured by the core launcher (rate 0.1-20 requests/s, burst 1-50; values out of range refuse startup, there is no unlimited setting). The limit applies after authentication and before any Pickfair read: over the limit the answer is 429 RATE_LIMITED with Retry-After in whole seconds and Pickfair is not queried. Rejections are recorded in the black box aggregated per window (count, first and last UTC instant, total since start); a rejection that cannot be recorded is counted in requests_unrecorded. The MCP reports RATE_LIMITED as retryable and never retries it automatically.",
     "security": "Control API: token of at least 43 URL-safe characters (shorter or malformed tokens are refused at construction), rotations serialized end to end; at most 16 connections served at once (others closed without a thread), each closed within 10 s; protocol errors answer 400 BAD_REQUEST or 405 METHOD_NOT_ALLOWED with a fixed JSON body, never echoing the input; no per-request log or traceback.",
     "settlement": "Counts only (no payload, reference or event name): unrecorded settlements, held Dutching batches, settlement_effects by outcome, cycle checkpoints by stage, SIM broker settlements (null in LIVE).",
     "sl_tp": "Per Roserpina table, read from the table meta as the core writes it: NOT_ARMED (no SL/TP amount), ARMED, TRIGGERED (core marked an SL or TP trigger) or UNKNOWN (unreadable). trailing (MCP-01m, F-03): NOT_IN_CORE without the core's trailing logic, OFF, WAITING_PROFIT, ARMED (peak and threshold computed by the core's trailing_stop module), TRIGGERED or UNKNOWN (persisted peak unreadable); peak from the table meta (MEMORY) or the persisted risk.trailing_peak record (PERSISTED). A trailing trigger never changes the SL/TP state.",
@@ -609,7 +612,8 @@
               "UPSTREAM_NOT_IMPLEMENTED",
               "INTERNAL_ERROR",
               "JOURNAL_UNAVAILABLE",
-              "FORBIDDEN"
+              "FORBIDDEN",
+              "RATE_LIMITED"
             ],
             "title": "ErrorCode",
             "type": "string"
@@ -1439,7 +1443,8 @@
               "UPSTREAM_NOT_IMPLEMENTED",
               "INTERNAL_ERROR",
               "JOURNAL_UNAVAILABLE",
-              "FORBIDDEN"
+              "FORBIDDEN",
+              "RATE_LIMITED"
             ],
             "title": "ErrorCode",
             "type": "string"
@@ -1892,7 +1897,8 @@
               "UPSTREAM_NOT_IMPLEMENTED",
               "INTERNAL_ERROR",
               "JOURNAL_UNAVAILABLE",
-              "FORBIDDEN"
+              "FORBIDDEN",
+              "RATE_LIMITED"
             ],
             "title": "ErrorCode",
             "type": "string"
@@ -2444,7 +2450,8 @@
               "UPSTREAM_NOT_IMPLEMENTED",
               "INTERNAL_ERROR",
               "JOURNAL_UNAVAILABLE",
-              "FORBIDDEN"
+              "FORBIDDEN",
+              "RATE_LIMITED"
             ],
             "title": "ErrorCode",
             "type": "string"
@@ -2832,7 +2839,8 @@
               "UPSTREAM_NOT_IMPLEMENTED",
               "INTERNAL_ERROR",
               "JOURNAL_UNAVAILABLE",
-              "FORBIDDEN"
+              "FORBIDDEN",
+              "RATE_LIMITED"
             ],
             "title": "ErrorCode",
             "type": "string"
@@ -3639,7 +3647,8 @@
               "UPSTREAM_NOT_IMPLEMENTED",
               "INTERNAL_ERROR",
               "JOURNAL_UNAVAILABLE",
-              "FORBIDDEN"
+              "FORBIDDEN",
+              "RATE_LIMITED"
             ],
             "title": "ErrorCode",
             "type": "string"
@@ -4081,7 +4090,8 @@
               "UPSTREAM_NOT_IMPLEMENTED",
               "INTERNAL_ERROR",
               "JOURNAL_UNAVAILABLE",
-              "FORBIDDEN"
+              "FORBIDDEN",
+              "RATE_LIMITED"
             ],
             "title": "ErrorCode",
             "type": "string"
@@ -4363,7 +4373,8 @@
               "UPSTREAM_NOT_IMPLEMENTED",
               "INTERNAL_ERROR",
               "JOURNAL_UNAVAILABLE",
-              "FORBIDDEN"
+              "FORBIDDEN",
+              "RATE_LIMITED"
             ],
             "title": "ErrorCode",
             "type": "string"
@@ -5186,7 +5197,8 @@
               "UPSTREAM_NOT_IMPLEMENTED",
               "INTERNAL_ERROR",
               "JOURNAL_UNAVAILABLE",
-              "FORBIDDEN"
+              "FORBIDDEN",
+              "RATE_LIMITED"
             ],
             "title": "ErrorCode",
             "type": "string"
@@ -7313,7 +7325,8 @@
               "UPSTREAM_NOT_IMPLEMENTED",
               "INTERNAL_ERROR",
               "JOURNAL_UNAVAILABLE",
-              "FORBIDDEN"
+              "FORBIDDEN",
+              "RATE_LIMITED"
             ],
             "title": "ErrorCode",
             "type": "string"
@@ -7669,7 +7682,8 @@
               "UPSTREAM_NOT_IMPLEMENTED",
               "INTERNAL_ERROR",
               "JOURNAL_UNAVAILABLE",
-              "FORBIDDEN"
+              "FORBIDDEN",
+              "RATE_LIMITED"
             ],
             "title": "ErrorCode",
             "type": "string"
@@ -7838,7 +7852,8 @@
               "UPSTREAM_NOT_IMPLEMENTED",
               "INTERNAL_ERROR",
               "JOURNAL_UNAVAILABLE",
-              "FORBIDDEN"
+              "FORBIDDEN",
+              "RATE_LIMITED"
             ],
             "title": "ErrorCode",
             "type": "string"
@@ -8190,7 +8205,8 @@
               "UPSTREAM_NOT_IMPLEMENTED",
               "INTERNAL_ERROR",
               "JOURNAL_UNAVAILABLE",
-              "FORBIDDEN"
+              "FORBIDDEN",
+              "RATE_LIMITED"
             ],
             "title": "ErrorCode",
             "type": "string"
@@ -8787,7 +8803,8 @@
               "UPSTREAM_NOT_IMPLEMENTED",
               "INTERNAL_ERROR",
               "JOURNAL_UNAVAILABLE",
-              "FORBIDDEN"
+              "FORBIDDEN",
+              "RATE_LIMITED"
             ],
             "title": "ErrorCode",
             "type": "string"
@@ -11537,6 +11554,7 @@
                 "QUERY_RANGE",
                 "QUERY_TOO_LONG",
                 "QUERY_VALUE",
+                "RATE_LIMITED",
                 "UNAUTHORIZED"
               ]
             }

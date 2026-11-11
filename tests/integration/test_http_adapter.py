@@ -317,3 +317,29 @@ async def test_adapter_never_reads_more_than_the_limit(tmp_path: Path) -> None:
         adapter = adapter_for(port, token_path)
         body = await adapter.get_meta_raw()
     assert len(body) == MAX_UPSTREAM_BYTES + 1  # il resto del corpo (2 MiB) non viene letto
+
+
+async def test_rate_limited_is_a_retryable_error_never_retried_automatically(
+    tmp_path: Path,
+) -> None:
+    """C-AUD-06: 429 → RATE_LIMITED, retryable=true per il client, nessun nuovo tentativo del MCP."""
+    from pickfair_control_api.rate_limit import RateLimit
+
+    clock = [5000.0]
+    with control_api(
+        tmp_path, rate_limit=RateLimit.from_values(0.1, 2), clock=lambda: clock[0]
+    ) as (server, _s, token_path, providers):
+        adapter = adapter_for(server.port, token_path)
+        async with session(adapter) as s:
+            first = await call(s, "get_status")  # handshake /v1/meta + /v1/status: 2 gettoni
+            calls_before = providers.calls
+            limited_error, limited = await call(s, "get_status")
+            assert providers.calls == calls_before  # il core non è stato interrogato
+            assert server.request_counts().get("RATE_LIMITED") == 1  # un solo tentativo
+            clock[0] += 10.0  # 0,1/s: un gettone
+            again_error, _again = await call(s, "get_status")
+    assert first[0] is False
+    assert limited_error is True
+    assert limited["error"]["code"] == "RATE_LIMITED"
+    assert limited["error"]["retryable"] is True and limited["data"] is None
+    assert again_error is False

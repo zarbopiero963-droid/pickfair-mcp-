@@ -22,9 +22,8 @@ Solo GET di lettura: questo adapter non ha metodi di comando.
 
 from __future__ import annotations
 
-import re
-
 import http.client
+import re
 import secrets
 import socket
 import threading
@@ -36,6 +35,7 @@ from pickfair_mcp.adapters.base import (
     AdapterKind,
     UpstreamNotImplemented,
     UpstreamProtocolError,
+    UpstreamRateLimited,
     UpstreamTimeout,
     UpstreamUnauthorized,
     UpstreamUnavailable,
@@ -46,11 +46,29 @@ from pickfair_mcp.contract.parsing import MAX_UPSTREAM_BYTES
 _MARKET_ID_RE = re.compile(r"[0-9]{1,4}\.[0-9]{1,15}")
 # MCP-01o: whitelist dei filtri di GET /v1/blackbox/events (la stessa del server, controllata da un
 # test).
-_BLACKBOX_PARAMS: Final = frozenset({
-    "since", "until", "after_seq", "limit", "session_id", "table_id", "market_id", "order_id",
-    "bet_id", "strategy", "correlation_id", "category", "origin", "severity", "event_type",
-    "outcome", "selection_id", "phase", "causation_id",
-})
+_BLACKBOX_PARAMS: Final = frozenset(
+    {
+        "since",
+        "until",
+        "after_seq",
+        "limit",
+        "session_id",
+        "table_id",
+        "market_id",
+        "order_id",
+        "bet_id",
+        "strategy",
+        "correlation_id",
+        "category",
+        "origin",
+        "severity",
+        "event_type",
+        "outcome",
+        "selection_id",
+        "phase",
+        "causation_id",
+    }
+)
 _BLACKBOX_VALUE_RE = re.compile(r"[A-Za-z0-9_.:-]{1,64}")  # 1.15.0: senza `q`, niente spazi
 _EVENT_ID_RE = re.compile(r"[0-9a-f]{32}")
 
@@ -134,10 +152,13 @@ class HttpControlApiAdapter:
             conn.request(
                 "GET",
                 path,
-                headers={"Authorization": f"Bearer {token}", "Accept": "application/json",
-                         # PF-BLACKBOX-01: collega la richiesta MCP al suo record nella scatola
-                         # nera.
-                         "X-Request-Id": request_id},
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/json",
+                    # PF-BLACKBOX-01: collega la richiesta MCP al suo record nella scatola
+                    # nera.
+                    "X-Request-Id": request_id,
+                },
             )
             resp = conn.getresponse()
             body = resp.read(self._max + 1)
@@ -167,6 +188,9 @@ class HttpControlApiAdapter:
                 raise UpstreamUnauthorized
         if status == 501:
             raise UpstreamNotImplemented
+        if status == 429:
+            # C-AUD-06: limite di frequenza; il core non è stato interrogato. Nessun nuovo tentativo.
+            raise UpstreamRateLimited
         if status == 503:
             # PF-BLACKBOX-01: il core non ha potuto registrare la richiesta e non ha dato dati.
             raise UpstreamUnavailable

@@ -1023,6 +1023,45 @@
         "tests/unit/test_source_explicit.py"
       ],
       "max_files": 8
+    },
+    "mcp116-prep": {
+      "issue": "PF-OWNER-MCP-PARALLEL-EXECUTION-20261111 priorità 2 (MCP-116); Pickfair-nogui #491 piano v2; C-AUD-04, C-AUD-06, C-AUD-11",
+      "scheda": "MCP-116 — preparazione del contratto 1.16.0 (nessuna PR finché D04 non è autorizzata)",
+      "description": "C-AUD-04 journal fail-closed su piattaforme senza protezioni; C-AUD-11 test di rotazione del token a condizione; C-AUD-06 limite di frequenza della Control API (token bucket per token, 429 RATE_LIMITED con Retry-After, audit dei rifiuti per finestra, limite obbligatorio) e mappatura MCP RATE_LIMITED ritentabile senza ritentativi; contratto 1.16.0 (descrittore rigenerato, nuovo hash); risposte d'errore di protocollo con stato e header anche su Python < 3.13.",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "scripts/critical_mutations.py",
+        "src/pickfair_control_api/__init__.py",
+        "src/pickfair_control_api/contract.py",
+        "src/pickfair_control_api/contract_v1.json",
+        "src/pickfair_control_api/rate_limit.py",
+        "src/pickfair_control_api/server.py",
+        "src/pickfair_mcp/adapters/base.py",
+        "src/pickfair_mcp/adapters/http.py",
+        "src/pickfair_mcp/adapters/simulated.py",
+        "src/pickfair_mcp/contract/descriptor.py",
+        "src/pickfair_mcp/contract/descriptor_v1.json",
+        "src/pickfair_mcp/contract/version.py",
+        "src/pickfair_mcp/errors.py",
+        "src/pickfair_mcp/journal/lock.py",
+        "src/pickfair_mcp/journal/retry.py",
+        "src/pickfair_mcp/journal/store.py",
+        "tests/contract/test_blackbox_bb1_contract.py",
+        "tests/control_api/servers.py",
+        "tests/control_api/test_blackbox_routes.py",
+        "tests/control_api/test_rate_limit.py",
+        "tests/control_api/test_security_hardening.py",
+        "tests/control_api/test_server.py",
+        "tests/control_api/test_tokens.py",
+        "tests/e2e/test_stdio_subprocess.py",
+        "tests/integration/test_http_adapter.py",
+        "tests/unit/test_contract_descriptor.py",
+        "tests/unit/test_contract_version.py",
+        "tests/unit/test_control_api_distribution.py",
+        "tests/unit/test_handshake.py",
+        "tests/unit/test_journal_platform.py"
+      ],
+      "max_files": 31
     }
   }
 }

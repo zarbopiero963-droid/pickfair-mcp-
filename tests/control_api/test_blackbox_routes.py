@@ -13,7 +13,7 @@ import pytest
 from pickfair_control_api import server as server_mod
 from pickfair_control_api.tokens import TokenStore
 from tests.control_api import bodies
-from tests.control_api.servers import control_api
+from tests.control_api.servers import TEST_RATE_LIMIT, control_api
 from tests.control_api.test_server import request
 
 pytestmark = pytest.mark.loopback
@@ -144,8 +144,14 @@ def test_unrecordable_request_gets_no_data(api: Any, hook: Any) -> None:
         raise RuntimeError("disk full")
 
     prov.hook_accepts = failing if hook == "raise" else False
-    for path in ("/v1/status", "/v1/blackbox/events", f"/v1/blackbox/events/{'a' * 32}",
-                 "/v1/blackbox/sessions", "/v1/config", "/v1/orders"):
+    for path in (
+        "/v1/status",
+        "/v1/blackbox/events",
+        f"/v1/blackbox/events/{'a' * 32}",
+        "/v1/blackbox/sessions",
+        "/v1/config",
+        "/v1/orders",
+    ):
         assert get(api, path) == (503, {"error": {"code": "BLACKBOX_UNAVAILABLE"}})
     assert prov.calls == 0  # nessun dato è uscito né è stato letto
 
@@ -195,7 +201,9 @@ class Clock:
 
 
 def make_app(hook: Any, clock: Clock) -> Any:
-    return server_mod._App({}, TokenStore("a" * 43), 1, request_hook=hook, clock=clock)
+    return server_mod._App(
+        {}, TokenStore("a" * 43), 1, request_hook=hook, clock=clock, rate_limit=TEST_RATE_LIMIT
+    )
 
 
 def test_over_the_rate_records_are_counted_and_carried() -> None:
@@ -274,14 +282,38 @@ def test_result_record_carries_the_count_never_the_content(api: Any) -> None:
 
 
 # Diagnosi di Roserpina / G7-COMP: i campi della decisione di stake non sono segreti.
-G7_FIELDS = ("bankroll_verified", "mm_pct", "stake_theoretical", "stake_authorized",
-             "stake_rejected",
-             "reserved_funds", "committed_funds", "pnl_realized", "commission", "currency",
-             "reject_reason", "author")
-SECRET_FIELDS = ("auth", "auth_header", "x.auth", "api_key", "app_apikey", "bot_token", "password",
-                 "customer_ref", "customer_ref_hash", "client_secret", "private_key", "otp",
-                 "cert.pem",
-                 "x_application", "ssoid", "cookie")
+G7_FIELDS = (
+    "bankroll_verified",
+    "mm_pct",
+    "stake_theoretical",
+    "stake_authorized",
+    "stake_rejected",
+    "reserved_funds",
+    "committed_funds",
+    "pnl_realized",
+    "commission",
+    "currency",
+    "reject_reason",
+    "author",
+)
+SECRET_FIELDS = (
+    "auth",
+    "auth_header",
+    "x.auth",
+    "api_key",
+    "app_apikey",
+    "bot_token",
+    "password",
+    "customer_ref",
+    "customer_ref_hash",
+    "client_secret",
+    "private_key",
+    "otp",
+    "cert.pem",
+    "x_application",
+    "ssoid",
+    "cookie",
+)
 
 
 @pytest.mark.parametrize("name", G7_FIELDS)

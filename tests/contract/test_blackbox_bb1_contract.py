@@ -35,7 +35,7 @@ from tests.contract.fake_engine_blackbox import (
     record,
     uid,
 )
-from tests.control_api.servers import SHA, Providers, secure_dir
+from tests.control_api.servers import SHA, TEST_RATE_LIMIT, Providers, secure_dir
 from tests.integration.test_market_tools import call, session_for
 
 pytestmark = [pytest.mark.anyio, pytest.mark.loopback]
@@ -59,6 +59,7 @@ def engine_api(
         tokens=store,
         git_sha=SHA,
         request_hook=make_request_hook(reader),
+        rate_limit=TEST_RATE_LIMIT,
         allow_ephemeral_port=True,
     )
     server.start()
@@ -121,8 +122,14 @@ def test_engine_record_mapping() -> None:
     assert view["refs"]["order_id"] == ORDER_ALIAS
     # BB-1: ogni colonna a null è «non registrata» (not_recorded del motore, campi della vista)
     assert view["not_recorded"] == [
-        "state_before", "state_after", "values_before", "values_after", "reason",
-        "correlation_id", "data", "exchange_ts",
+        "state_before",
+        "state_after",
+        "values_before",
+        "values_after",
+        "reason",
+        "correlation_id",
+        "data",
+        "exchange_ts",
     ]
 
 
@@ -253,10 +260,7 @@ async def test_roserpina_stake_decision_is_readable_for_g7(tmp_path: Path) -> No
         "currency": "EUR",
         "customer_ref": "[REDACTED]",
     }
-    assert (
-        decision["omitted_values"] == 1
-        and decision["refs"]["order_id"] == ORDER_ALIAS
-    )
+    assert decision["omitted_values"] == 1 and decision["refs"]["order_id"] == ORDER_ALIAS
     assert decision["correlation_id"] == "corr-1"
     assert reader.queries[-1][0] == {"strategy": "roserpina", "category": "MONEY"}
 
@@ -298,7 +302,10 @@ async def test_new_bb1_filters_reach_the_reader_in_the_engine_text_form(tmp_path
             )
             ok3, page3 = await call(s, "list_blackbox_events", {"order_id": ORDER_ALIAS})
     assert reader.queries[0][0] == {
-        "table_id": "2", "selection_id": "47973", "order_id": alias_order, "phase": "ATTEMPT"
+        "table_id": "2",
+        "selection_id": "47973",
+        "order_id": alias_order,
+        "phase": "ATTEMPT",
     }
     assert ok is False and [e["seq"] for e in page["data"]["events"]["events"]] == [11]
     (event,) = page["data"]["events"]["events"]
@@ -321,8 +328,13 @@ async def test_thread_component_is_shown_as_recorded(tmp_path: Path) -> None:
     assert event["component"] == "thread:Thread-3 (poller)" and event["severity"] == "ERROR"
 
 
-_WINDOW = {"seq": 7, "from_ts": "2026-11-08T15:00:07.000123Z", "to_ts": "2026-11-08T15:00:09Z",
-           "outcome": "UNKNOWN", "reason_code": "UNCLEAN_TERMINATION"}
+_WINDOW = {
+    "seq": 7,
+    "from_ts": "2026-11-08T15:00:07.000123Z",
+    "to_ts": "2026-11-08T15:00:09Z",
+    "outcome": "UNKNOWN",
+    "reason_code": "UNCLEAN_TERMINATION",
+}
 
 
 async def test_time_gaps_from_bb1_are_shown_as_unrecorded_windows(tmp_path: Path) -> None:
@@ -333,8 +345,12 @@ async def test_time_gaps_from_bb1_are_shown_as_unrecorded_windows(tmp_path: Path
             ok, page = await call(s, "list_blackbox_events")
     assert ok is False, page
     assert page["data"]["events"]["unrecorded_windows"] == [
-        {"seq": 7, "from_ts": "2026-11-08T15:00:07.000Z", "to_ts": "2026-11-08T15:00:09.000Z",
-         "reason_code": "UNCLEAN_TERMINATION"}
+        {
+            "seq": 7,
+            "from_ts": "2026-11-08T15:00:07.000Z",
+            "to_ts": "2026-11-08T15:00:09.000Z",
+            "reason_code": "UNCLEAN_TERMINATION",
+        }
     ]
 
 
@@ -481,8 +497,12 @@ def test_a_missing_link_breaks_the_chain_where_it_is() -> None:
 def test_sessions_tell_a_crash_from_the_running_session() -> None:
     class _Two(FakeBlackboxQuery):
         def sessions(self) -> list[dict[str, Any]]:
-            crashed = {**super().sessions()[0], "session_id": "s-old", "last_ts":
-                       "2026-11-08T14:00:00.5Z", "started": "2026-11-08T13:00:00Z"}
+            crashed = {
+                **super().sessions()[0],
+                "session_id": "s-old",
+                "last_ts": "2026-11-08T14:00:00.5Z",
+                "started": "2026-11-08T13:00:00Z",
+            }
             return [crashed, *super().sessions()]
 
     items = make_providers(_Two())["blackbox_sessions"]()["sessions"]

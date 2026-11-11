@@ -28,9 +28,9 @@ from pickfair_mcp.contract.models import (
     BlackboxSessionsResponse,
     BlackboxStatusResponse,
     ConfigResponse,
+    ExposureResponse,
     MarketBookResponse,
     MarketsResponse,
-    ExposureResponse,
     OrdersResponse,
     PositionsResponse,
     ReconciliationStatusResponse,
@@ -64,6 +64,7 @@ CONTROL_API_ERROR_CODES: Final = (
     "QUERY_RANGE",
     "QUERY_TOO_LONG",
     "QUERY_VALUE",
+    "RATE_LIMITED",
     "UNAUTHORIZED",
 )
 
@@ -185,6 +186,17 @@ SEMANTICS: Final = {
         "no reason. A protection that cannot be verified is UNKNOWN (core has it, value not "
         "readable) or UNAVAILABLE (core does not expose it yet), never ACTIVE or INACTIVE; the "
         "derived lists `disabled` and `unverifiable` must match the items."
+    ),
+    "rate_limit": (
+        "C-AUD-06, contract 1.16.0. The Control API limits requests per Bearer token with a token "
+        "bucket configured by the core launcher (rate 0.1-20 requests/s, burst 1-50; values out of "
+        "range refuse startup, there is no unlimited setting). The limit applies after "
+        "authentication and before any Pickfair read: over the limit the answer is 429 "
+        "RATE_LIMITED with Retry-After in whole seconds and Pickfair is not queried. Rejections "
+        "are recorded in the black box aggregated per window (count, first and last UTC instant, "
+        "total since start); a rejection that cannot be recorded is counted in "
+        "requests_unrecorded. The MCP reports RATE_LIMITED as retryable and never retries it "
+        "automatically."
     ),
     "not_implemented": (
         "An approved read route the Control API does not serve yet answers 501 NOT_IMPLEMENTED; "

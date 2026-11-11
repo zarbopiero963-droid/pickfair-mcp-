@@ -15,7 +15,7 @@ Contenuto:
 from pickfair_control_api.contract import CAPABILITIES, CONTRACT_VERSION, schema_hash
 
 # Versione della distribuzione = versione del contratto servito (pin esatto lato core).
-__version__ = "1.15.0"
+__version__ = "1.16.0"
 from pickfair_control_api.server import ControlApiConfigError, ControlApiServer
 from pickfair_control_api.tokens import (
     TokenStore,

@@ -45,8 +45,8 @@ def test_both_committed_copies_equal_the_generated_descriptor() -> None:
 
 def test_hash_and_version_are_shared() -> None:
     assert api_contract.schema_hash() == contract_schema_hash()
-    assert api_contract.CONTRACT_VERSION == SUPPORTED_CONTRACT_VERSION == "1.15.0"
-    assert COMPAT_MATRIX == {"1.15.0": frozenset({contract_schema_hash()})}
+    assert api_contract.CONTRACT_VERSION == SUPPORTED_CONTRACT_VERSION == "1.16.0"
+    assert COMPAT_MATRIX == {"1.16.0": frozenset({contract_schema_hash()})}
 
 
 def test_descriptor_covers_tools_errors_and_semantics() -> None:
@@ -91,11 +91,14 @@ def test_descriptor_covers_tools_errors_and_semantics() -> None:
         "error",
     }
     expected_semantics = {
-        "unavailable", "codes", "consistency", "freshness", "money", "not_implemented",
+        "unavailable",
+        "codes",
+        "consistency",
+        "freshness",
+        "money",
+        "not_implemented",
     }
-    assert expected_semantics | {"blackbox"} <= set(
-        d["semantics"]
-    )
+    assert expected_semantics | {"blackbox"} <= set(d["semantics"])
     assert "NOT_IMPLEMENTED" in d["error_codes"]["control_api"]
     assert len(d["routes"]) == 29  # 25 + 4 di lettura della scatola nera (PF-BLACKBOX-01)
 

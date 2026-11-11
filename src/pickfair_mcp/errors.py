@@ -18,6 +18,7 @@ class ErrorCode(Enum):
     INTERNAL_ERROR = "INTERNAL_ERROR"
     JOURNAL_UNAVAILABLE = "JOURNAL_UNAVAILABLE"
     FORBIDDEN = "FORBIDDEN"
+    RATE_LIMITED = "RATE_LIMITED"
 
 
 # Messaggi fissi: nessun testo proveniente da eccezioni o dall'upstream.
@@ -41,12 +42,15 @@ MESSAGES: Final[dict[ErrorCode, str]] = {
         "Request journal unavailable; mutations are blocked, reads are still allowed."
     ),
     ErrorCode.FORBIDDEN: "Caller is not authorized for this tool; nothing was performed.",
+    ErrorCode.RATE_LIMITED: (
+        "Control API request rate limit reached; nothing was read. Retry later."
+    ),
 }
 
 # Solo letture idempotenti possono essere ripetute dal client. I comandi
 # (non esposti in MCP-01a) non saranno mai retryable lato MCP.
 RETRYABLE_FOR_READS: Final[frozenset[ErrorCode]] = frozenset(
-    {ErrorCode.UPSTREAM_TIMEOUT, ErrorCode.UPSTREAM_UNAVAILABLE}
+    {ErrorCode.UPSTREAM_TIMEOUT, ErrorCode.UPSTREAM_UNAVAILABLE, ErrorCode.RATE_LIMITED}
 )
 
 

@@ -23,6 +23,10 @@ class UpstreamUnauthorized(Exception):
     """La Control API ha rifiutato le credenziali dell'adapter, anche dopo la rilettura."""
 
 
+class UpstreamRateLimited(Exception):
+    """La Control API ha rifiutato la richiesta per il limite di frequenza (429 RATE_LIMITED)."""
+
+
 class UpstreamNotImplemented(Exception):
     """La Control API dichiara la route approvata ma non ancora servita (501 NOT_IMPLEMENTED)."""
 

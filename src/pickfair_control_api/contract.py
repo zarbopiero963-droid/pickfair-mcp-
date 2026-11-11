@@ -14,7 +14,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Final
 
-CONTRACT_VERSION: Final = "1.15.0"
+CONTRACT_VERSION: Final = "1.16.0"
 DESCRIPTOR_PATH: Final = Path(__file__).with_name("contract_v1.json")
 
 # Route servite in sola lettura. Nessuna route di comando.
@@ -77,8 +77,13 @@ def unserved_read_routes() -> tuple[re.Pattern[str], ...]:
     """
     patterns = []
     for kind, method, path in load_descriptor()["routes"]:
-        if (kind != "read" or method != "GET" or path in ROUTE_SCHEMAS or path in PARAM_ROUTE_SCHEMAS
-                or path in QUERY_ROUTE_SCHEMAS):
+        if (
+            kind != "read"
+            or method != "GET"
+            or path in ROUTE_SCHEMAS
+            or path in PARAM_ROUTE_SCHEMAS
+            or path in QUERY_ROUTE_SCHEMAS
+        ):
             continue
         parts = _TEMPLATE_RE.split(path)
         body = _SEGMENT.join(re.escape(part) for part in parts)

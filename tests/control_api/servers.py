@@ -5,12 +5,14 @@ from __future__ import annotations
 import socket
 import socketserver
 import threading
+import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+from pickfair_control_api.rate_limit import BURST_MAX, RATE_MAX_PER_S, RateLimit
 from pickfair_control_api.server import ControlApiServer
 from pickfair_control_api.tokens import TokenStore, issue_token_file
 from tests.control_api import bodies
@@ -126,9 +128,24 @@ def secure_dir(base: Path) -> Path:
     return d
 
 
+# Limite dei test: il massimo ammesso (C-AUD-06). I test con traffico intenso passano un orologio
+# accelerato (`fast_clock`), mai un limite disattivato: il server non ne ha uno.
+TEST_RATE_LIMIT = RateLimit.from_values(RATE_MAX_PER_S, BURST_MAX)
+
+
+def fast_clock() -> float:
+    """Orologio monotono accelerato: il secchio si riempie subito (traffico intenso nei test)."""
+    return time.monotonic() * 1_000_000
+
+
 @contextmanager
 def control_api(
-    tmp_path: Path, *, port: int = 0, providers: Providers | None = None
+    tmp_path: Path,
+    *,
+    port: int = 0,
+    providers: Providers | None = None,
+    rate_limit: RateLimit = TEST_RATE_LIMIT,
+    clock: Callable[[], float] = time.monotonic,
 ) -> Iterator[tuple[ControlApiServer, TokenStore, Path, Providers]]:
     token_path = secure_dir(tmp_path) / "control_api.token"
     if token_path.exists():
@@ -136,7 +153,13 @@ def control_api(
     store = TokenStore(issue_token_file(token_path))
     prov = providers or Providers()
     server = ControlApiServer(
-        prov.mapping(), port=port, tokens=store, git_sha=SHA, request_hook=prov.hook,
+        prov.mapping(),
+        port=port,
+        tokens=store,
+        git_sha=SHA,
+        request_hook=prov.hook,
+        rate_limit=rate_limit,
+        clock=clock,
         allow_ephemeral_port=True,
     )
     server.start()

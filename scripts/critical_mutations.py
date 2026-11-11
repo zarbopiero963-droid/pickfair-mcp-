@@ -21,8 +21,24 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-COPY = ("src", "tests", "docs", "scripts", "catalog", "pyproject.toml", "AGENTS.md", ".guardrails", ".github")
-TEST_ARGS = ("tests/unit", "tests/integration", "tests/contract", "tests/control_api", "tests/guards")
+COPY = (
+    "src",
+    "tests",
+    "docs",
+    "scripts",
+    "catalog",
+    "pyproject.toml",
+    "AGENTS.md",
+    ".guardrails",
+    ".github",
+)
+TEST_ARGS = (
+    "tests/unit",
+    "tests/integration",
+    "tests/contract",
+    "tests/control_api",
+    "tests/guards",
+)
 
 
 @dataclass(frozen=True)
@@ -192,12 +208,12 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant(
         "M20",
-        'input del tool non validato',
+        "input del tool non validato",
         (
             (
-                'src/pickfair_mcp/server.py',
-                '                validated = spec.input_model.model_validate(\n                    arguments if arguments is not None else {}\n                )\n',
-                '                validated = spec.input_model.model_construct(**(arguments or {}))\n',
+                "src/pickfair_mcp/server.py",
+                "                validated = spec.input_model.model_validate(\n                    arguments if arguments is not None else {}\n                )\n",
+                "                validated = spec.input_model.model_construct(**(arguments or {}))\n",
             ),
         ),
     ),
@@ -477,7 +493,9 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant("J02", "fsync rimosso", ((J, "            os.fsync(fd)\n", "            pass\n"),)),
     Mutant(
-        "J03", "lock esclusivo ignorato", ((J, "if not lock.try_lock(self._lock_fd):", "if False:"),)
+        "J03",
+        "lock esclusivo ignorato",
+        ((J, "if not lock.try_lock(self._lock_fd):", "if False:"),),
     ),
     Mutant(
         "J04",
@@ -634,7 +652,7 @@ MUTANTS: tuple[Mutant, ...] = (
         "validazione input prima dell'autorizzazione",
         (
             (
-                'src/pickfair_mcp/server.py',
+                "src/pickfair_mcp/server.py",
                 '            try:\n                authorize(self._principal, spec.name)\n            except AuthorizationDenied as denied:\n                raise denied.to_tool_error() from None\n            try:\n                validated = spec.input_model.model_validate(\n                    arguments if arguments is not None else {}\n                )\n            except ValidationError:\n                raise ToolError(ErrorCode.INVALID_REQUEST, reasons=("INPUT_SCHEMA",)) from None\n',
                 '            try:\n                validated = spec.input_model.model_validate(\n                    arguments if arguments is not None else {}\n                )\n            except ValidationError:\n                raise ToolError(ErrorCode.INVALID_REQUEST, reasons=("INPUT_SCHEMA",)) from None\n            try:\n                authorize(self._principal, spec.name)\n            except AuthorizationDenied as denied:\n                raise denied.to_tool_error() from None\n',
             ),
@@ -878,12 +896,12 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant(
         "C01",
-        'risposta del core inviata senza auto-verifica del contratto',
+        "risposta del core inviata senza auto-verifica del contratto",
         (
             (
-                'src/pickfair_control_api/server.py',
-                '            validate(body, response_schema(schema_name))',
-                '            response_schema(schema_name)',
+                "src/pickfair_control_api/server.py",
+                "            validate(body, response_schema(schema_name))",
+                "            response_schema(schema_name)",
             ),
         ),
     ),
@@ -910,23 +928,23 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant(
         "C05",
-        'rotazione senza doppia accettazione',
+        "rotazione senza doppia accettazione",
         (
             (
-                'src/pickfair_control_api/tokens.py',
-                '            self._valid = (old, new_bytes)',
-                '            self._valid = (old,)',
+                "src/pickfair_control_api/tokens.py",
+                "            self._valid = (old, new_bytes)",
+                "            self._valid = (old,)",
             ),
         ),
     ),
     Mutant(
         "C06",
-        'vecchio token non revocato dopo la rotazione',
+        "vecchio token non revocato dopo la rotazione",
         (
             (
-                'src/pickfair_control_api/tokens.py',
-                '            self._valid = (new_bytes,)\n            self.rotations += 1',
-                '            self._valid = (old, new_bytes)\n            self.rotations += 1',
+                "src/pickfair_control_api/tokens.py",
+                "            self._valid = (new_bytes,)\n            self.rotations += 1",
+                "            self._valid = (old, new_bytes)\n            self.rotations += 1",
             ),
         ),
     ),
@@ -1106,12 +1124,12 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant(
         "K07",
-        'impostazioni nulle senza dichiarazione in unavailable accettate',
+        "impostazioni nulle senza dichiarazione in unavailable accettate",
         (
             (
-                'src/pickfair_mcp/contract/models.py',
+                "src/pickfair_mcp/contract/models.py",
                 '        _check_unavailable(\n            {"settings": self.settings, "invalid_persisted": self.invalid_persisted}, self.unavailable\n        )',
-                '        pass',
+                "        pass",
             ),
         ),
     ),
@@ -1165,7 +1183,7 @@ MUTANTS: tuple[Mutant, ...] = (
         (
             (
                 MO,
-                "        if (self.book is not None) != (self.state == \"OK\"):",
+                '        if (self.book is not None) != (self.state == "OK"):',
                 "        if False:",
             ),
         ),
@@ -1176,7 +1194,7 @@ MUTANTS: tuple[Mutant, ...] = (
         (
             (
                 MO,
-                "    if ids != sorted(ids):\n        raise ValueError(\"markets must be sorted by market_id\")",
+                '    if ids != sorted(ids):\n        raise ValueError("markets must be sorted by market_id")',
                 "    pass",
             ),
         ),
@@ -1208,9 +1226,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "token corto o fuori alfabeto accettato",
         (
             (
-                'src/pickfair_control_api/tokens.py',
-                '    if (not isinstance(token, str) or not MIN_TOKEN_CHARS <= len(token) <= MAX_TOKEN_CHARS\n            or not _TOKEN_RE.fullmatch(token)):',
-                '    if not isinstance(token, str):',
+                "src/pickfair_control_api/tokens.py",
+                "    if (not isinstance(token, str) or not MIN_TOKEN_CHARS <= len(token) <= MAX_TOKEN_CHARS\n            or not _TOKEN_RE.fullmatch(token)):",
+                "    if not isinstance(token, str):",
             ),
         ),
     ),
@@ -1219,9 +1237,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "rotazioni concorrenti non serializzate",
         (
             (
-                'src/pickfair_control_api/tokens.py',
-                '        with self._rotation_lock:\n            return self._rotate_serialized(path)',
-                '        return self._rotate_serialized(path)',
+                "src/pickfair_control_api/tokens.py",
+                "        with self._rotation_lock:\n            return self._rotate_serialized(path)",
+                "        return self._rotate_serialized(path)",
             ),
         ),
     ),
@@ -1230,9 +1248,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "connessioni oltre il tetto servite",
         (
             (
-                'src/pickfair_control_api/server.py',
-                '        if not self._slots.acquire(blocking=False):',
-                '        if False:',
+                "src/pickfair_control_api/server.py",
+                "        if not self._slots.acquire(blocking=False):",
+                "        if False:",
             ),
         ),
     ),
@@ -1241,9 +1259,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "connessione senza scadenza complessiva",
         (
             (
-                'src/pickfair_control_api/server.py',
-                '        self._deadline.start()',
-                '        pass',
+                "src/pickfair_control_api/server.py",
+                "        self._deadline.start()",
+                "        pass",
             ),
         ),
     ),
@@ -1252,9 +1270,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "errore di protocollo con il testo ricevuto",
         (
             (
-                'src/pickfair_control_api/server.py',
+                "src/pickfair_control_api/server.py",
                 '        status, error = _PROTOCOL_ERRORS.get(code, (400, "BAD_REQUEST"))\n        try:\n            self._error(status, error)\n        except OSError:\n            self.close_connection = True',
-                '        super().send_error(code, message, explain)',
+                "        super().send_error(code, message, explain)",
             ),
         ),
     ),
@@ -1263,9 +1281,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "traceback per richiesta su stderr",
         (
             (
-                'src/pickfair_control_api/server.py',
+                "src/pickfair_control_api/server.py",
                 '        logger.debug("control_api: connessione chiusa con errore")',
-                '        super().handle_error(request, client_address)',
+                "        super().handle_error(request, client_address)",
             ),
         ),
     ),
@@ -1276,7 +1294,7 @@ MUTANTS: tuple[Mutant, ...] = (
             (
                 MO,
                 '        if (self.residual_exposure is not None) != (self.residual_source == "TABLE"):',
-                '        if False:',
+                "        if False:",
             ),
         ),
     ),
@@ -1287,7 +1305,7 @@ MUTANTS: tuple[Mutant, ...] = (
             (
                 MO,
                 '        if self.retryable and self.close_state != "NOT_EXECUTED":',
-                '        if False:',
+                "        if False:",
             ),
         ),
     ),
@@ -1298,7 +1316,7 @@ MUTANTS: tuple[Mutant, ...] = (
             (
                 MO,
                 '        if self.close_state in ("ROUTED", "CLAIMED", "UNCERTAIN") and not self.bet_ids:',
-                '        if False:',
+                "        if False:",
             ),
         ),
     ),
@@ -1309,7 +1327,7 @@ MUTANTS: tuple[Mutant, ...] = (
             (
                 MO,
                 '        if len(set(self.bet_ids)) != len(self.bet_ids):\n            raise ValueError("duplicate bet ids")',
-                '        pass',
+                "        pass",
             ),
         ),
     ),
@@ -1319,8 +1337,8 @@ MUTANTS: tuple[Mutant, ...] = (
         (
             (
                 MO,
-                '        if max(self.partially_matched, self.in_reconciliation, self.ambiguous) > self.orders:',
-                '        if False:',
+                "        if max(self.partially_matched, self.in_reconciliation, self.ambiguous) > self.orders:",
+                "        if False:",
             ),
         ),
     ),
@@ -1331,7 +1349,7 @@ MUTANTS: tuple[Mutant, ...] = (
             (
                 MO,
                 '        if self.state == "OK" and (self.reason or self.omitted or self.truncated):\n            raise ValueError("OK closes with omissions or a reason")',
-                '        pass',
+                "        pass",
             ),
         ),
     ),
@@ -1362,9 +1380,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "picco senza fonte (o fonte senza picco) accettato",
         (
             (
-                'src/pickfair_mcp/contract/models.py',
+                "src/pickfair_mcp/contract/models.py",
                 '        if (self.peak_source == "NONE") == has_peak:',
-                '        if False:',
+                "        if False:",
             ),
         ),
     ),
@@ -1373,9 +1391,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "trailing attivo senza percentuale accettato",
         (
             (
-                'src/pickfair_mcp/contract/models.py',
+                "src/pickfair_mcp/contract/models.py",
                 '        if self.state in ("WAITING_PROFIT", "ARMED", "TRIGGERED") and self.pct is None:',
-                '        if False:',
+                "        if False:",
             ),
         ),
     ),
@@ -1384,9 +1402,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "trailing OFF con percentuale valida accettato",
         (
             (
-                'src/pickfair_mcp/contract/models.py',
+                "src/pickfair_mcp/contract/models.py",
                 '        if self.state == "OFF" and self.pct is not None:',
-                '        if False:',
+                "        if False:",
             ),
         ),
     ),
@@ -1395,9 +1413,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "trailing ARMED senza picco o soglia accettato",
         (
             (
-                'src/pickfair_mcp/contract/models.py',
+                "src/pickfair_mcp/contract/models.py",
                 '        if self.state == "ARMED" and (not has_peak or self.threshold is None):',
-                '        if False:',
+                "        if False:",
             ),
         ),
     ),
@@ -1406,9 +1424,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "soglia sopra il picco accettata",
         (
             (
-                'src/pickfair_mcp/contract/models.py',
-                '            and Decimal(self.threshold) > Decimal(self.peak)',
-                '            and False',
+                "src/pickfair_mcp/contract/models.py",
+                "            and Decimal(self.threshold) > Decimal(self.peak)",
+                "            and False",
             ),
         ),
     ),
@@ -1417,9 +1435,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "nome sensibile accettato fra le impostazioni non valide",
         (
             (
-                'src/pickfair_mcp/contract/models.py',
-                '        if any(fragment in bare for fragment in SENSITIVE_NAME_FRAGMENTS):',
-                '        if False:',
+                "src/pickfair_mcp/contract/models.py",
+                "        if any(fragment in bare for fragment in SENSITIVE_NAME_FRAGMENTS):",
+                "        if False:",
             ),
         ),
     ),
@@ -1428,9 +1446,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "SHA del codice non risolto nei git worktree",
         (
             (
-                'src/pickfair_control_api/contract.py',
-                '        ref_file = git / ref if (git / ref).is_file() else common / ref',
-                '        ref_file = git / ref',
+                "src/pickfair_control_api/contract.py",
+                "        ref_file = git / ref if (git / ref).is_file() else common / ref",
+                "        ref_file = git / ref",
             ),
         ),
     ),
@@ -1439,7 +1457,7 @@ MUTANTS: tuple[Mutant, ...] = (
         "età del mercato negativa o non decimale accettata",
         (
             (
-                'src/pickfair_mcp/contract/models.py',
+                "src/pickfair_mcp/contract/models.py",
                 "    # MCP-01n: età (s) dell'ultimo book ricevuto (istante monotono del tracker, Claude D);\n    # null se ignota.\n    book_age_s: NonNegativeDecimal | None",
                 "    # MCP-01n: età (s) dell'ultimo book ricevuto (istante monotono del tracker, Claude D);\n    # null se ignota.\n    book_age_s: str | None",
             ),
@@ -1450,9 +1468,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "età del book negativa o non decimale accettata",
         (
             (
-                'src/pickfair_mcp/contract/models.py',
-                '    omitted_runners: Count\n    book_age_s: NonNegativeDecimal | None',
-                '    omitted_runners: Count\n    book_age_s: str | None',
+                "src/pickfair_mcp/contract/models.py",
+                "    omitted_runners: Count\n    book_age_s: NonNegativeDecimal | None",
+                "    omitted_runners: Count\n    book_age_s: str | None",
             ),
         ),
     ),
@@ -1461,7 +1479,7 @@ MUTANTS: tuple[Mutant, ...] = (
         "età del mercato assente trattata come nota (default)",
         (
             (
-                'src/pickfair_mcp/contract/models.py',
+                "src/pickfair_mcp/contract/models.py",
                 "    # MCP-01n: età (s) dell'ultimo book ricevuto (istante monotono del tracker, Claude D);\n    # null se ignota.\n    book_age_s: NonNegativeDecimal | None",
                 '    # MCP-01n: età (s) dell\'ultimo book ricevuto (istante monotono del tracker, Claude D);\n    # null se ignota.\n    book_age_s: NonNegativeDecimal | None = "0"',
             ),
@@ -1472,8 +1490,8 @@ MUTANTS: tuple[Mutant, ...] = (
         "età del book assente trattata come nota (default)",
         (
             (
-                'src/pickfair_mcp/contract/models.py',
-                '    omitted_runners: Count\n    book_age_s: NonNegativeDecimal | None',
+                "src/pickfair_mcp/contract/models.py",
+                "    omitted_runners: Count\n    book_age_s: NonNegativeDecimal | None",
                 '    omitted_runners: Count\n    book_age_s: NonNegativeDecimal | None = "0"',
             ),
         ),
@@ -1483,7 +1501,7 @@ MUTANTS: tuple[Mutant, ...] = (
         "richiesta non registrata servita comunque (registra o rifiuta)",
         (
             (
-                'src/pickfair_control_api/server.py',
+                "src/pickfair_control_api/server.py",
                 '            if route not in UNRECORDED_ALLOWED_ROUTES:\n                return self._error(503, "BLACKBOX_UNAVAILABLE")',
                 '            if False:\n                return self._error(503, "BLACKBOX_UNAVAILABLE")',
             ),
@@ -1494,9 +1512,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "server avviato senza hook di registrazione",
         (
             (
-                'src/pickfair_control_api/server.py',
-                '        if not callable(request_hook):',
-                '        if False:',
+                "src/pickfair_control_api/server.py",
+                "        if not callable(request_hook):",
+                "        if False:",
             ),
         ),
     ),
@@ -1505,9 +1523,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "parametro sconosciuto della query accettato",
         (
             (
-                'src/pickfair_control_api/blackbox_query.py',
-                '        if not sep or name not in ALLOWED:',
-                '        if not sep:',
+                "src/pickfair_control_api/blackbox_query.py",
+                "        if not sep or name not in ALLOWED:",
+                "        if not sep:",
             ),
         ),
     ),
@@ -1516,7 +1534,7 @@ MUTANTS: tuple[Mutant, ...] = (
         "parametro ripetuto accettato",
         (
             (
-                'src/pickfair_control_api/blackbox_query.py',
+                "src/pickfair_control_api/blackbox_query.py",
                 '        if name in seen:\n            raise QueryRejected("QUERY_PARAM_REPEATED")',
                 '        if False:\n            raise QueryRejected("QUERY_PARAM_REPEATED")',
             ),
@@ -1527,9 +1545,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "intervallo oltre 31 giorni accettato",
         (
             (
-                'src/pickfair_control_api/blackbox_query.py',
-                '        if (until - since).total_seconds() > MAX_RANGE_DAYS * 86400:',
-                '        if False:',
+                "src/pickfair_control_api/blackbox_query.py",
+                "        if (until - since).total_seconds() > MAX_RANGE_DAYS * 86400:",
+                "        if False:",
             ),
         ),
     ),
@@ -1538,9 +1556,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "seconda redazione assente sul server",
         (
             (
-                'src/pickfair_control_api/server.py',
-                '            body = redact_response(body)',
-                '            pass',
+                "src/pickfair_control_api/server.py",
+                "            body = redact_response(body)",
+                "            pass",
             ),
         ),
     ),
@@ -1549,9 +1567,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "un tentativo mostrato come esito confermato",
         (
             (
-                'src/pickfair_mcp/contract/models.py',
+                "src/pickfair_mcp/contract/models.py",
                 '        if self.phase == "ATTEMPT" and self.outcome != "PENDING":',
-                '        if False:',
+                "        if False:",
             ),
         ),
     ),
@@ -1560,9 +1578,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "valore sensibile non redatto accettato dal modello",
         (
             (
-                'src/pickfair_mcp/contract/models.py',
-                '            if _is_sensitive_name(name) and value != BLACKBOX_REDACTED:',
-                '            if False:',
+                "src/pickfair_mcp/contract/models.py",
+                "            if _is_sensitive_name(name) and value != BLACKBOX_REDACTED:",
+                "            if False:",
             ),
         ),
     ),
@@ -1571,9 +1589,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "query fuori whitelist costruita dall'adapter HTTP",
         (
             (
-                'src/pickfair_mcp/adapters/http.py',
-                '            if name not in _BLACKBOX_PARAMS or not _BLACKBOX_VALUE_RE.fullmatch(value):',
-                '            if False:',
+                "src/pickfair_mcp/adapters/http.py",
+                "            if name not in _BLACKBOX_PARAMS or not _BLACKBOX_VALUE_RE.fullmatch(value):",
+                "            if False:",
             ),
         ),
     ),
@@ -1582,9 +1600,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "risposta 503 trattata come dato valido dall'adapter",
         (
             (
-                'src/pickfair_mcp/adapters/http.py',
-                '        if status == 503:\n            # PF-BLACKBOX-01: il core non ha potuto registrare la richiesta e non ha dato dati.\n            raise UpstreamUnavailable',
-                '        if False:\n            raise UpstreamUnavailable',
+                "src/pickfair_mcp/adapters/http.py",
+                "        if status == 503:\n            # PF-BLACKBOX-01: il core non ha potuto registrare la richiesta e non ha dato dati.\n            raise UpstreamUnavailable",
+                "        if False:\n            raise UpstreamUnavailable",
             ),
         ),
     ),
@@ -1593,7 +1611,7 @@ MUTANTS: tuple[Mutant, ...] = (
         "catena causale non verificata",
         (
             (
-                'src/pickfair_mcp/contract/models.py',
+                "src/pickfair_mcp/contract/models.py",
                 '            if link.event_id != expected:\n                raise ValueError("chain does not follow causation_id")',
                 '            if False:\n                raise ValueError("chain does not follow causation_id")',
             ),
@@ -1604,9 +1622,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "cursore ignorato dal core non rilevato",
         (
             (
-                'src/pickfair_mcp/tools/blackbox.py',
-                '            e.seq <= args.after_seq for e in snapshot.events or ()',
-                '            False for e in snapshot.events or ()',
+                "src/pickfair_mcp/tools/blackbox.py",
+                "            e.seq <= args.after_seq for e in snapshot.events or ()",
+                "            False for e in snapshot.events or ()",
             ),
         ),
     ),
@@ -1615,7 +1633,7 @@ MUTANTS: tuple[Mutant, ...] = (
         "una richiesta per evento letto invece che per richiesta (ricorsione)",
         (
             (
-                'src/pickfair_control_api/server.py',
+                "src/pickfair_control_api/server.py",
                 '        self._record_result(200, "OK")\n',
                 '        for _ in (body.get("events") or [None]) if isinstance(body, dict) else [None]:\n            self._record_result(200, "OK")\n',
             ),
@@ -1626,18 +1644,18 @@ MUTANTS: tuple[Mutant, ...] = (
         "query ammessa anche sulle altre route",
         (
             (
-                'src/pickfair_control_api/server.py',
-                '        if route is None and path_part in QUERY_ROUTE_SCHEMAS:',
-                '        if route is None and \"?\" in raw_path:',
+                "src/pickfair_control_api/server.py",
+                "        if route is None and path_part in QUERY_ROUTE_SCHEMAS:",
+                '        if route is None and "?" in raw_path:',
             ),
         ),
     ),
     Mutant(
         "P01",
-        'chiusure SL/TP OK con righe omesse accettate',
+        "chiusure SL/TP OK con righe omesse accettate",
         (
             (
-                'src/pickfair_mcp/contract/models.py',
+                "src/pickfair_mcp/contract/models.py",
                 '        if self.state == "OK" and (self.reason or self.omitted or self.truncated):\n            raise ValueError("OK closes with omissions or a reason")',
                 '        if self.state == "OK" and self.reason:\n            raise ValueError("OK closes with omissions or a reason")',
             ),
@@ -1645,10 +1663,10 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant(
         "P02",
-        'chiusure SL/TP PARTIAL senza dire cosa manca accettate',
+        "chiusure SL/TP PARTIAL senza dire cosa manca accettate",
         (
             (
-                'src/pickfair_mcp/contract/models.py',
+                "src/pickfair_mcp/contract/models.py",
                 '        if self.state == "PARTIAL" and not (self.reason and (self.omitted or self.truncated)):\n            raise ValueError("PARTIAL closes must say what is missing")',
                 '        if False:\n            raise ValueError("PARTIAL closes must say what is missing")',
             ),
@@ -1656,10 +1674,10 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant(
         "P03",
-        'chiusure SL/TP non lette senza motivo accettate',
+        "chiusure SL/TP non lette senza motivo accettate",
         (
             (
-                'src/pickfair_mcp/contract/models.py',
+                "src/pickfair_mcp/contract/models.py",
                 'class SlTpClosesMissing(StrictModel):\n    """UNAVAILABLE (core senza F-04: CORE_PENDING_F04, o DB non leggibile) o UNKNOWN (DB occupato)."""\n\n    state: Literal["UNKNOWN", "UNAVAILABLE"]\n    reason: Code\n',
                 'class SlTpClosesMissing(StrictModel):\n    """UNAVAILABLE (core senza F-04: CORE_PENDING_F04, o DB non leggibile) o UNKNOWN (DB occupato)."""\n\n    state: Literal["UNKNOWN", "UNAVAILABLE"]\n    reason: Code | None\n',
             ),
@@ -1667,10 +1685,10 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant(
         "R01",
-        'order_ref (customer_order_ref) esposto nella vista',
+        "order_ref (customer_order_ref) esposto nella vista",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
+                "src/pickfair_control_api/blackbox_bridge.py",
                 '        "bet_id": _opt(record, "bet_id", _BET),',
                 '        "bet_id": _opt(record, "bet_id", _BET),\n        "order_ref": record.get("order_ref"),',
             ),
@@ -1678,56 +1696,56 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant(
         "R02",
-        'record non mappabile saltato in silenzio invece che lacuna CORRUPT',
+        "record non mappabile saltato in silenzio invece che lacuna CORRUPT",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
+                "src/pickfair_control_api/blackbox_bridge.py",
                 '                corrupt.append({"from_seq": seq, "to_seq": seq, "kind": "CORRUPT"})',
-                '                continue',
+                "                continue",
             ),
         ),
     ),
     Mutant(
         "R03",
-        'campo assente non dichiarato in not_recorded',
+        "campo assente non dichiarato in not_recorded",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
-                '            not_recorded.append(name)\n            continue',
-                '            continue',
+                "src/pickfair_control_api/blackbox_bridge.py",
+                "            not_recorded.append(name)\n            continue",
+                "            continue",
             ),
         ),
     ),
     Mutant(
         "R04",
-        'hook accettato con una risposta solo truthy',
+        "hook accettato con una risposta solo truthy",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
-                '        return reader.request_hook(dict(record)) is True',
-                '        return bool(reader.request_hook(dict(record)))',
+                "src/pickfair_control_api/blackbox_bridge.py",
+                "        return reader.request_hook(dict(record)) is True",
+                "        return bool(reader.request_hook(dict(record)))",
             ),
         ),
     ),
     Mutant(
         "R05",
-        'filtri passati al motore con i nomi della vista',
+        "filtri passati al motore con i nomi della vista",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
-                '        out[FILTER_NAMES.get(name, name)] = value',
-                '        out[name] = value',
+                "src/pickfair_control_api/blackbox_bridge.py",
+                "        out[FILTER_NAMES.get(name, name)] = value",
+                "        out[name] = value",
             ),
         ),
     ),
     Mutant(
         "R06",
-        'handshake /v1/meta rifiutato con il registro guasto (stato irraggiungibile via MCP)',
+        "handshake /v1/meta rifiutato con il registro guasto (stato irraggiungibile via MCP)",
         (
             (
-                'src/pickfair_control_api/contract.py',
+                "src/pickfair_control_api/contract.py",
                 'UNRECORDED_ALLOWED_ROUTES: Final = frozenset({BLACKBOX_STATUS_ROUTE, "/v1/meta"})',
-                'UNRECORDED_ALLOWED_ROUTES: Final = frozenset({BLACKBOX_STATUS_ROUTE})',
+                "UNRECORDED_ALLOWED_ROUTES: Final = frozenset({BLACKBOX_STATUS_ROUTE})",
             ),
         ),
     ),
@@ -1736,40 +1754,40 @@ MUTANTS: tuple[Mutant, ...] = (
         "tentativo non PENDING accettato dall'adapter",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
+                "src/pickfair_control_api/blackbox_bridge.py",
                 '    if phase == "ATTEMPT" and outcome != "PENDING":',
-                '    if False:',
+                "    if False:",
             ),
         ),
     ),
     Mutant(
         "R08",
-        'voci non rappresentabili non contate',
+        "voci non rappresentabili non contate",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
-                '            if not ok or not _NAME.fullmatch(name) or len(out) >= MAX_VALUES:\n                omitted += 1',
-                '            if not ok or not _NAME.fullmatch(name) or len(out) >= MAX_VALUES:\n                pass',
+                "src/pickfair_control_api/blackbox_bridge.py",
+                "            if not ok or not _NAME.fullmatch(name) or len(out) >= MAX_VALUES:\n                omitted += 1",
+                "            if not ok or not _NAME.fullmatch(name) or len(out) >= MAX_VALUES:\n                pass",
             ),
         ),
     ),
     Mutant(
         "R09",
-        'tempo esteso con le cifre sbagliate invece che troncato al ms',
+        "tempo esteso con le cifre sbagliate invece che troncato al ms",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
-                '    return f"{m.group(1)}.{(m.group(2) or \'\').ljust(3, \'0\')[:3]}Z"',
-                '    return f"{m.group(1)}.{(m.group(2) or \'\').ljust(3, \'0\')[-3:]}Z"',
+                "src/pickfair_control_api/blackbox_bridge.py",
+                "    return f\"{m.group(1)}.{(m.group(2) or '').ljust(3, '0')[:3]}Z\"",
+                "    return f\"{m.group(1)}.{(m.group(2) or '').ljust(3, '0')[-3:]}Z\"",
             ),
         ),
     ),
     Mutant(
         "R10",
-        'ora non UTC accettata',
+        "ora non UTC accettata",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
+                "src/pickfair_control_api/blackbox_bridge.py",
                 '_TS = re.compile(r"\\A(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})(?:\\.(\\d{1,9}))?(?:Z|\\+00:00)\\Z")',
                 '_TS = re.compile(r"\\A(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})(?:\\.(\\d{1,9}))?(?:Z|[+-]\\d{2}:\\d{2})\\Z")',
             ),
@@ -1780,9 +1798,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "id di BB-1 passati al lettore come interi (pagina vuota muta)",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
-                '        elif name in _TEXT_IDS:',
-                '        elif False:',
+                "src/pickfair_control_api/blackbox_bridge.py",
+                "        elif name in _TEXT_IDS:",
+                "        elif False:",
             ),
         ),
     ),
@@ -1791,9 +1809,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "lacune per tempo di BB-1 nascoste: pagina mostrata come completa",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
+                "src/pickfair_control_api/blackbox_bridge.py",
                 '        windows = sorted((unrecorded_window(w) for w in raw_windows), key=lambda w: w["seq"])',
-                '        windows = []',
+                "        windows = []",
             ),
         ),
     ),
@@ -1802,9 +1820,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "lettura della vista interna di BB-1 (external non richiesto)",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
-                '        page = reader.query(engine, after_seq, limit, external=True)',
-                '        page = reader.query(engine, after_seq, limit, external=False)',
+                "src/pickfair_control_api/blackbox_bridge.py",
+                "        page = reader.query(engine, after_seq, limit, external=True)",
+                "        page = reader.query(engine, after_seq, limit, external=False)",
             ),
         ),
     ),
@@ -1813,7 +1831,7 @@ MUTANTS: tuple[Mutant, ...] = (
         "alias dell'ordine troncato accettato come filtro (il lettore non lo troverebbe)",
         (
             (
-                'src/pickfair_control_api/blackbox_query.py',
+                "src/pickfair_control_api/blackbox_query.py",
                 '_ORDER_ALIAS: Final = r"ord_[0-9a-f]{32}"',
                 '_ORDER_ALIAS: Final = r"ord_[0-9a-f]{1,32}"',
             ),
@@ -1824,7 +1842,7 @@ MUTANTS: tuple[Mutant, ...] = (
         "lacune non riportate dal motore mostrate come «nessuna lacuna»",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
+                "src/pickfair_control_api/blackbox_bridge.py",
                 '    "corrupt_records", "last_durable_write_at", "retention_days", "gaps", "degraded",',
                 '    "corrupt_records", "last_durable_write_at", "retention_days", "degraded",',
             ),
@@ -1835,7 +1853,7 @@ MUTANTS: tuple[Mutant, ...] = (
         "get senza causation_chain mostrato con una catena vuota",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
+                "src/pickfair_control_api/blackbox_bridge.py",
                 '            raw_chain = got.get("causation_chain")',
                 '            raw_chain = got.get("causation_chain") or []',
             ),
@@ -1843,43 +1861,43 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant(
         "R17",
-        'not_recorded del motore ignorato (campo non registrato mostrato «non applicabile»)',
+        "not_recorded del motore ignorato (campo non registrato mostrato «non applicabile»)",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
-                '        if source_name not in record or source_name in engine_not_recorded:',
-                '        if source_name not in record:',
+                "src/pickfair_control_api/blackbox_bridge.py",
+                "        if source_name not in record or source_name in engine_not_recorded:",
+                "        if source_name not in record:",
             ),
         ),
     ),
     Mutant(
         "R18",
-        'valore nascosto da un not_recorded del motore',
+        "valore nascosto da un not_recorded del motore",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
-                '        if name not in _NULLABLE_COLUMNS or record.get(name) is not None:',
-                '        if name not in _NULLABLE_COLUMNS:',
+                "src/pickfair_control_api/blackbox_bridge.py",
+                "        if name not in _NULLABLE_COLUMNS or record.get(name) is not None:",
+                "        if name not in _NULLABLE_COLUMNS:",
             ),
         ),
     ),
     Mutant(
         "R19",
-        'finestra non registrata con un esito diverso da UNKNOWN accettata',
+        "finestra non registrata con un esito diverso da UNKNOWN accettata",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
+                "src/pickfair_control_api/blackbox_bridge.py",
                 '    if type(seq) is not int or seq < 1 or outcome != "UNKNOWN":',
-                '    if type(seq) is not int or seq < 1:',
+                "    if type(seq) is not int or seq < 1:",
             ),
         ),
     ),
     Mutant(
         "R20",
-        'registro degradato mostrato disponibile',
+        "registro degradato mostrato disponibile",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
+                "src/pickfair_control_api/blackbox_bridge.py",
                 '    available = runtime and raw.get("ok") is True and degraded is False',
                 '    available = runtime and raw.get("ok") is True',
             ),
@@ -1887,10 +1905,10 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant(
         "R21",
-        'sessione crashata mostrata in corso',
+        "sessione crashata mostrata in corso",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
+                "src/pickfair_control_api/blackbox_bridge.py",
                 '        end_reason = "RUNNING" if session == current else "CRASH_DETECTED"',
                 '        end_reason = "RUNNING"',
             ),
@@ -1898,10 +1916,10 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant(
         "R22",
-        'ora di fine inventata per un crash',
+        "ora di fine inventata per un crash",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
+                "src/pickfair_control_api/blackbox_bridge.py",
                 '        "ended_at": last_event_at if end_reason == "CLEAN_STOP" else None,',
                 '        "ended_at": last_event_at,',
             ),
@@ -1909,10 +1927,10 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant(
         "R23",
-        'reason_code di un\'eccezione (KeyError) reso record CORRUPT',
+        "reason_code di un'eccezione (KeyError) reso record CORRUPT",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
+                "src/pickfair_control_api/blackbox_bridge.py",
                 '            view[name] = _opt(record, "reason_code", _REASON)',
                 '            view[name] = _opt(record, "reason_code", _UPPER)',
             ),
@@ -1923,7 +1941,7 @@ MUTANTS: tuple[Mutant, ...] = (
         "id interno dell'ordine (ledger) mostrato nella vista invece dell'alias",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
+                "src/pickfair_control_api/blackbox_bridge.py",
                 '_ORDER_ALIAS = re.compile(r"\\Aord_[0-9a-f]{32}\\Z")',
                 '_ORDER_ALIAS = re.compile(r"\\A(?:ord_[0-9a-f]{32}|[0-9]+)\\Z")',
             ),
@@ -1934,9 +1952,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "ora dichiarata dall'exchange persa",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
-                '            view[name] = None if value is None else ts_ms(value)',
-                '            view[name] = None',
+                "src/pickfair_control_api/blackbox_bridge.py",
+                "            view[name] = None if value is None else ts_ms(value)",
+                "            view[name] = None",
             ),
         ),
     ),
@@ -1945,9 +1963,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "catena chiesta oltre il limite di BB-1 (ogni get_blackbox_event fallirebbe)",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
-                'MAX_CHAIN: Final = 20',
-                'MAX_CHAIN: Final = 32',
+                "src/pickfair_control_api/blackbox_bridge.py",
+                "MAX_CHAIN: Final = 20",
+                "MAX_CHAIN: Final = 32",
             ),
         ),
     ),
@@ -1956,9 +1974,9 @@ MUTANTS: tuple[Mutant, ...] = (
         "salute di un lettore READER_LOCAL mostrata come quella del runtime",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
+                "src/pickfair_control_api/blackbox_bridge.py",
                 '    runtime = raw.get("health_scope") == "RUNTIME"',
-                '    runtime = True',
+                "    runtime = True",
             ),
         ),
     ),
@@ -1967,7 +1985,7 @@ MUTANTS: tuple[Mutant, ...] = (
         "sessione del lettore presa per la sessione corrente del runtime (falso crash)",
         (
             (
-                'src/pickfair_control_api/blackbox_bridge.py',
+                "src/pickfair_control_api/blackbox_bridge.py",
                 '        current = st.get("session_id") if st.get("health_scope") == "RUNTIME" else None',
                 '        current = st.get("session_id")',
             ),
@@ -1978,7 +1996,7 @@ MUTANTS: tuple[Mutant, ...] = (
         "sorgente assente ripiega sui dati simulati (default implicito, C-AUD-10)",
         (
             (
-                'src/pickfair_mcp/cli.py',
+                "src/pickfair_mcp/cli.py",
                 '        default=None,\n        help="sorgente dati, obbligatoria',
                 '        default="simulated",\n        help="sorgente dati, obbligatoria',
             ),
@@ -1989,9 +2007,97 @@ MUTANTS: tuple[Mutant, ...] = (
         "controllo della sorgente obbligatoria rimosso (C-AUD-10)",
         (
             (
-                'src/pickfair_mcp/cli.py',
+                "src/pickfair_mcp/cli.py",
                 '    if args.adapter is None:\n        _usage_error("SOURCE_REQUIRED")\n        return None\n',
-                '',
+                "",
+            ),
+        ),
+    ),
+    Mutant(
+        "R31",
+        "gettone non scalato all'ammissione (C-AUD-06)",
+        (
+            (
+                "src/pickfair_control_api/rate_limit.py",
+                "                self._store(key, tokens - 1.0, now)\n",
+                "                self._store(key, tokens, now)\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "R32",
+        "controllo e scalata fuori dallo stesso lock (C-AUD-06: race)",
+        (
+            (
+                "src/pickfair_control_api/rate_limit.py",
+                "        with self._lock:\n            now = self._clock()\n            tokens, at = self._buckets.get(key, (self._burst, now))\n            tokens = min(self._burst, tokens + max(0.0, now - at) * self._rate)\n            if tokens >= 1.0:\n",
+                "        with self._lock:\n            now = self._clock()\n            tokens, at = self._buckets.get(key, (self._burst, now))\n            tokens = min(self._burst, tokens + max(0.0, now - at) * self._rate)\n        time.sleep(0.001)\n        with self._lock:\n            if tokens >= 1.0:\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "R33",
+        "ricarico oltre la raffica (C-AUD-06)",
+        (
+            (
+                "src/pickfair_control_api/rate_limit.py",
+                "            tokens = min(self._burst, tokens + max(0.0, now - at) * self._rate)\n            if tokens >= 1.0:",
+                "            tokens = tokens + max(0.0, now - at) * self._rate\n            if tokens >= 1.0:",
+            ),
+        ),
+    ),
+    Mutant(
+        "R34",
+        "limite non applicato prima del core (C-AUD-06)",
+        (
+            (
+                "src/pickfair_control_api/server.py",
+                "        if wait is not None:\n            return self._reject_rate_limited(wait)\n",
+                "        if False:\n            return self._reject_rate_limited(wait)\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "R35",
+        "rifiuto non contato nella finestra della scatola nera (C-AUD-06)",
+        (
+            (
+                "src/pickfair_control_api/server.py",
+                "        app.rejections.note()\n",
+                "",
+            ),
+        ),
+    ),
+    Mutant(
+        "R36",
+        "audit dei rifiuti fallito in silenzio (C-AUD-06)",
+        (
+            (
+                "src/pickfair_control_api/rate_limit.py",
+                '            self._add_unrecorded(int(window["rejected_count"]))\n',
+                "            pass\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "R37",
+        "429 trattato come indisponibilità e quindi ritentato (C-AUD-06)",
+        (
+            (
+                "src/pickfair_mcp/adapters/http.py",
+                "            raise UpstreamRateLimited\n",
+                "            raise UpstreamUnavailable\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "R38",
+        "errori di protocollo in stile HTTP/0.9 senza stato né header (Python < 3.13)",
+        (
+            (
+                "src/pickfair_control_api/server.py",
+                '    default_request_version = "HTTP/1.0"\n',
+                "",
             ),
         ),
     ),
@@ -2057,10 +2163,10 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant(
         "O07",
-        'snapshot OK con righe omesse accettato',
+        "snapshot OK con righe omesse accettato",
         (
             (
-                'src/pickfair_mcp/contract/models.py',
+                "src/pickfair_mcp/contract/models.py",
                 '        if self.state == "OK" and (self.reason or self.omitted or self.truncated):\n            raise ValueError("OK snapshot with omissions or a reason")',
                 '        if self.state == "OK" and self.reason:\n            raise ValueError("OK snapshot with omissions or a reason")',
             ),
@@ -2068,10 +2174,10 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant(
         "O08",
-        'snapshot PARTIAL senza dire cosa manca accettato',
+        "snapshot PARTIAL senza dire cosa manca accettato",
         (
             (
-                'src/pickfair_mcp/contract/models.py',
+                "src/pickfair_mcp/contract/models.py",
                 '        if self.state == "PARTIAL" and not (self.reason and (self.omitted or self.truncated)):\n            raise ValueError("PARTIAL snapshot must say what is missing")',
                 '        if False:\n            raise ValueError("PARTIAL snapshot must say what is missing")',
             ),
@@ -2101,10 +2207,10 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant(
         "O11",
-        'snapshot non letto senza motivo accettato',
+        "snapshot non letto senza motivo accettato",
         (
             (
-                'src/pickfair_mcp/contract/models.py',
+                "src/pickfair_mcp/contract/models.py",
                 'class OrdersSnapshotMissing(StrictModel):\n    """Lettura non riuscita: UNKNOWN (database occupato) o UNAVAILABLE (non leggibile)."""\n\n    state: Literal["UNKNOWN", "UNAVAILABLE"]\n    reason: Code\n',
                 'class OrdersSnapshotMissing(StrictModel):\n    """Lettura non riuscita: UNKNOWN (database occupato) o UNAVAILABLE (non leggibile)."""\n\n    state: Literal["UNKNOWN", "UNAVAILABLE"]\n    reason: Code | None\n',
             ),

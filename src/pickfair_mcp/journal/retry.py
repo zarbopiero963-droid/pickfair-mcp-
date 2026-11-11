@@ -10,6 +10,7 @@ import anyio
 from pickfair_mcp.adapters.base import (
     UpstreamNotImplemented,
     UpstreamProtocolError,
+    UpstreamRateLimited,
     UpstreamTimeout,
     UpstreamUnauthorized,
     UpstreamUnavailable,
@@ -39,6 +40,9 @@ async def read_with_retry(
             raise ToolError(
                 ErrorCode.UPSTREAM_UNAUTHORIZED, reasons=("UPSTREAM_UNAUTHORIZED",)
             ) from None
+        except UpstreamRateLimited:
+            # C-AUD-06: ritentabile per il client, mai ritentato qui (si consumerebbe il limite).
+            raise ToolError(ErrorCode.RATE_LIMITED, reasons=("RATE_LIMITED",)) from None
         except UpstreamNotImplemented:
             # Capacità assente nel core: ripetere non la fa comparire.
             raise ToolError(

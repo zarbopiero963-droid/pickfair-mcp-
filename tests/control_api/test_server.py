@@ -16,7 +16,7 @@ from pickfair_control_api.server import ControlApiConfigError, ControlApiServer
 from pickfair_control_api.tokens import TokenStore
 from pickfair_mcp.adapters.http import _LoopbackConnection
 from tests.control_api import bodies
-from tests.control_api.servers import SHA, Providers, control_api
+from tests.control_api.servers import SHA, TEST_RATE_LIMIT, Providers, control_api
 
 pytestmark = pytest.mark.loopback
 
@@ -249,9 +249,7 @@ class _RotationPacer:
 
 
 @pytest.mark.parametrize("gap_s", [0.0, 0.12])
-def test_rotation_mid_traffic_never_fails_a_reader_using_the_file(
-    api: Any, gap_s: float
-) -> None:
+def test_rotation_mid_traffic_never_fails_a_reader_using_the_file(api: Any, gap_s: float) -> None:
     # gap_s simula un'andata e ritorno lenta (macchina carica) fra la lettura del file e la
     # richiesta: con le rotazioni a tempo fisso (50 ms) il vecchio test dava 401 legittimi.
     server, store, token_path, _p = api
@@ -326,6 +324,12 @@ def test_invalid_configuration_refused() -> None:
         ControlApiServer(Providers().mapping(), **good)
     with pytest.raises(ControlApiConfigError, match="REQUEST_HOOK_REQUIRED"):
         ControlApiServer(Providers().mapping(), **{**good, "request_hook": "not callable"})
+    # C-AUD-06: senza un limite di frequenza valido il server non parte (mai un limite implicito).
+    hooked = {**good, "request_hook": Providers().hook}
+    with pytest.raises(ControlApiConfigError, match="RATE_LIMIT_REQUIRED"):
+        ControlApiServer(Providers().mapping(), **hooked)
+    with pytest.raises(ControlApiConfigError, match="RATE_LIMIT_REQUIRED"):
+        ControlApiServer(Providers().mapping(), **{**hooked, "rate_limit": (2.0, 5)})
 
 
 def test_restart_on_the_same_port_is_immediate_but_never_shared(tmp_path: Path) -> None:
@@ -336,8 +340,12 @@ def test_restart_on_the_same_port_is_immediate_but_never_shared(tmp_path: Path) 
         assert request(port, "GET", "/v1/meta", token=token_path.read_text())[0] == 200
         with pytest.raises(OSError):  # un secondo server in ascolto sulla stessa porta: mai
             ControlApiServer(
-                Providers().mapping(), port=port, tokens=TokenStore("a" * 43), git_sha=SHA,
+                Providers().mapping(),
+                port=port,
+                tokens=TokenStore("a" * 43),
+                git_sha=SHA,
                 request_hook=Providers().hook,
+                rate_limit=TEST_RATE_LIMIT,
             )
     with control_api(tmp_path, port=port) as (_server2, _s2, token_path2, _p2):  # riavvio subito
         assert request(port, "GET", "/v1/meta", token=token_path2.read_text())[0] == 200
