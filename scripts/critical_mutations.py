@@ -477,7 +477,7 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant("J02", "fsync rimosso", ((J, "            os.fsync(fd)\n", "            pass\n"),)),
     Mutant(
-        "J03", "lock esclusivo ignorato", ((J, "if not try_lock(self._lock_fd):", "if False:"),)
+        "J03", "lock esclusivo ignorato", ((J, "if not lock.try_lock(self._lock_fd):", "if False:"),)
     ),
     Mutant(
         "J04",
@@ -505,6 +505,28 @@ MUTANTS: tuple[Mutant, ...] = (
                 J,
                 "        if not self.writable:\n            raise self._unavailable()\n        entry",
                 "        entry",
+            ),
+        ),
+    ),
+    Mutant(
+        "J20",
+        "journal aperto su piattaforma senza protezioni (C-AUD-04: fallback più debole)",
+        (
+            (
+                J,
+                "        if not lock.PLATFORM_SUPPORTED:\n",
+                "        if False:\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "J21",
+        "win32 dichiarato supportato (C-AUD-04: reparse point seguiti)",
+        (
+            (
+                "src/pickfair_mcp/journal/lock.py",
+                'sys.platform != "win32" and _NOFOLLOW is not None',
+                "_NOFOLLOW is not None",
             ),
         ),
     ),

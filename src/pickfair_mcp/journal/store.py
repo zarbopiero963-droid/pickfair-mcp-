@@ -35,7 +35,7 @@ import anyio
 from pickfair_mcp.audit import audit_event
 from pickfair_mcp.envelope import REQUEST_ID_PATTERN
 from pickfair_mcp.errors import ErrorCode, ToolError
-from pickfair_mcp.journal.lock import OPEN_FLAGS, open_lock_file, try_lock
+from pickfair_mcp.journal import lock
 
 JOURNAL_VERSION: Final = 1
 _REQ_RE: Final = re.compile(REQUEST_ID_PATTERN)
@@ -146,16 +146,20 @@ class Journal:
         if not path.is_absolute() or ".." in path.parts:
             self._fail("JOURNAL_PATH_INVALID")
             return
+        if not lock.PLATFORM_SUPPORTED:
+            # C-AUD-04: nessuna apertura senza le protezioni richieste (Windows: MCP-WIN).
+            self._fail("JOURNAL_PLATFORM_UNSUPPORTED")
+            return
         try:
-            self._lock_fd = open_lock_file(str(path) + ".lock")
+            self._lock_fd = lock.open_lock_file(str(path) + ".lock")
         except OSError:
             self._fail("JOURNAL_IO")
             return
-        if not try_lock(self._lock_fd):
+        if not lock.try_lock(self._lock_fd):
             self._fail("JOURNAL_LOCKED")
             return
         try:
-            fd = os.open(str(path), os.O_RDWR | os.O_CREAT | os.O_APPEND | OPEN_FLAGS, 0o600)
+            fd = os.open(str(path), os.O_RDWR | os.O_CREAT | os.O_APPEND | lock.open_flags(), 0o600)
         except OSError:
             self._fail("JOURNAL_IO")
             return
