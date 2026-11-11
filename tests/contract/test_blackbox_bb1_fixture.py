@@ -82,8 +82,10 @@ class FixtureReader:
 
     def request_hook(self, record: dict[str, Any]) -> bool:
         self.requests.append(record)
-        key = "e_request_hook_attempt_return" if record.get("phase") == "ATTEMPT" else (
-            "e_request_hook_return"
+        key = (
+            "e_request_hook_attempt_return"
+            if record.get("phase") == "ATTEMPT"
+            else ("e_request_hook_return")
         )
         return self.real[key]
 
@@ -115,8 +117,12 @@ async def test_the_real_page_through_control_api_and_mcp(tmp_path: Path) -> None
     assert body["as_of_seq"] == 15 and body["next_after_seq"] == 0 and body["truncated"] is False
     # Arresto non pulito di s_crash: finestra non registrata, esito mai «niente è successo».
     assert body["unrecorded_windows"] == [
-        {"seq": 6, "from_ts": "2025-11-09T12:00:07.000Z", "to_ts": "2025-11-09T12:01:08.000Z",
-         "reason_code": "UNCLEAN_TERMINATION"}
+        {
+            "seq": 6,
+            "from_ts": "2025-11-09T12:00:07.000Z",
+            "to_ts": "2025-11-09T12:01:08.000Z",
+            "reason_code": "UNCLEAN_TERMINATION",
+        }
     ]
     # D1: l'ordine è un alias opaco, uguale fra tentativo, risposta ed abbinamento; anche col DB
     # degradato (seq 11). Nessun id interno nella vista.
@@ -128,7 +134,8 @@ async def test_the_real_page_through_control_api_and_mcp(tmp_path: Path) -> None
     assert (by_seq[4]["refs"]["table_id"], by_seq[4]["refs"]["selection_id"]) == (3, 123456)
     # D2: ora dell'exchange solo dove dichiarata, distinta da quella osservata; altrove null.
     assert (by_seq[10]["exchange_ts"], by_seq[10]["ts_utc"]) == (
-        "2025-11-09T12:01:10.500Z", "2025-11-09T12:01:11.000Z"
+        "2025-11-09T12:01:10.500Z",
+        "2025-11-09T12:01:11.000Z",
     )
     assert by_seq[9]["exchange_ts"] is None and "exchange_ts" in by_seq[9]["not_recorded"]
     assert by_seq[11]["reason_code"] == "DB_DEGRADED_LOCAL_ID"
@@ -186,7 +193,10 @@ def test_the_real_healthy_status() -> None:
     assert body["current_session_id"] == "s_current"
     # Ciò che BB-1 non riporta resta dichiarato, mai riempito.
     assert set(body["not_reported"]) == {
-        "corrupt_records", "last_durable_write_at", "retention_days", "gaps",
+        "corrupt_records",
+        "last_durable_write_at",
+        "retention_days",
+        "gaps",
         "last_write_error_code",
     }
 
@@ -221,7 +231,9 @@ async def test_status_and_sessions_pass_the_server_schema(tmp_path: Path) -> Non
         assert status["data"]["blackbox"]["available"] is (key == "c_status_healthy")
         items = sessions["data"]["sessions"]["sessions"]
         assert [(i["session_id"], i["end_reason"]) for i in items] == [
-            ("s_clean", "CLEAN_STOP"), ("s_crash", "CRASH_DETECTED"), ("s_current", "RUNNING")
+            ("s_clean", "CLEAN_STOP"),
+            ("s_crash", "CRASH_DETECTED"),
+            ("s_current", "RUNNING"),
         ]
         assert items[0]["ended_at"] == items[0]["last_event_at"] == "2025-11-09T12:00:01.000Z"
         assert items[1]["ended_at"] is None and items[1]["last_event_at"] == (

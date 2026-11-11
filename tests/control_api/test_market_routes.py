@@ -30,8 +30,9 @@ def test_markets_route_serves_the_provider(api: Any) -> None:
 def test_book_route_passes_the_validated_id(api: Any, market_id: str) -> None:
     server, _s, token_path, providers = api
     providers.market_book = lambda mid: bodies.market_book(mid)
-    status, _h, body = request(server.port, "GET", f"/v1/markets/{market_id}/book",
-                               token=token_path.read_text())
+    status, _h, body = request(
+        server.port, "GET", f"/v1/markets/{market_id}/book", token=token_path.read_text()
+    )
     assert status == 200 and body["market_id"] == market_id
     assert providers.book_requests == [market_id]
 
@@ -67,14 +68,19 @@ def test_book_route_needs_the_token_and_only_get(api: Any) -> None:
     assert request(server.port, "GET", "/v1/markets/1.2/book", token=None)[0] == 401
     assert request(server.port, "GET", "/v1/markets/1.2/book", token="x" * 43)[0] == 401
     for method in ("POST", "PUT", "PATCH", "DELETE"):
-        assert request(server.port, method, "/v1/markets/1.2/book", token=token_path.read_text())[0] == 405
+        assert (
+            request(server.port, method, "/v1/markets/1.2/book", token=token_path.read_text())[0]
+            == 405
+        )
     assert providers.calls == 0
 
 
 def test_book_response_out_of_contract_never_leaves(api: Any) -> None:
     server, _s, token_path, providers = api
     providers.market_book = lambda mid: bodies.market_book(mid, event_name="Juventus v Inter")
-    status, _h, body = request(server.port, "GET", "/v1/markets/1.2/book", token=token_path.read_text())
+    status, _h, body = request(
+        server.port, "GET", "/v1/markets/1.2/book", token=token_path.read_text()
+    )
     assert (status, body) == (500, {"error": {"code": "CONTRACT_SELF_CHECK"}})
 
 
@@ -85,7 +91,9 @@ def test_book_provider_failure_is_a_fixed_error(api: Any) -> None:
         raise RuntimeError("secret detail /home/x")
 
     providers.market_book = boom
-    status, _h, body = request(server.port, "GET", "/v1/markets/1.2/book", token=token_path.read_text())
+    status, _h, body = request(
+        server.port, "GET", "/v1/markets/1.2/book", token=token_path.read_text()
+    )
     assert (status, body) == (500, {"error": {"code": "INTERNAL"}})
 
 

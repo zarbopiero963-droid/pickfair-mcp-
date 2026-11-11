@@ -191,7 +191,9 @@ def test_unavailable_register_with_its_reason() -> None:
 
 def test_cursor_may_skip_corrupt_records_at_the_end_of_the_page() -> None:
     body = bodies.bb_events(
-        next_after_seq=4, truncated=True, as_of_seq=9,
+        next_after_seq=4,
+        truncated=True,
+        as_of_seq=9,
         gaps_in_range=[{"from_seq": 3, "to_seq": 4, "kind": "CORRUPT"}],
     )
     assert parse_blackbox_events(raw(body)).next_after_seq == 4

@@ -35,7 +35,10 @@ def test_every_filter_is_validated_and_typed() -> None:
     assert (f["after_seq"], f["table_id"], f["selection_id"]) == (0, 3, 47972)
     assert f["order_id"] == "ord_0123456789abcdef0123456789abcdef"  # resta testo: alias opaco
     assert (f["origin"], f["severity"], f["outcome"], f["phase"]) == (
-        "MCP", "WARNING", "UNKNOWN", "RESULT"
+        "MCP",
+        "WARNING",
+        "UNKNOWN",
+        "RESULT",
     )
     assert f["causation_id"] == "0123456789abcdef0123456789abcdef"
 

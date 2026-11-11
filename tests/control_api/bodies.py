@@ -223,8 +223,13 @@ def not_armed() -> dict[str, Any]:
         "stop_loss_pct": None,
         "take_profit_pct": None,
         "trailing_stop_pct": None,
-        "trailing": {"state": "NOT_IN_CORE", "pct": None, "peak": None, "threshold": None,
-                     "peak_source": "NONE"},
+        "trailing": {
+            "state": "NOT_IN_CORE",
+            "pct": None,
+            "peak": None,
+            "threshold": None,
+            "peak_source": "NONE",
+        },
     }
 
 
@@ -268,8 +273,13 @@ def exposure(**overrides: Any) -> dict[str, Any]:
         "total_exposure": 40.0,
         "recovery": {"active_count": 0, "max_recovery_tables": 0, "allow_recovery": False},
         "unavailable": [],
-        "sl_tp_closes": {"state": "OK", "reason": None, "closes": [], "omitted": 0,
-                         "truncated": False},
+        "sl_tp_closes": {
+            "state": "OK",
+            "reason": None,
+            "closes": [],
+            "omitted": 0,
+            "truncated": False,
+        },
     }
     body.update(overrides)
     return body
@@ -386,40 +396,67 @@ def config(**overrides: Any) -> dict[str, Any]:
 
 
 def market(market_id: str = "1.200000001", **overrides: Any) -> dict[str, Any]:
-    data: dict[str, Any] = {"market_id": market_id, "book_status": "OPEN", "inplay": False,
-                            "runners": 2, "total_matched": "1500.25",
-                            "last_match_time": time.time() - 3.0, "book_age_s": "1.5"}
+    data: dict[str, Any] = {
+        "market_id": market_id,
+        "book_status": "OPEN",
+        "inplay": False,
+        "runners": 2,
+        "total_matched": "1500.25",
+        "last_match_time": time.time() - 3.0,
+        "book_age_s": "1.5",
+    }
     data.update(overrides)
     return data
 
 
 def markets(**overrides: Any) -> dict[str, Any]:
-    body: dict[str, Any] = {"source": "core", "observed_at": time.time(),
-                            "consistency": "SINGLE_REFERENCE_READ", "markets": [market()],
-                            "omitted": 0, "truncated": False, "unavailable": []}
+    body: dict[str, Any] = {
+        "source": "core",
+        "observed_at": time.time(),
+        "consistency": "SINGLE_REFERENCE_READ",
+        "markets": [market()],
+        "omitted": 0,
+        "truncated": False,
+        "unavailable": [],
+    }
     body.update(overrides)
     return body
 
 
 def runner(selection_id: str = "47972", **overrides: Any) -> dict[str, Any]:
-    data: dict[str, Any] = {"selection_id": selection_id, "status": "ACTIVE", "last_price_traded": "2.5",
-                            "total_matched": "800", "back": [{"price": "2.5", "size": "100"},
-                                                             {"price": "2.48", "size": "40"}],
-                            "lay": [{"price": "2.52", "size": "70"}, {"price": "2.54", "size": "15"}]}
+    data: dict[str, Any] = {
+        "selection_id": selection_id,
+        "status": "ACTIVE",
+        "last_price_traded": "2.5",
+        "total_matched": "800",
+        "back": [{"price": "2.5", "size": "100"}, {"price": "2.48", "size": "40"}],
+        "lay": [{"price": "2.52", "size": "70"}, {"price": "2.54", "size": "15"}],
+    }
     data.update(overrides)
     return data
 
 
 def market_book(market_id: str = "1.200000001", **overrides: Any) -> dict[str, Any]:
     body: dict[str, Any] = {
-        "source": "core", "observed_at": time.time(), "consistency": "SINGLE_REFERENCE_READ",
-        "market_id": market_id, "state": "OK",
-        "book": {"book_status": "OPEN", "inplay": False, "total_matched": "1500.25",
-                 "last_match_time": time.time() - 3.0, "runners": [runner()], "omitted_runners": 0,
-                 "book_age_s": "1.5"},
+        "source": "core",
+        "observed_at": time.time(),
+        "consistency": "SINGLE_REFERENCE_READ",
+        "market_id": market_id,
+        "state": "OK",
+        "book": {
+            "book_status": "OPEN",
+            "inplay": False,
+            "total_matched": "1500.25",
+            "last_match_time": time.time() - 3.0,
+            "runners": [runner()],
+            "omitted_runners": 0,
+            "book_age_s": "1.5",
+        },
     }
     body.update(overrides)
     return body
+
+
 def sl_tp_close(**overrides: Any) -> dict[str, Any]:
     data: dict[str, Any] = {
         "table_id": 1,
@@ -432,20 +469,37 @@ def sl_tp_close(**overrides: Any) -> dict[str, Any]:
         "detail": None,
         "recorded_at": 1_700_000_100.0,
         "bet_ids": ["1000000000001"],
-        "position": {"orders": 1, "partially_matched": 0, "in_reconciliation": 1, "ambiguous": 0,
-                     "unreadable": 0},
+        "position": {
+            "orders": 1,
+            "partially_matched": 0,
+            "in_reconciliation": 1,
+            "ambiguous": 0,
+            "unreadable": 0,
+        },
         "residual_exposure": "40",
         "residual_source": "TABLE",
-        "hedges": {"requests": 1, "pending": 1, "placed": 0, "unmatched": 0, "ambiguous": 0,
-                   "failed": 0, "not_in_ledger": 0},
+        "hedges": {
+            "requests": 1,
+            "pending": 1,
+            "placed": 0,
+            "unmatched": 0,
+            "ambiguous": 0,
+            "failed": 0,
+            "not_in_ledger": 0,
+        },
     }
     data.update(overrides)
     return data
 
 
 def sl_tp_closes(*closes: dict[str, Any], **overrides: Any) -> dict[str, Any]:
-    data: dict[str, Any] = {"state": "OK", "reason": None, "closes": list(closes), "omitted": 0,
-                            "truncated": False}
+    data: dict[str, Any] = {
+        "state": "OK",
+        "reason": None,
+        "closes": list(closes),
+        "omitted": 0,
+        "truncated": False,
+    }
     data.update(overrides)
     return data
 
@@ -454,17 +508,37 @@ def sl_tp_closes(*closes: dict[str, Any], **overrides: Any) -> dict[str, Any]:
 # (PF-BLACKBOX-01)
 def bb_event(seq: int = 1, **overrides: Any) -> dict[str, Any]:
     data: dict[str, Any] = {
-        "seq": seq, "event_id": f"{seq:032x}", "ts_utc": "2026-11-07T15:00:00.123Z",
+        "seq": seq,
+        "event_id": f"{seq:032x}",
+        "ts_utc": "2026-11-07T15:00:00.123Z",
         "exchange_ts": None,
-        "session_id": "s-20261107-1", "process_id": 4242, "component": "core.order_manager",
-        "origin": "STRATEGY", "category": "ORDER", "event_type": "ORDER_PLACE_RESULT",
-        "severity": "INFO", "phase": "RESULT", "outcome": "VERIFIED", "state_before": "INFLIGHT",
+        "session_id": "s-20261107-1",
+        "process_id": 4242,
+        "component": "core.order_manager",
+        "origin": "STRATEGY",
+        "category": "ORDER",
+        "event_type": "ORDER_PLACE_RESULT",
+        "severity": "INFO",
+        "phase": "RESULT",
+        "outcome": "VERIFIED",
+        "state_before": "INFLIGHT",
         "state_after": "SUBMITTED",
-        "values_before": None, "values_after": {"stake": "2.50", "price": "3.1"},
-        "reason": None, "reason_code": None, "correlation_id": "corr-1", "causation_id": None,
-        "refs": {"table_id": 1, "market_id": "1.234567", "selection_id": 47972, "order_id": "ord_" + "a" * 32,
-                 "bet_id": "31415", "strategy": "roserpina"},
-        "data": None, "omitted_values": 0,
+        "values_before": None,
+        "values_after": {"stake": "2.50", "price": "3.1"},
+        "reason": None,
+        "reason_code": None,
+        "correlation_id": "corr-1",
+        "causation_id": None,
+        "refs": {
+            "table_id": 1,
+            "market_id": "1.234567",
+            "selection_id": 47972,
+            "order_id": "ord_" + "a" * 32,
+            "bet_id": "31415",
+            "strategy": "roserpina",
+        },
+        "data": None,
+        "omitted_values": 0,
         "not_recorded": [],
     }
     data.update(overrides)
@@ -474,10 +548,16 @@ def bb_event(seq: int = 1, **overrides: Any) -> dict[str, Any]:
 def bb_events(events: list[dict[str, Any]] | None = None, **overrides: Any) -> dict[str, Any]:
     evs = [bb_event(1), bb_event(2)] if events is None else events
     body: dict[str, Any] = {
-        "source": "core", "observed_at": time.time(), "consistency": "SINGLE_READ_SNAPSHOT",
-        "events": evs, "next_after_seq": 0, "truncated": False,
-        "as_of_seq": max((e["seq"] for e in evs), default=0), "gaps_in_range": [],
-        "unrecorded_windows": [], "redacted": 0,
+        "source": "core",
+        "observed_at": time.time(),
+        "consistency": "SINGLE_READ_SNAPSHOT",
+        "events": evs,
+        "next_after_seq": 0,
+        "truncated": False,
+        "as_of_seq": max((e["seq"] for e in evs), default=0),
+        "gaps_in_range": [],
+        "unrecorded_windows": [],
+        "redacted": 0,
         "unavailable": [],
     }
     body.update(overrides)
@@ -488,9 +568,16 @@ def bb_event_detail(**overrides: Any) -> dict[str, Any]:
     cause = bb_event(1, phase="ATTEMPT", outcome="PENDING", event_type="ORDER_PLACE_ATTEMPT")
     event = bb_event(2, causation_id=cause["event_id"])
     body: dict[str, Any] = {
-        "source": "core", "observed_at": time.time(), "consistency": "SINGLE_READ_SNAPSHOT",
-        "event_id": event["event_id"], "state": "OK", "event": event, "chain": [cause],
-        "chain_truncated": False, "chain_broken_at": None, "redacted": 0,
+        "source": "core",
+        "observed_at": time.time(),
+        "consistency": "SINGLE_READ_SNAPSHOT",
+        "event_id": event["event_id"],
+        "state": "OK",
+        "event": event,
+        "chain": [cause],
+        "chain_truncated": False,
+        "chain_broken_at": None,
+        "redacted": 0,
     }
     body.update(overrides)
     return body
@@ -498,9 +585,13 @@ def bb_event_detail(**overrides: Any) -> dict[str, Any]:
 
 def bb_session(session_id: str = "s-20261107-1", **overrides: Any) -> dict[str, Any]:
     data: dict[str, Any] = {
-        "session_id": session_id, "process_id": 4242, "started_at": "2026-11-07T14:00:00.000Z",
-        "ended_at": "2026-11-07T18:00:00.000Z", "last_event_at": "2026-11-07T18:00:00.000Z",
-        "end_reason": "CLEAN_STOP", "first_seq": 1,
+        "session_id": session_id,
+        "process_id": 4242,
+        "started_at": "2026-11-07T14:00:00.000Z",
+        "ended_at": "2026-11-07T18:00:00.000Z",
+        "last_event_at": "2026-11-07T18:00:00.000Z",
+        "end_reason": "CLEAN_STOP",
+        "first_seq": 1,
         "last_seq": 900,
     }
     data.update(overrides)
@@ -509,12 +600,23 @@ def bb_session(session_id: str = "s-20261107-1", **overrides: Any) -> dict[str, 
 
 def bb_sessions(**overrides: Any) -> dict[str, Any]:
     body: dict[str, Any] = {
-        "source": "core", "observed_at": time.time(), "consistency": "SINGLE_READ_SNAPSHOT",
-        "sessions": [bb_session(), bb_session("s-20261108-1", started_at="2026-11-08T09:00:00.000Z",
-                                              ended_at=None, end_reason="RUNNING", first_seq=901,
-                                              last_event_at="2026-11-08T09:30:00.000Z",
-                                              last_seq=950)],
-        "truncated": False, "unavailable": [],
+        "source": "core",
+        "observed_at": time.time(),
+        "consistency": "SINGLE_READ_SNAPSHOT",
+        "sessions": [
+            bb_session(),
+            bb_session(
+                "s-20261108-1",
+                started_at="2026-11-08T09:00:00.000Z",
+                ended_at=None,
+                end_reason="RUNNING",
+                first_seq=901,
+                last_event_at="2026-11-08T09:30:00.000Z",
+                last_seq=950,
+            ),
+        ],
+        "truncated": False,
+        "unavailable": [],
     }
     body.update(overrides)
     return body
@@ -522,13 +624,25 @@ def bb_sessions(**overrides: Any) -> dict[str, Any]:
 
 def bb_status(**overrides: Any) -> dict[str, Any]:
     body: dict[str, Any] = {
-        "source": "core", "observed_at": time.time(), "consistency": "PER_FIELD_NON_ATOMIC",
-        "available": True, "degraded": False, "dropped_non_critical": 0,
-        "first_seq": 1, "last_seq": 950, "retained_from_seq": 1,
-        "gaps": [{"from_seq": 400, "to_seq": 402, "kind": "LOST"}], "gaps_truncated": False,
-        "corrupt_records": 0, "sessions": 2, "current_session_id": "s-20261108-1",
-        "last_write_error_code": None, "last_durable_write_at": "2026-11-08T09:30:00.000Z",
-        "retention_days": 365, "requests_unrecorded": 0, "not_reported": [],
+        "source": "core",
+        "observed_at": time.time(),
+        "consistency": "PER_FIELD_NON_ATOMIC",
+        "available": True,
+        "degraded": False,
+        "dropped_non_critical": 0,
+        "first_seq": 1,
+        "last_seq": 950,
+        "retained_from_seq": 1,
+        "gaps": [{"from_seq": 400, "to_seq": 402, "kind": "LOST"}],
+        "gaps_truncated": False,
+        "corrupt_records": 0,
+        "sessions": 2,
+        "current_session_id": "s-20261108-1",
+        "last_write_error_code": None,
+        "last_durable_write_at": "2026-11-08T09:30:00.000Z",
+        "retention_days": 365,
+        "requests_unrecorded": 0,
+        "not_reported": [],
     }
     body.update(overrides)
     return body

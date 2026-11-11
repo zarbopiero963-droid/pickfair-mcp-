@@ -83,8 +83,13 @@ def make_list_markets(
 ) -> ToolSpec:
     async def handler(_: ToolContext) -> ListMarketsData:
         snapshot, age = await read_snapshot(
-            adapter, guard, route=MARKETS_ROUTE, read=adapter.get_markets_raw,
-            parse=parse_markets, timeout_s=timeout_s, clock=clock,
+            adapter,
+            guard,
+            route=MARKETS_ROUTE,
+            read=adapter.get_markets_raw,
+            parse=parse_markets,
+            timeout_s=timeout_s,
+            clock=clock,
         )
         return ListMarketsData(markets=snapshot, age_s=age, upstream=upstream_info(adapter))
 
@@ -112,9 +117,13 @@ def make_get_market_book(
             raise _invalid("INPUT_MISSING")
         market_id = args.market_id
         snapshot, age = await read_snapshot(
-            adapter, guard, route=MARKET_BOOK_ROUTE,
+            adapter,
+            guard,
+            route=MARKET_BOOK_ROUTE,
             read=lambda: adapter.get_market_book_raw(market_id),
-            parse=parse_market_book, timeout_s=timeout_s, clock=clock,
+            parse=parse_market_book,
+            timeout_s=timeout_s,
+            clock=clock,
         )
         if snapshot.market_id != market_id:
             raise _invalid("MARKET_ID_MISMATCH")

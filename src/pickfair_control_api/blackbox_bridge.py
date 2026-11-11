@@ -68,7 +68,10 @@ RECORDABLE: Final = (
 # Nomi dei filtri della vista => nomi del motore (pf_blackbox_01 §3).
 # BB-1: il tempo si filtra con from_ts/to_ts e un filtro sconosciuto è un errore del lettore.
 FILTER_NAMES: Final = {
-    "origin": "source", "event_type": "type", "since": "from_ts", "until": "to_ts",
+    "origin": "source",
+    "event_type": "type",
+    "since": "from_ts",
+    "until": "to_ts",
 }
 # Forma del lettore = BB-1 (core.blackbox_query.BlackBoxReader), normativa per decisione C/B
 # del 09/11/2026.
@@ -400,8 +403,13 @@ def session_view(raw: Mapping[str, Any], current: object) -> dict[str, Any]:
 
 # Chiavi di BB-1 che il contratto riporta; una chiave assente diventa `not_reported`.
 _STATUS_OPTIONAL: Final = (
-    "corrupt_records", "last_durable_write_at", "retention_days", "gaps", "degraded",
-    "dropped_non_critical", "last_write_error_code",
+    "corrupt_records",
+    "last_durable_write_at",
+    "retention_days",
+    "gaps",
+    "degraded",
+    "dropped_non_critical",
+    "last_write_error_code",
 )
 
 

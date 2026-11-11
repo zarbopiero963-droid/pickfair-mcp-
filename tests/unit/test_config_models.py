@@ -80,14 +80,14 @@ def test_structure_is_closed(mutate: Any) -> None:
 @pytest.mark.parametrize(
     ("key", "overrides"),
     [
-        ("table_count", {"kind": "DECIMAL", "value": "5"}),       # tipo diverso dal contratto
-        ("max_daily_loss", {"state": "SET", "value": None}),      # SET senza valore
-        ("max_daily_loss", {"state": "NOT_SET", "value": "0"}),   # NOT_SET con un valore
-        ("max_daily_loss", {"state": "INVALID", "value": "0"}),   # INVALID mai convertito in 0
+        ("table_count", {"kind": "DECIMAL", "value": "5"}),  # tipo diverso dal contratto
+        ("max_daily_loss", {"state": "SET", "value": None}),  # SET senza valore
+        ("max_daily_loss", {"state": "NOT_SET", "value": "0"}),  # NOT_SET con un valore
+        ("max_daily_loss", {"state": "INVALID", "value": "0"}),  # INVALID mai convertito in 0
         ("commission_pct", {"state": "NOT_SET", "value": None}),  # non opzionale
-        ("commission_pct", {"value": 4.5}),                       # float, non stringa decimale
+        ("commission_pct", {"value": 4.5}),  # float, non stringa decimale
         ("commission_pct", {"value": "NaN"}),
-        ("table_count", {"value": True}),                         # bool non è un intero
+        ("table_count", {"value": True}),  # bool non è un intero
         ("table_count", {"value": "5"}),
         ("allow_recovery", {"value": 1}),
         ("risk_profile", {"value": "YOLO"}),
@@ -106,9 +106,21 @@ def test_invalid_and_not_set_are_accepted_without_value() -> None:
 
 @pytest.mark.parametrize(
     "name",
-    ["betfair_app_key", "telegram_bot_token", "client_secret", "password_hash", "session_id",
-     "api_url", "certfile", "auth_mode", "cookie_jar", "ssoid", "private_note", "pin_code",
-     "credentials_path"],
+    [
+        "betfair_app_key",
+        "telegram_bot_token",
+        "client_secret",
+        "password_hash",
+        "session_id",
+        "api_url",
+        "certfile",
+        "auth_mode",
+        "cookie_jar",
+        "ssoid",
+        "private_note",
+        "pin_code",
+        "credentials_path",
+    ],
 )
 def test_sensitive_names_never_accepted_in_unlisted(name: str) -> None:
     assert any(f in name for f in SENSITIVE_NAME_FRAGMENTS)
@@ -128,8 +140,15 @@ def test_invalid_persisted_f18() -> None:
     parse_config(raw(bodies.config(invalid_persisted=["roserpina.profit_epsilon"])))
     parse_config(raw(bodies.config(invalid_persisted=None, unavailable=["invalid_persisted"])))
     parse_config(raw(bodies.config(invalid_persisted=["max_win", "roserpina.trailing_stop_pct"])))
-    for bad in (["roserpina.profit_epsilon", "roserpina.profit_epsilon"], ["telegram.bot_token"],
-                ["betfair.app_key"], ["Roserpina.X"], ["a" * 70], ["roserpina.pin_code"],
-                ["roserpina.api_secret"], ["other.max_win"]):
+    for bad in (
+        ["roserpina.profit_epsilon", "roserpina.profit_epsilon"],
+        ["telegram.bot_token"],
+        ["betfair.app_key"],
+        ["Roserpina.X"],
+        ["a" * 70],
+        ["roserpina.pin_code"],
+        ["roserpina.api_secret"],
+        ["other.max_win"],
+    ):
         rejected(bodies.config(invalid_persisted=bad))
     rejected(bodies.config(invalid_persisted=None, unavailable=[]))

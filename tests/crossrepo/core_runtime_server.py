@@ -328,47 +328,94 @@ for line in sys.stdin:
     elif cmd[0] == "CONFIG":
         # Comando al CORE: credenziali e segreti nel DB reale (cifrati a riposo dal core) e
         # impostazioni Roserpina ricaricate; risposta con i valori letti DIRETTAMENTE dal core.
-        db.save_credentials(username="e2e-user", app_key="E2E-APPKEY-SECRET",
-                            certificate="E2E-CERT-SECRET", private_key="E2E-PK-SECRET")
+        db.save_credentials(
+            username="e2e-user",
+            app_key="E2E-APPKEY-SECRET",
+            certificate="E2E-CERT-SECRET",
+            private_key="E2E-PK-SECRET",
+        )
         db.save_password("E2E-PASSWORD-SECRET")
-        db.save_telegram_settings({"api_id": "424242", "api_hash": "E2E-HASH-SECRET",
-                                   "session_string": "E2E-SS-SECRET"})
-        settings.save_settings({"roserpina.max_single_bet_pct": "4.25",
-                                "roserpina.max_daily_loss": "75.5",
-                                "roserpina.table_count": "3"})
+        db.save_telegram_settings(
+            {"api_id": "424242", "api_hash": "E2E-HASH-SECRET", "session_string": "E2E-SS-SECRET"}
+        )
+        settings.save_settings(
+            {
+                "roserpina.max_single_bet_pct": "4.25",
+                "roserpina.max_daily_loss": "75.5",
+                "roserpina.table_count": "3",
+            }
+        )
         rc.reload_config()
         cfg = rc.config
-        reply(event="CONFIG", max_single_bet_pct=cfg.max_single_bet_pct,
-              max_daily_loss=cfg.max_daily_loss, table_count=cfg.table_count,
-              risk_profile=cfg.risk_profile.value, max_session_loss=cfg.max_session_loss,
-              commission_pct=cfg.commission_pct)
+        reply(
+            event="CONFIG",
+            max_single_bet_pct=cfg.max_single_bet_pct,
+            max_daily_loss=cfg.max_daily_loss,
+            table_count=cfg.table_count,
+            risk_profile=cfg.risk_profile.value,
+            max_session_loss=cfg.max_session_loss,
+            commission_pct=cfg.commission_pct,
+        )
     elif cmd[0] == "COMPAT_P0":
         # Comando al CORE: riga AMBIGUOUS con la risposta senza esito come la persiste il fix P0 di Claude D
         # (report con betId e sizeMatched non confermati).
-        oid = rc.db.insert_order({
-            "customer_ref": "cref-secret-p0", "correlation_id": "corr", "status": "AMBIGUOUS",
-            "ambiguity_reason": "bet_status_unrecognized",
-            "response": {"ok": False, "error": "BET_STATUS_UNRECOGNIZED", "classification": "UNKNOWN",
-                         "order_unknown": True,
-                         "result": {"instructionReports": [
-                             {"status": "SUCCESS", "betId": "31415", "sizeMatched": 5.0}]}},
-            "payload": {"market_id": "1.234567", "selection_id": 47972, "side": "BACK", "price": 2.5,
-                        "stake": 5.0, "event_key": "Juventus v Inter"},
-        })
+        oid = rc.db.insert_order(
+            {
+                "customer_ref": "cref-secret-p0",
+                "correlation_id": "corr",
+                "status": "AMBIGUOUS",
+                "ambiguity_reason": "bet_status_unrecognized",
+                "response": {
+                    "ok": False,
+                    "error": "BET_STATUS_UNRECOGNIZED",
+                    "classification": "UNKNOWN",
+                    "order_unknown": True,
+                    "result": {
+                        "instructionReports": [
+                            {"status": "SUCCESS", "betId": "31415", "sizeMatched": 5.0}
+                        ]
+                    },
+                },
+                "payload": {
+                    "market_id": "1.234567",
+                    "selection_id": 47972,
+                    "side": "BACK",
+                    "price": 2.5,
+                    "stake": 5.0,
+                    "event_key": "Juventus v Inter",
+                },
+            }
+        )
         cands, unattr = rc._open_order_candidates()
-        reply(event="COMPAT_P0", id=oid,
-              open_bet_ids=sorted(c["bet_id"] for c in list(cands) + list(unattr)))
+        reply(
+            event="COMPAT_P0",
+            id=oid,
+            open_bet_ids=sorted(c["bet_id"] for c in list(cands) + list(unattr)),
+        )
     elif cmd[0] == "MARKET":
         # Comando al CORE: un book Betfair nella forma di listMarketBook entra dal percorso reale del runtime
         # (`_stream_market_book_callback` -> MarketTracker, come lo stream; in SIM anche al broker simulato).
-        rc._stream_market_book_callback({
-            "marketId": "1.987654", "status": "OPEN", "inplay": False, "totalMatched": 2500.5,
-            "lastMatchTime": "2026-11-05T10:00:00.000Z",
-            "runners": [{"selectionId": 47972, "status": "ACTIVE", "lastPriceTraded": 2.5,
-                         "totalMatched": 900.0,
-                         "ex": {"availableToBack": [{"price": 2.5, "size": 100.0}],
-                                "availableToLay": [{"price": 2.52, "size": 60.0}]}}],
-        })
+        rc._stream_market_book_callback(
+            {
+                "marketId": "1.987654",
+                "status": "OPEN",
+                "inplay": False,
+                "totalMatched": 2500.5,
+                "lastMatchTime": "2026-11-05T10:00:00.000Z",
+                "runners": [
+                    {
+                        "selectionId": 47972,
+                        "status": "ACTIVE",
+                        "lastPriceTraded": 2.5,
+                        "totalMatched": 900.0,
+                        "ex": {
+                            "availableToBack": [{"price": 2.5, "size": 100.0}],
+                            "availableToLay": [{"price": 2.52, "size": 60.0}],
+                        },
+                    }
+                ],
+            }
+        )
         reply(event="MARKET")
     elif cmd[0] == "SL_TP_CLOSE":
         # Comando al CORE: chiusura SL/TP persistita con le funzioni di F-04 (`core.sl_tp_close`) per un tavolo
@@ -376,20 +423,58 @@ for line in sys.stdin:
         from core import sl_tp_close
 
         ref = "cref-secret-close"
-        rc.table_manager.activate(table_id=4, event_key="Juventus v Inter", exposure=8.0,
-                                  market_id="1.234567", selection_id="47972",
-                                  meta={"customer_ref": ref, "bet_type": "BACK", "event_name": "Juventus v Inter"})
-        rc.db.insert_order({"customer_ref": ref, "correlation_id": "corr", "status": "SUBMITTED",
-                            "payload": {"market_id": "1.234567", "selection_id": 47972, "side": "BACK",
-                                        "bet_type": "BACK", "price": 2.0, "stake": 4.0},
-                            "response": {"instructionReports": [{"betId": "SIMBET-close", "sizeMatched": 2.0,
-                                                                 "sizeRemaining": 2.0}]}})
-        trigger, _why = sl_tp_close.parse_trigger(sl_tp_close.SL_TRIGGERED, {
-            "table_id": 4, "market_id": "1.234567", "selection_id": "47972", "side": "BACK", "pnl": -1.5,
-            "reason": "STOP_LOSS_REACHED", "customer_ref": ref, "source": "AUTO_MONITOR"})
-        rc.db.save_settings({trigger.close_key: sl_tp_close.state_record(
-            trigger, sl_tp_close.STATE_NOT_EXECUTED, bet_ids=["SIMBET-close"], reason="GATE_REJECTED:x",
-            at=time.time())})
+        rc.table_manager.activate(
+            table_id=4,
+            event_key="Juventus v Inter",
+            exposure=8.0,
+            market_id="1.234567",
+            selection_id="47972",
+            meta={"customer_ref": ref, "bet_type": "BACK", "event_name": "Juventus v Inter"},
+        )
+        rc.db.insert_order(
+            {
+                "customer_ref": ref,
+                "correlation_id": "corr",
+                "status": "SUBMITTED",
+                "payload": {
+                    "market_id": "1.234567",
+                    "selection_id": 47972,
+                    "side": "BACK",
+                    "bet_type": "BACK",
+                    "price": 2.0,
+                    "stake": 4.0,
+                },
+                "response": {
+                    "instructionReports": [
+                        {"betId": "SIMBET-close", "sizeMatched": 2.0, "sizeRemaining": 2.0}
+                    ]
+                },
+            }
+        )
+        trigger, _why = sl_tp_close.parse_trigger(
+            sl_tp_close.SL_TRIGGERED,
+            {
+                "table_id": 4,
+                "market_id": "1.234567",
+                "selection_id": "47972",
+                "side": "BACK",
+                "pnl": -1.5,
+                "reason": "STOP_LOSS_REACHED",
+                "customer_ref": ref,
+                "source": "AUTO_MONITOR",
+            },
+        )
+        rc.db.save_settings(
+            {
+                trigger.close_key: sl_tp_close.state_record(
+                    trigger,
+                    sl_tp_close.STATE_NOT_EXECUTED,
+                    bet_ids=["SIMBET-close"],
+                    reason="GATE_REJECTED:x",
+                    at=time.time(),
+                )
+            }
+        )
         reply(event="SL_TP_CLOSE")
     elif cmd[0] == "TRAILING":
         # Comando al CORE (con F-03): tavolo con trailing al 20 % e picco persistito con le funzioni del core,
@@ -398,12 +483,29 @@ for line in sys.stdin:
 
         from core import trailing_stop
 
-        rc.table_manager.activate(table_id=5, event_key="ev-trailing", exposure=6.0, market_id="1.555",
-                                  selection_id="55", meta={"customer_ref": "cref-secret-trail",
-                                                           "bet_type": "BACK", "trailing_stop_pct": 20.0})
-        rc.db.save_settings({trailing_stop.PEAK_KEY_PREFIX + "cref-secret-trail":
-                             trailing_stop.state_record(Decimal("15.00"), Decimal("20"), time.time())})
-        reply(event="TRAILING", threshold=str(trailing_stop.threshold(Decimal("15.00"), Decimal("20"))))
+        rc.table_manager.activate(
+            table_id=5,
+            event_key="ev-trailing",
+            exposure=6.0,
+            market_id="1.555",
+            selection_id="55",
+            meta={
+                "customer_ref": "cref-secret-trail",
+                "bet_type": "BACK",
+                "trailing_stop_pct": 20.0,
+            },
+        )
+        rc.db.save_settings(
+            {
+                trailing_stop.PEAK_KEY_PREFIX + "cref-secret-trail": trailing_stop.state_record(
+                    Decimal("15.00"), Decimal("20"), time.time()
+                )
+            }
+        )
+        reply(
+            event="TRAILING",
+            threshold=str(trailing_stop.threshold(Decimal("15.00"), Decimal("20"))),
+        )
     elif cmd[0] == "DIGEST":
         state["recording"] = False  # la misura stessa non deve contare come chiamata
         current = dict(server.request_counts()) if server is not None else {}

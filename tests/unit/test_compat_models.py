@@ -21,14 +21,25 @@ NO_AMOUNTS = ["size_matched", "avg_price_matched", "size_remaining"]
 
 
 def unconfirmed(core_status: str, status: str, **amounts: Any) -> dict[str, Any]:
-    base: dict[str, Any] = {"core_status": core_status, "status": status, "bet_id": "31415",
-                            **{k: None for k in NO_AMOUNTS}}
+    base: dict[str, Any] = {
+        "core_status": core_status,
+        "status": status,
+        "bet_id": "31415",
+        **{k: None for k in NO_AMOUNTS},
+    }
     base.update(amounts)
     missing = [k for k in NO_AMOUNTS if base[k] is None]
     order = bodies.order(**base, unavailable=missing)
     order["reconciliation"] = {**order["reconciliation"], "in_reconciliation": True}
-    return bodies.orders(snapshot={"state": "OK", "reason": None, "orders": [order], "omitted": 0,
-                                   "truncated": False})
+    return bodies.orders(
+        snapshot={
+            "state": "OK",
+            "reason": None,
+            "orders": [order],
+            "omitted": 0,
+            "truncated": False,
+        }
+    )
 
 
 def raw(body: dict[str, Any]) -> bytes:
@@ -39,9 +50,15 @@ def test_unconfirmed_statuses() -> None:
     assert UNCONFIRMED_ORDER_STATUSES == {"AMBIGUOUS", "PENDING"}
 
 
-@pytest.mark.parametrize(("core", "status"), [("AMBIGUOUS", "AMBIGUOUS"),
-                                              ("HEDGE_AMBIGUOUS", "AMBIGUOUS"),
-                                              ("INFLIGHT", "PENDING"), ("HEDGE_PENDING", "PENDING")])
+@pytest.mark.parametrize(
+    ("core", "status"),
+    [
+        ("AMBIGUOUS", "AMBIGUOUS"),
+        ("HEDGE_AMBIGUOUS", "AMBIGUOUS"),
+        ("INFLIGHT", "PENDING"),
+        ("HEDGE_PENDING", "PENDING"),
+    ],
+)
 def test_unconfirmed_without_amounts_is_accepted_with_bet_id(core: str, status: str) -> None:
     body = unconfirmed(core, status)
     server_validate(body, response_schema("orders"))

@@ -25,9 +25,25 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "catalog" / "g8" / "pf-mcp-suites.json"
 SCHEMA = "pf-mcp-suites/1"
-SUITE_FIELDS = frozenset({"id", "component", "behaviour", "category", "runner", "args", "environment", "risk",
-                          "timeout_seconds", "resources", "datasets", "evidence", "requires", "criteria",
-                          "allowed_skips"})
+SUITE_FIELDS = frozenset(
+    {
+        "id",
+        "component",
+        "behaviour",
+        "category",
+        "runner",
+        "args",
+        "environment",
+        "risk",
+        "timeout_seconds",
+        "resources",
+        "datasets",
+        "evidence",
+        "requires",
+        "criteria",
+        "allowed_skips",
+    }
+)
 ENVIRONMENTS = frozenset({"OFFLINE", "SIM", "REPLAY_RECORDED", "SANDBOX_EPHEMERAL"})
 RISKS = frozenset({"LOW", "MEDIUM", "HIGH"})
 _ID = re.compile(r"[a-z0-9][a-z0-9-]{0,62}")
@@ -45,7 +61,11 @@ def validate_manifest(raw: bytes, root: Path = ROOT) -> dict[str, Any]:
         cat = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, ValueError):
         raise Refused("MANIFEST_MALFORMED") from None
-    if not isinstance(cat, dict) or cat.get("schema") != SCHEMA or not isinstance(cat.get("version"), int):
+    if (
+        not isinstance(cat, dict)
+        or cat.get("schema") != SCHEMA
+        or not isinstance(cat.get("version"), int)
+    ):
         raise Refused("MANIFEST_SCHEMA")
     suites = cat.get("suites")
     if not isinstance(suites, list) or not suites:
@@ -58,15 +78,25 @@ def validate_manifest(raw: bytes, root: Path = ROOT) -> dict[str, Any]:
         if not isinstance(sid, str) or not _ID.fullmatch(sid) or sid in seen:
             raise Refused(f"SUITE_ID:{sid}")
         seen.add(sid)
-        if s["runner"] != "pytest" or s["environment"] not in ENVIRONMENTS or s["risk"] not in RISKS:
+        if (
+            s["runner"] != "pytest"
+            or s["environment"] not in ENVIRONMENTS
+            or s["risk"] not in RISKS
+        ):
             raise Refused(f"SUITE_RUNNER_ENV_RISK:{sid}")
         args = s["args"]
         if not isinstance(args, list) or not args:
             raise Refused(f"BAD_ARGS:{sid}")
         for a in args:
-            if (not isinstance(a, str) or not _SAFE_ARG.fullmatch(a) or ".." in a or a.startswith(("/", "-"))
-                    or not (a == "tests" or a.startswith("tests/"))
-                    or any(seg in ("", ".") for seg in a.split("/")) or not (root / a).exists()):
+            if (
+                not isinstance(a, str)
+                or not _SAFE_ARG.fullmatch(a)
+                or ".." in a
+                or a.startswith(("/", "-"))
+                or not (a == "tests" or a.startswith("tests/"))
+                or any(seg in ("", ".") for seg in a.split("/"))
+                or not (root / a).exists()
+            ):
                 raise Refused(f"UNSAFE_ARG:{sid}")
         t = s["timeout_seconds"]
         if not isinstance(t, int) or isinstance(t, bool) or not 0 < t <= 7200:
@@ -76,13 +106,22 @@ def validate_manifest(raw: bytes, root: Path = ROOT) -> dict[str, Any]:
         if not all(isinstance(r, str) and _ENV_NAME.fullmatch(r) for r in s["requires"]):
             raise Refused(f"SUITE_REQUIRES:{sid}")
         for skip in s["allowed_skips"]:
-            if (not isinstance(skip, dict) or set(skip) != {"nodeid", "reason"}
-                    or not str(skip["nodeid"]).startswith(tuple(a + "/" if not a.endswith(".py") else a
-                                                                for a in args))
-                    or not str(skip["reason"]).strip()):
+            if (
+                not isinstance(skip, dict)
+                or set(skip) != {"nodeid", "reason"}
+                or not str(skip["nodeid"]).startswith(
+                    tuple(a + "/" if not a.endswith(".py") else a for a in args)
+                )
+                or not str(skip["reason"]).strip()
+            ):
                 raise Refused(f"SUITE_SKIPS:{sid}")
     for name, ids in (cat.get("campaigns") or {}).items():
-        if not _ID.fullmatch(str(name)) or not isinstance(ids, list) or not ids or not set(ids) <= seen:
+        if (
+            not _ID.fullmatch(str(name))
+            or not isinstance(ids, list)
+            or not ids
+            or not set(ids) <= seen
+        ):
             raise Refused(f"CAMPAIGN:{name}")
     return cat
 
@@ -120,15 +159,34 @@ def run_suite(suite: dict[str, Any], evidence: Path) -> dict[str, Any]:
     sid = suite["id"]
     missing = [r for r in suite["requires"] if not os.environ.get(r)]
     if missing:
-        return {"suite": sid, "verdict": "BLOCKED", "reason": "REQUIRES_MISSING", "missing": missing}
+        return {
+            "suite": sid,
+            "verdict": "BLOCKED",
+            "reason": "REQUIRES_MISSING",
+            "missing": missing,
+        }
     junit = evidence / f"{sid}.junit.xml"
     log = evidence / f"{sid}.log"
-    argv = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", f"--junitxml={junit}",
-            *suite["args"]]
+    argv = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        f"--junitxml={junit}",
+        *suite["args"],
+    ]
     with log.open("w") as out:
         try:
-            proc = subprocess.run(argv, cwd=ROOT, stdout=out, stderr=subprocess.STDOUT,
-                                  timeout=suite["timeout_seconds"], check=False)
+            proc = subprocess.run(
+                argv,
+                cwd=ROOT,
+                stdout=out,
+                stderr=subprocess.STDOUT,
+                timeout=suite["timeout_seconds"],
+                check=False,
+            )
             code = proc.returncode
         except subprocess.TimeoutExpired:
             return {"suite": sid, "verdict": "FAIL", "reason": "TIMEOUT"}
@@ -143,15 +201,25 @@ def run_suite(suite: dict[str, Any], evidence: Path) -> dict[str, Any]:
         verdict, reason = "BLOCKED", "UNEXPECTED_SKIPS"
     else:
         verdict, reason = "PASS", None
-    return {"suite": sid, "verdict": verdict, "reason": reason, "exit_code": code, **counts,
-            "unexpected_skips": unexpected[:20], "junit": junit.name, "log": log.name}
+    return {
+        "suite": sid,
+        "verdict": verdict,
+        "reason": reason,
+        "exit_code": code,
+        **counts,
+        "unexpected_skips": unexpected[:20],
+        "junit": junit.name,
+        "log": log.name,
+    }
 
 
 def provenance(root: Path) -> dict[str, Any]:
     """SHA di HEAD e albero pulito (nessuna modifica né file non tracciati) del repo in `root`."""
+
     def git(*args: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(["git", "-C", str(root), *args],
-                              capture_output=True, text=True, check=False)
+        return subprocess.run(
+            ["git", "-C", str(root), *args], capture_output=True, text=True, check=False
+        )
 
     try:
         head = git("rev-parse", "--verify", "HEAD")
@@ -177,13 +245,20 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     args.evidence.mkdir(parents=True, exist_ok=True)
     results = [run_suite(s, args.evidence) for s in suites]
-    overall = "PASS" if all(r["verdict"] == "PASS" for r in results) else (
-        "FAIL" if any(r["verdict"] == "FAIL" for r in results) else "BLOCKED")
+    overall = (
+        "PASS"
+        if all(r["verdict"] == "PASS" for r in results)
+        else ("FAIL" if any(r["verdict"] == "FAIL" for r in results) else "BLOCKED")
+    )
     core_path = os.environ.get("PICKFAIR_CORE_PATH")
     prov = {"code": provenance(ROOT), "core": provenance(Path(core_path)) if core_path else None}
     attributable = all(p is None or p["clean"] for p in prov.values())
-    report: dict[str, Any] = {"target": args.target, "verdict": overall, "provenance": prov,
-                              "results": results}
+    report: dict[str, Any] = {
+        "target": args.target,
+        "verdict": overall,
+        "provenance": prov,
+        "results": results,
+    }
     if overall == "PASS" and not attributable:
         report.update(verdict="BLOCKED", reason="UNATTRIBUTABLE_TREE")
         overall = "BLOCKED"

@@ -871,8 +871,9 @@ class CloseHedges(StrictModel):
     def _bounded(self) -> CloseHedges:
         if self.not_in_ledger > self.requests:
             raise ValueError("more missing hedge rows than requests")
-        if self.requests == 0 and (self.pending or self.placed or self.unmatched or self.ambiguous
-                                   or self.failed):
+        if self.requests == 0 and (
+            self.pending or self.placed or self.unmatched or self.ambiguous or self.failed
+        ):
             raise ValueError("hedge rows without a recorded request")
         return self
 
@@ -1307,19 +1308,49 @@ CONFIG_KEYS: dict[str, str] = {
 # Campi `Optional` del core: `None` = non configurato (limite non attivo o percentuale mancante,
 # che il core tratta come blocco). Solo questi possono essere NOT_SET; per gli altri un valore
 # assente è INVALID.
-OPTIONAL_CONFIG_KEYS: frozenset[str] = frozenset({
-    "target_profit_cycle_pct", "max_single_bet_pct", "max_total_exposure_pct",
-    "max_event_exposure_pct", "max_daily_loss", "max_drawdown_hard_stop_pct",
-    "max_open_exposure", "max_order_exposure", "max_market_exposure", "max_event_exposure_abs",
-    "max_drawdown_abs", "max_session_loss", "max_exposure_stop", "max_recovery_chase_abs",
-    "max_stake_abs", "max_win", "stop_loss_pct", "take_profit_pct", "trailing_stop_pct",
-})
+OPTIONAL_CONFIG_KEYS: frozenset[str] = frozenset(
+    {
+        "target_profit_cycle_pct",
+        "max_single_bet_pct",
+        "max_total_exposure_pct",
+        "max_event_exposure_pct",
+        "max_daily_loss",
+        "max_drawdown_hard_stop_pct",
+        "max_open_exposure",
+        "max_order_exposure",
+        "max_market_exposure",
+        "max_event_exposure_abs",
+        "max_drawdown_abs",
+        "max_session_loss",
+        "max_exposure_stop",
+        "max_recovery_chase_abs",
+        "max_stake_abs",
+        "max_win",
+        "stop_loss_pct",
+        "take_profit_pct",
+        "trailing_stop_pct",
+    }
+)
 
 # Frammenti che un nome in `unlisted` non può contenere: seconda barriera, oltre al filtro
 # `core.redaction.is_sensitive_key` del core, contro la fuga anche solo del NOME di un segreto.
 SENSITIVE_NAME_FRAGMENTS: tuple[str, ...] = (
-    "token", "secret", "password", "passwd", "auth", "bearer", "key", "session", "api",
-    "cert", "cookie", "ssoid", "private", "credential", "hash", "pin",
+    "token",
+    "secret",
+    "password",
+    "passwd",
+    "auth",
+    "bearer",
+    "key",
+    "session",
+    "api",
+    "cert",
+    "cookie",
+    "ssoid",
+    "private",
+    "credential",
+    "hash",
+    "pin",
 )
 
 ConfigKey = Literal[tuple(CONFIG_KEYS)]  # type: ignore[valid-type]
@@ -1422,7 +1453,9 @@ class ConfigResponse(StrictModel):
     # entrata finché ce n'è una). null se il core non le registra (prima di F-18).
     invalid_persisted: (
         Annotated[
-            tuple[SettingKeyName, ...], Field(max_length=64), AfterValidator(_check_invalid_persisted)
+            tuple[SettingKeyName, ...],
+            Field(max_length=64),
+            AfterValidator(_check_invalid_persisted),
         ]
         | None
     )
@@ -1434,7 +1467,8 @@ class ConfigResponse(StrictModel):
     @model_validator(mode="after")
     def _complete(self) -> ConfigResponse:
         _check_unavailable(
-            {"settings": self.settings, "invalid_persisted": self.invalid_persisted}, self.unavailable
+            {"settings": self.settings, "invalid_persisted": self.invalid_persisted},
+            self.unavailable,
         )
         if self.settings is None:
             return self
@@ -1491,7 +1525,9 @@ class MarketsResponse(StrictModel):
     consistency: Literal["SINGLE_REFERENCE_READ"]
     markets: (
         Annotated[
-            tuple[MarketSummary, ...], Field(max_length=MAX_MARKETS), AfterValidator(_unique_markets)
+            tuple[MarketSummary, ...],
+            Field(max_length=MAX_MARKETS),
+            AfterValidator(_unique_markets),
         ]
         | None
     )
@@ -1566,7 +1602,6 @@ class MarketBookResponse(StrictModel):
         return self
 
 
-
 # ------------------------------------------------- MCP-01o: scatola nera, sola lettura
 # (PF-BLACKBOX-01)
 #
@@ -1585,8 +1620,20 @@ BLACKBOX_MAX_VALUES = 32
 BLACKBOX_REDACTED = "[REDACTED]"
 # Nomi di campo i cui valori non escono mai in chiaro (seconda redazione, difesa in profondità).
 BLACKBOX_SENSITIVE_FRAGMENTS: tuple[str, ...] = (
-    "token", "secret", "password", "passwd", "bearer", "credential", "cookie", "ssoid", "private",
-    "api_key", "apikey", "application", "customer_ref", "certificate",
+    "token",
+    "secret",
+    "password",
+    "passwd",
+    "bearer",
+    "credential",
+    "cookie",
+    "ssoid",
+    "private",
+    "api_key",
+    "apikey",
+    "application",
+    "customer_ref",
+    "certificate",
 )
 # Frammenti brevi: sensibili solo come segmento intero del nome (separato da _ . -), così
 # `auth_header` è redatto e `stake_authorized` (diagnosi di Roserpina, G7) no.
@@ -1615,15 +1662,28 @@ OrderAlias = Annotated[str, StringConstraints(pattern=r"^ord_[0-9a-f]{32}$")]
 SessionKey = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{1,64}$")]
 ValueName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_.]{0,63}$")]
 ShortText = Annotated[str, StringConstraints(max_length=256)]
-BlackboxScalar = Annotated[str, StringConstraints(max_length=256)] | bool | Annotated[
-    int, Field(ge=-(10**15), le=10**15)
-] | None
+BlackboxScalar = (
+    Annotated[str, StringConstraints(max_length=256)]
+    | bool
+    | Annotated[int, Field(ge=-(10**15), le=10**15)]
+    | None
+)
 StrategyName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,31}$")]
 BetIdText = Annotated[str, StringConstraints(pattern=r"^[0-9]{1,20}$")]
 
 BlackboxRecordedField = Literal[
-    "state_before", "state_after", "values_before", "values_after", "reason", "reason_code",
-    "correlation_id", "causation_id", "process_id", "component", "data", "exchange_ts",
+    "state_before",
+    "state_after",
+    "values_before",
+    "values_after",
+    "reason",
+    "reason_code",
+    "correlation_id",
+    "causation_id",
+    "process_id",
+    "component",
+    "data",
+    "exchange_ts",
 ]
 
 
@@ -1709,11 +1769,17 @@ class BlackboxEvent(StrictModel):
         if len(set(self.not_recorded)) != len(self.not_recorded):
             raise ValueError("not_recorded repeated")
         recorded = {
-            "state_before": self.state_before, "state_after": self.state_after,
-            "values_before": self.values_before, "values_after": self.values_after,
-            "reason": self.reason, "reason_code": self.reason_code,
-            "correlation_id": self.correlation_id, "causation_id": self.causation_id,
-            "process_id": self.process_id, "component": self.component, "data": self.data,
+            "state_before": self.state_before,
+            "state_after": self.state_after,
+            "values_before": self.values_before,
+            "values_after": self.values_after,
+            "reason": self.reason,
+            "reason_code": self.reason_code,
+            "correlation_id": self.correlation_id,
+            "causation_id": self.causation_id,
+            "process_id": self.process_id,
+            "component": self.component,
+            "data": self.data,
             "exchange_ts": self.exchange_ts,
         }
         for name in self.not_recorded:
@@ -1795,9 +1861,7 @@ class BlackboxEventsResponse(StrictModel):
     as_of_seq: Annotated[int, Field(ge=0, le=10**15)] | None
     gaps_in_range: BlackboxGaps
     # Finestre di tempo nell'intervallo letto in cui il motore non ha potuto registrare.
-    unrecorded_windows: Annotated[
-        tuple[BlackboxWindow, ...], Field(max_length=BLACKBOX_MAX_GAPS)
-    ]
+    unrecorded_windows: Annotated[tuple[BlackboxWindow, ...], Field(max_length=BLACKBOX_MAX_GAPS)]
     redacted: Count
     unavailable: Annotated[
         tuple[Literal["events", "as_of_seq"], ...],
@@ -1808,8 +1872,13 @@ class BlackboxEventsResponse(StrictModel):
     def _coherent(self) -> BlackboxEventsResponse:
         _check_unavailable({"events": self.events, "as_of_seq": self.as_of_seq}, self.unavailable)
         if self.events is None:
-            no_page = (self.truncated or self.next_after_seq or self.gaps_in_range
-                       or self.unrecorded_windows or self.redacted)
+            no_page = (
+                self.truncated
+                or self.next_after_seq
+                or self.gaps_in_range
+                or self.unrecorded_windows
+                or self.redacted
+            )
             if no_page:
                 raise ValueError("pagination or gaps without events")
             return self
@@ -1888,8 +1957,11 @@ class BlackboxSession(StrictModel):
             raise ValueError("a clean stop is the last recorded event")
         if (self.first_seq is None) != (self.last_seq is None):
             raise ValueError("seq range incomplete")
-        if (self.first_seq is not None and self.last_seq is not None
-                and self.first_seq > self.last_seq):
+        if (
+            self.first_seq is not None
+            and self.last_seq is not None
+            and self.first_seq > self.last_seq
+        ):
             raise ValueError("seq range inverted")
         return self
 
@@ -1945,8 +2017,14 @@ class BlackboxStatusResponse(StrictModel):
     not_reported: Annotated[
         tuple[
             Literal[
-                "seq_range", "corrupt_records", "sessions", "last_durable_write_at",
-                "retention_days", "gaps", "degraded", "dropped_non_critical",
+                "seq_range",
+                "corrupt_records",
+                "sessions",
+                "last_durable_write_at",
+                "retention_days",
+                "gaps",
+                "degraded",
+                "dropped_non_critical",
                 "last_write_error_code",
             ],
             ...,
@@ -1959,9 +2037,11 @@ class BlackboxStatusResponse(StrictModel):
         if len(set(self.not_reported)) != len(self.not_reported):
             raise ValueError("not_reported repeated")
         reported = {
-            "corrupt_records": self.corrupt_records, "sessions": self.sessions,
+            "corrupt_records": self.corrupt_records,
+            "sessions": self.sessions,
             "last_durable_write_at": self.last_durable_write_at,
-            "retention_days": self.retention_days, "degraded": self.degraded,
+            "retention_days": self.retention_days,
+            "degraded": self.degraded,
             "dropped_non_critical": self.dropped_non_critical,
             "last_write_error_code": self.last_write_error_code,
         }
@@ -1972,8 +2052,11 @@ class BlackboxStatusResponse(StrictModel):
             raise ValueError("seq range declared not reported carries a value")
         if (self.first_seq is None) != (self.last_seq is None):
             raise ValueError("seq range incomplete")
-        if (self.first_seq is not None and self.last_seq is not None
-                and self.first_seq > self.last_seq):
+        if (
+            self.first_seq is not None
+            and self.last_seq is not None
+            and self.first_seq > self.last_seq
+        ):
             raise ValueError("seq range inverted")
         if self.gaps_truncated and not self.gaps:
             raise ValueError("gaps truncated without gaps")

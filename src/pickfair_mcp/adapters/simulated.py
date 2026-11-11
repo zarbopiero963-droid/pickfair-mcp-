@@ -456,8 +456,13 @@ def _table(table_id: int, **overrides: Any) -> dict[str, Any]:
             "stop_loss_pct": None,
             "take_profit_pct": None,
             "trailing_stop_pct": None,
-            "trailing": {"state": "NOT_IN_CORE", "pct": None, "peak": None, "threshold": None,
-                         "peak_source": "NONE"},
+            "trailing": {
+                "state": "NOT_IN_CORE",
+                "pct": None,
+                "peak": None,
+                "threshold": None,
+                "peak_source": "NONE",
+            },
         },
     }
     data.update(overrides)
@@ -477,12 +482,24 @@ def _sl_tp_close(**overrides: Any) -> dict[str, Any]:
         "detail": None,
         "recorded_at": 1_700_000_100.0,
         "bet_ids": ["SIMBET-3"],
-        "position": {"orders": 1, "partially_matched": 0, "in_reconciliation": 1, "ambiguous": 0,
-                     "unreadable": 0},
+        "position": {
+            "orders": 1,
+            "partially_matched": 0,
+            "in_reconciliation": 1,
+            "ambiguous": 0,
+            "unreadable": 0,
+        },
         "residual_exposure": None,
         "residual_source": "TABLE_RELEASED",
-        "hedges": {"requests": 1, "pending": 0, "placed": 1, "unmatched": 0, "ambiguous": 0,
-                   "failed": 0, "not_in_ledger": 0},
+        "hedges": {
+            "requests": 1,
+            "pending": 0,
+            "placed": 1,
+            "unmatched": 0,
+            "ambiguous": 0,
+            "failed": 0,
+            "not_in_ledger": 0,
+        },
     }
     data.update(overrides)
     return data
@@ -506,8 +523,13 @@ def _exposure_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
                     "stop_loss_pct": "25",
                     "take_profit_pct": "50",
                     "trailing_stop_pct": None,
-                    "trailing": {"state": "NOT_IN_CORE", "pct": None, "peak": None, "threshold": None,
-                                 "peak_source": "NONE"},
+                    "trailing": {
+                        "state": "NOT_IN_CORE",
+                        "pct": None,
+                        "peak": None,
+                        "threshold": None,
+                        "peak_source": "NONE",
+                    },
                 },
             ),
             _table(2),
@@ -877,10 +899,24 @@ _SIM_MARKET = "1.200000001"
 def _markets_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
     """Mercati fittizi seguiti dal tracker simulato."""
     markets: list[dict[str, Any]] | None = [
-        {"market_id": _SIM_MARKET, "book_status": "OPEN", "inplay": False, "runners": 3,
-         "total_matched": "12500.5", "last_match_time": now - 5.0, "book_age_s": "2.5"},
-        {"market_id": "1.200000002", "book_status": "SUSPENDED", "inplay": True, "runners": 2,
-         "total_matched": None, "last_match_time": None, "book_age_s": None},
+        {
+            "market_id": _SIM_MARKET,
+            "book_status": "OPEN",
+            "inplay": False,
+            "runners": 3,
+            "total_matched": "12500.5",
+            "last_match_time": now - 5.0,
+            "book_age_s": "2.5",
+        },
+        {
+            "market_id": "1.200000002",
+            "book_status": "SUSPENDED",
+            "inplay": True,
+            "runners": 2,
+            "total_matched": None,
+            "last_match_time": None,
+            "book_age_s": None,
+        },
     ]
     unavailable: list[str] = []
     if scenario is StatusScenario.NOT_STARTED:
@@ -909,10 +945,14 @@ def _market_book_body(scenario: StatusScenario, now: float, market_id: str) -> d
         "total_matched": "12500.5",
         "last_match_time": now - 5.0,
         "runners": [
-            {"selection_id": "47972", "status": "ACTIVE", "last_price_traded": "2.5",
-             "total_matched": "8000", "back": [{"price": "2.5", "size": "120"},
-                                                {"price": "2.48", "size": "300"}],
-             "lay": [{"price": "2.52", "size": "90"}]},
+            {
+                "selection_id": "47972",
+                "status": "ACTIVE",
+                "last_price_traded": "2.5",
+                "total_matched": "8000",
+                "back": [{"price": "2.5", "size": "120"}, {"price": "2.48", "size": "300"}],
+                "lay": [{"price": "2.52", "size": "90"}],
+            },
         ],
         "omitted_runners": 0,
         "book_age_s": "2.5",
@@ -938,17 +978,37 @@ _SIM_SESSION = "sim-session-1"
 
 def _bb_event(seq: int, **over: Any) -> dict[str, Any]:
     data: dict[str, Any] = {
-        "seq": seq, "event_id": f"{seq:032x}", "ts_utc": "2026-11-07T15:00:00.000Z",
+        "seq": seq,
+        "event_id": f"{seq:032x}",
+        "ts_utc": "2026-11-07T15:00:00.000Z",
         "exchange_ts": None,
-        "session_id": _SIM_SESSION, "process_id": 1000, "component": "sim.engine",
-        "origin": "SYSTEM", "category": "SESSION", "event_type": "SIM_EVENT", "severity": "INFO",
-        "phase": "OBSERVATION", "outcome": "NOT_APPLICABLE", "state_before": None,
-        "state_after": None, "values_before": None,
-        "values_after": None, "reason": None, "reason_code": None, "correlation_id": None,
+        "session_id": _SIM_SESSION,
+        "process_id": 1000,
+        "component": "sim.engine",
+        "origin": "SYSTEM",
+        "category": "SESSION",
+        "event_type": "SIM_EVENT",
+        "severity": "INFO",
+        "phase": "OBSERVATION",
+        "outcome": "NOT_APPLICABLE",
+        "state_before": None,
+        "state_after": None,
+        "values_before": None,
+        "values_after": None,
+        "reason": None,
+        "reason_code": None,
+        "correlation_id": None,
         "causation_id": None,
-        "refs": {"table_id": None, "market_id": None, "selection_id": None, "order_id": None,
-                 "bet_id": None, "strategy": None},
-        "data": None, "omitted_values": 0,
+        "refs": {
+            "table_id": None,
+            "market_id": None,
+            "selection_id": None,
+            "order_id": None,
+            "bet_id": None,
+            "strategy": None,
+        },
+        "data": None,
+        "omitted_values": 0,
         "not_recorded": [],
     }
     data.update(over)
@@ -960,21 +1020,53 @@ _SIM_ORDER = "ord_" + "7" * 32  # alias opaco fittizio (BB-1 D1)
 
 def _bb_sim_events() -> list[dict[str, Any]]:
     """Ciclo fittizio di un ordine: tentativo, poi esito confermato, con la sua causa."""
-    attempt = _bb_event(2, ts_utc="2026-11-07T15:00:01.250Z", origin="STRATEGY", category="ORDER",
-                        event_type="ORDER_PLACE_ATTEMPT", phase="ATTEMPT", outcome="PENDING",
-                        correlation_id="sim-corr-1", values_after={"stake": "2.00", "price": "3.1"},
-                        refs={"table_id": 1, "market_id": _SIM_MARKET, "selection_id": 101,
-                              "order_id": _SIM_ORDER, "bet_id": None, "strategy": "roserpina"},
-                        data={"bankroll_verified": "100.00", "mm_pct": "2",
-                              "stake_theoretical": "2.00", "stake_authorized": "2.00",
-                              "currency": "EUR"})
-    result = _bb_event(3, ts_utc="2026-11-07T15:00:01.900Z", origin="EXCHANGE", category="ORDER",
-                       event_type="ORDER_PLACE_RESULT", phase="RESULT", outcome="VERIFIED",
-                       state_before="INFLIGHT", state_after="SUBMITTED",
-                       correlation_id="sim-corr-1",
-                       causation_id=attempt["event_id"],
-                       refs={"table_id": 1, "market_id": _SIM_MARKET, "selection_id": 101,
-                             "order_id": _SIM_ORDER, "bet_id": "1001", "strategy": "roserpina"})
+    attempt = _bb_event(
+        2,
+        ts_utc="2026-11-07T15:00:01.250Z",
+        origin="STRATEGY",
+        category="ORDER",
+        event_type="ORDER_PLACE_ATTEMPT",
+        phase="ATTEMPT",
+        outcome="PENDING",
+        correlation_id="sim-corr-1",
+        values_after={"stake": "2.00", "price": "3.1"},
+        refs={
+            "table_id": 1,
+            "market_id": _SIM_MARKET,
+            "selection_id": 101,
+            "order_id": _SIM_ORDER,
+            "bet_id": None,
+            "strategy": "roserpina",
+        },
+        data={
+            "bankroll_verified": "100.00",
+            "mm_pct": "2",
+            "stake_theoretical": "2.00",
+            "stake_authorized": "2.00",
+            "currency": "EUR",
+        },
+    )
+    result = _bb_event(
+        3,
+        ts_utc="2026-11-07T15:00:01.900Z",
+        origin="EXCHANGE",
+        category="ORDER",
+        event_type="ORDER_PLACE_RESULT",
+        phase="RESULT",
+        outcome="VERIFIED",
+        state_before="INFLIGHT",
+        state_after="SUBMITTED",
+        correlation_id="sim-corr-1",
+        causation_id=attempt["event_id"],
+        refs={
+            "table_id": 1,
+            "market_id": _SIM_MARKET,
+            "selection_id": 101,
+            "order_id": _SIM_ORDER,
+            "bet_id": "1001",
+            "strategy": "roserpina",
+        },
+    )
     start = _bb_event(1, event_type="SESSION_STARTED", values_after={"api_key": "[REDACTED]"})
     return [start, attempt, result]
 
@@ -995,9 +1087,16 @@ def _blackbox_events_body(scenario: StatusScenario, now: float) -> dict[str, Any
         events[1] = {**events[1], "outcome": "VERIFIED"}  # type: ignore[index]
     return {
         "source": "core" if scenario is StatusScenario.WRONG_SOURCE else "simulated",
-        "observed_at": _observed_at(scenario, now), "consistency": "SINGLE_READ_SNAPSHOT",
-        "events": events, "next_after_seq": 0, "truncated": False, "as_of_seq": as_of,
-        "gaps_in_range": [], "unrecorded_windows": [], "redacted": 0, "unavailable": unavailable,
+        "observed_at": _observed_at(scenario, now),
+        "consistency": "SINGLE_READ_SNAPSHOT",
+        "events": events,
+        "next_after_seq": 0,
+        "truncated": False,
+        "as_of_seq": as_of,
+        "gaps_in_range": [],
+        "unrecorded_windows": [],
+        "redacted": 0,
+        "unavailable": unavailable,
     }
 
 
@@ -1009,43 +1108,82 @@ def _blackbox_event_body(scenario: StatusScenario, now: float, event_id: str) ->
         event = {**event, "event_id": f"{99:032x}"}  # evento diverso da quello chiesto: rifiutato
     return {
         "source": "core" if scenario is StatusScenario.WRONG_SOURCE else "simulated",
-        "observed_at": _observed_at(scenario, now), "consistency": "SINGLE_READ_SNAPSHOT",
-        "event_id": event_id, "state": "OK" if event is not None else "NOT_FOUND", "event": event,
-        "chain": chain, "chain_truncated": False, "chain_broken_at": None, "redacted": 0,
+        "observed_at": _observed_at(scenario, now),
+        "consistency": "SINGLE_READ_SNAPSHOT",
+        "event_id": event_id,
+        "state": "OK" if event is not None else "NOT_FOUND",
+        "event": event,
+        "chain": chain,
+        "chain_truncated": False,
+        "chain_broken_at": None,
+        "redacted": 0,
     }
 
 
 def _blackbox_sessions_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
     sessions: list[dict[str, Any]] | None = [
-        {"session_id": _SIM_SESSION, "process_id": 1000, "started_at": "2026-11-07T15:00:00.000Z",
-         "ended_at": None, "last_event_at": "2026-11-07T15:00:01.900Z", "end_reason": "RUNNING",
-         "first_seq": 1, "last_seq": 3},
+        {
+            "session_id": _SIM_SESSION,
+            "process_id": 1000,
+            "started_at": "2026-11-07T15:00:00.000Z",
+            "ended_at": None,
+            "last_event_at": "2026-11-07T15:00:01.900Z",
+            "end_reason": "RUNNING",
+            "first_seq": 1,
+            "last_seq": 3,
+        },
     ]
     unavailable: list[str] = []
     if scenario is StatusScenario.NOT_STARTED:
         sessions, unavailable = None, ["sessions"]
     return {
         "source": "core" if scenario is StatusScenario.WRONG_SOURCE else "simulated",
-        "observed_at": _observed_at(scenario, now), "consistency": "SINGLE_READ_SNAPSHOT",
-        "sessions": sessions, "truncated": False, "unavailable": unavailable,
+        "observed_at": _observed_at(scenario, now),
+        "consistency": "SINGLE_READ_SNAPSHOT",
+        "sessions": sessions,
+        "truncated": False,
+        "unavailable": unavailable,
     }
 
 
 def _blackbox_status_body(scenario: StatusScenario, now: float) -> dict[str, Any]:
     body: dict[str, Any] = {
         "source": "core" if scenario is StatusScenario.WRONG_SOURCE else "simulated",
-        "observed_at": _observed_at(scenario, now), "consistency": "PER_FIELD_NON_ATOMIC",
-        "available": True, "degraded": False, "dropped_non_critical": 0,
-        "first_seq": 1, "last_seq": 3, "retained_from_seq": 1, "gaps": [],
-        "gaps_truncated": False, "corrupt_records": 0, "sessions": 1,
+        "observed_at": _observed_at(scenario, now),
+        "consistency": "PER_FIELD_NON_ATOMIC",
+        "available": True,
+        "degraded": False,
+        "dropped_non_critical": 0,
+        "first_seq": 1,
+        "last_seq": 3,
+        "retained_from_seq": 1,
+        "gaps": [],
+        "gaps_truncated": False,
+        "corrupt_records": 0,
+        "sessions": 1,
         "current_session_id": _SIM_SESSION,
-        "last_write_error_code": None, "last_durable_write_at": "2026-11-07T15:00:01.900Z",
-        "retention_days": None, "requests_unrecorded": 0, "not_reported": ["retention_days"],
+        "last_write_error_code": None,
+        "last_durable_write_at": "2026-11-07T15:00:01.900Z",
+        "retention_days": None,
+        "requests_unrecorded": 0,
+        "not_reported": ["retention_days"],
     }
     if scenario is StatusScenario.NOT_STARTED:
-        body.update(available=False, first_seq=None, last_seq=None, retained_from_seq=None,
-                    corrupt_records=None, sessions=None, current_session_id=None,
-                    last_durable_write_at=None,
-                    not_reported=["seq_range", "corrupt_records", "sessions",
-                                  "last_durable_write_at", "retention_days"])
+        body.update(
+            available=False,
+            first_seq=None,
+            last_seq=None,
+            retained_from_seq=None,
+            corrupt_records=None,
+            sessions=None,
+            current_session_id=None,
+            last_durable_write_at=None,
+            not_reported=[
+                "seq_range",
+                "corrupt_records",
+                "sessions",
+                "last_durable_write_at",
+                "retention_days",
+            ],
+        )
     return body

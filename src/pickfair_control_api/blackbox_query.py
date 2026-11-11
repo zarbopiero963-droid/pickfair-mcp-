@@ -52,7 +52,10 @@ _PATTERNS: Final = {
 # 1.15.0: filtri di BB-1 (Claude B). severity_min e q non esistono nel lettore del motore: tolti.
 PHASES: Final = frozenset({"ATTEMPT", "RESULT", "OBSERVATION"})
 _ENUMS: Final = {
-    "origin": ORIGINS, "severity": frozenset(SEVERITIES), "outcome": OUTCOMES, "phase": PHASES,
+    "origin": ORIGINS,
+    "severity": frozenset(SEVERITIES),
+    "outcome": OUTCOMES,
+    "phase": PHASES,
 }
 ALLOWED: Final = frozenset({"since", "until", *_PATTERNS, *_ENUMS})
 _PRINTABLE = re.compile(r"\A[\x21-\x7e]*\Z")

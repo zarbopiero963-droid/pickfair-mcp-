@@ -524,12 +524,23 @@ async def test_e2e_config_is_read_only_and_redacted(core: Core, tmp_path: Path) 
     assert s["table_count"]["value"] == expected["table_count"] == 3
     assert s["risk_profile"]["value"] == expected["risk_profile"]
     assert expected["max_session_loss"] is None
-    assert s["max_session_loss"] == {"key": "max_session_loss", "kind": "DECIMAL",
-                                     "state": "NOT_SET", "value": None}
+    assert s["max_session_loss"] == {
+        "key": "max_session_loss",
+        "kind": "DECIMAL",
+        "state": "NOT_SET",
+        "value": None,
+    }
     text = json.dumps(payload)
-    for secret in ("E2E-APPKEY-SECRET", "E2E-CERT-SECRET", "E2E-PK-SECRET",
-                   "E2E-PASSWORD-SECRET", "E2E-HASH-SECRET", "E2E-SS-SECRET", "424242",
-                   "e2e-user"):
+    for secret in (
+        "E2E-APPKEY-SECRET",
+        "E2E-CERT-SECRET",
+        "E2E-PK-SECRET",
+        "E2E-PASSWORD-SECRET",
+        "E2E-HASH-SECRET",
+        "E2E-SS-SECRET",
+        "424242",
+        "e2e-user",
+    ):
         assert secret not in text
     assert after["calls"] == baseline["calls"]  # nessuna chiamata a broker o Betfair
     assert after["db"] == baseline["db"] and after["state"] == baseline["state"]
@@ -545,11 +556,18 @@ async def test_e2e_p0_ambiguous_row_without_unconfirmed_amounts(core: Core, tmp_
         is_error, payload = await call(s, "list_orders")
     assert is_error is False, payload
     jsonschema.validate(payload, tools["list_orders"].outputSchema)
-    row = next(o for o in payload["data"]["orders"]["snapshot"]["orders"]
-               if str(o["local_id"]) == str(written["id"]))
+    row = next(
+        o
+        for o in payload["data"]["orders"]["snapshot"]["orders"]
+        if str(o["local_id"]) == str(written["id"])
+    )
     assert row["status"] == "AMBIGUOUS" and row["bet_id"] == "31415"
     assert "31415" in written["open_bet_ids"]  # stessa identità della riconciliazione del core
-    assert (row["size_matched"], row["avg_price_matched"], row["size_remaining"]) == (None, None, None)
+    assert (row["size_matched"], row["avg_price_matched"], row["size_remaining"]) == (
+        None,
+        None,
+        None,
+    )
     assert row["reconciliation"]["in_reconciliation"] is True
     assert row["reconciliation"]["ambiguity_reason"] == "BET_STATUS_UNRECOGNIZED"
 
@@ -573,7 +591,9 @@ async def test_e2e_markets_and_book_from_the_real_tracker(core: Core, tmp_path: 
     assert result.isError is False, book
     jsonschema.validate(book, tools["get_market_book"].outputSchema)
     runner = book["data"]["book"]["book"]["runners"][0]
-    assert runner["back"] == [{"price": "2.5", "size": "100"}] and runner["lay"] == [{"price": "2.52", "size": "60"}]
+    assert runner["back"] == [{"price": "2.5", "size": "100"}] and runner["lay"] == [
+        {"price": "2.52", "size": "60"}
+    ]
     assert missing.structuredContent["data"]["book"]["state"] == "NOT_TRACKED"
     # MCP-01n: età dall'istante monotono del tracker (core con claude/d-market-book-age);
     # senza, null dichiarato. PICKFAIR_CORE_BOOK_AGE=1 la esige (core che la fornisce).
@@ -588,6 +608,8 @@ async def test_e2e_markets_and_book_from_the_real_tracker(core: Core, tmp_path: 
         assert book_age is None
     assert after["calls"] == baseline["calls"] and after["db"] == baseline["db"]
     assert after["bus"] == baseline["bus"] and after["balance"] == baseline["balance"]
+
+
 async def test_e2e_sl_tp_close_from_the_core_record(core: Core, tmp_path: Path) -> None:
     """MCP-01i: chiusura SL/TP persistita con le funzioni di F-04 nel core reale (SIM), letta da get_exposure."""
     errlog = (tmp_path / "mcp.err").open("w+")
@@ -602,7 +624,11 @@ async def test_e2e_sl_tp_close_from_the_core_record(core: Core, tmp_path: Path) 
     section = payload["data"]["exposure"]["sl_tp_closes"]
     assert section["state"] == "OK"
     close = next(c for c in section["closes"] if c["table_id"] == 4)
-    assert (close["trigger"], close["close_state"], close["retryable"]) == ("STOP_LOSS", "NOT_EXECUTED", True)
+    assert (close["trigger"], close["close_state"], close["retryable"]) == (
+        "STOP_LOSS",
+        "NOT_EXECUTED",
+        True,
+    )
     assert close["detail"] == "GATE_REJECTED" and close["bet_ids"] == ["SIMBET-close"]
     assert close["position"]["orders"] == 1 and close["position"]["partially_matched"] == 1
     assert (close["residual_source"], close["residual_exposure"]) == ("TABLE", "8")
@@ -624,8 +650,13 @@ async def test_e2e_trailing_from_the_core_trailing_module(core: Core, tmp_path: 
     assert is_error is False and st_error is False, payload
     jsonschema.validate(payload, tools["get_exposure"].outputSchema)
     table = next(t for t in payload["data"]["exposure"]["tables"] if t["table_id"] == 5)
-    assert table["sl_tp"]["trailing"] == {"state": "ARMED", "pct": "20", "peak": "15", "threshold": "12",
-                                          "peak_source": "PERSISTED"}
+    assert table["sl_tp"]["trailing"] == {
+        "state": "ARMED",
+        "pct": "20",
+        "peak": "15",
+        "threshold": "12",
+        "peak_source": "PERSISTED",
+    }
     assert expected["threshold"] == "12.00"  # stessa soglia della funzione del core
     validity = status["data"]["status"]["protections"]["items"]["config_validity"]
     assert validity["state"] in ("ACTIVE", "TRIGGERED")

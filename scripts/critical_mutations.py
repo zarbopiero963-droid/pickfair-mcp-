@@ -1128,7 +1128,7 @@ MUTANTS: tuple[Mutant, ...] = (
         (
             (
                 "src/pickfair_mcp/contract/models.py",
-                '        _check_unavailable(\n            {"settings": self.settings, "invalid_persisted": self.invalid_persisted}, self.unavailable\n        )',
+                '        _check_unavailable(\n            {"settings": self.settings, "invalid_persisted": self.invalid_persisted},\n            self.unavailable,\n        )',
                 "        pass",
             ),
         ),
@@ -1227,7 +1227,7 @@ MUTANTS: tuple[Mutant, ...] = (
         (
             (
                 "src/pickfair_control_api/tokens.py",
-                "    if (not isinstance(token, str) or not MIN_TOKEN_CHARS <= len(token) <= MAX_TOKEN_CHARS\n            or not _TOKEN_RE.fullmatch(token)):",
+                "    if (\n        not isinstance(token, str)\n        or not MIN_TOKEN_CHARS <= len(token) <= MAX_TOKEN_CHARS\n        or not _TOKEN_RE.fullmatch(token)\n    ):",
                 "    if not isinstance(token, str):",
             ),
         ),
@@ -1370,8 +1370,8 @@ MUTANTS: tuple[Mutant, ...] = (
         (
             (
                 MO,
-                "        if self.requests == 0 and (self.pending or self.placed or self.unmatched or self.ambiguous",
-                "        if False and (self.pending or self.placed or self.unmatched or self.ambiguous",
+                "        if self.requests == 0 and (\n            self.pending or self.placed",
+                "        if False and (\n            self.pending or self.placed",
             ),
         ),
     ),
@@ -1843,8 +1843,8 @@ MUTANTS: tuple[Mutant, ...] = (
         (
             (
                 "src/pickfair_control_api/blackbox_bridge.py",
-                '    "corrupt_records", "last_durable_write_at", "retention_days", "gaps", "degraded",',
-                '    "corrupt_records", "last_durable_write_at", "retention_days", "degraded",',
+                '    "retention_days",\n    "gaps",\n    "degraded",',
+                '    "retention_days",\n    "degraded",',
             ),
         ),
     ),

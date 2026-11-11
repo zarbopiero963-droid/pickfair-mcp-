@@ -18,8 +18,20 @@ from typing import Any, Final
 REDACTED: Final = "[REDACTED]"
 # Copia di pickfair_mcp.contract.models.BLACKBOX_SENSITIVE_FRAGMENTS (verificata da un test).
 SENSITIVE_FRAGMENTS: Final = (
-    "token", "secret", "password", "passwd", "bearer", "credential", "cookie", "ssoid", "private",
-    "api_key", "apikey", "application", "customer_ref", "certificate",
+    "token",
+    "secret",
+    "password",
+    "passwd",
+    "bearer",
+    "credential",
+    "cookie",
+    "ssoid",
+    "private",
+    "api_key",
+    "apikey",
+    "application",
+    "customer_ref",
+    "certificate",
 )
 # Copia di BLACKBOX_SENSITIVE_SEGMENTS: sensibili solo come segmento intero del nome.
 SENSITIVE_SEGMENTS: Final = ("auth", "authorization", "pem", "otp")

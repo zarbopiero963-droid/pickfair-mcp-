@@ -39,8 +39,11 @@ class WeakTokenError(ValueError):
 
 
 def _checked(token: object) -> bytes:
-    if (not isinstance(token, str) or not MIN_TOKEN_CHARS <= len(token) <= MAX_TOKEN_CHARS
-            or not _TOKEN_RE.fullmatch(token)):
+    if (
+        not isinstance(token, str)
+        or not MIN_TOKEN_CHARS <= len(token) <= MAX_TOKEN_CHARS
+        or not _TOKEN_RE.fullmatch(token)
+    ):
         raise WeakTokenError("TOKEN_WEAK")
     return token.encode("ascii")
 

@@ -14,8 +14,13 @@ from tests.control_api import bodies
 
 
 def trailing(**overrides: Any) -> dict[str, Any]:
-    data: dict[str, Any] = {"state": "ARMED", "pct": "20", "peak": "15", "threshold": "12",
-                            "peak_source": "MEMORY"}
+    data: dict[str, Any] = {
+        "state": "ARMED",
+        "pct": "20",
+        "peak": "15",
+        "threshold": "12",
+        "peak_source": "MEMORY",
+    }
     data.update(overrides)
     return data
 
@@ -52,15 +57,17 @@ def test_valid_trailing_states(tr: dict[str, Any]) -> None:
 @pytest.mark.parametrize(
     "tr",
     [
-        trailing(peak_source="NONE"),                                             # picco senza fonte (Y01)
-        trailing(state="WAITING_PROFIT", peak=None, threshold=None),               # fonte senza picco (Y01)
-        trailing(state="WAITING_PROFIT", pct=None, peak=None, threshold=None, peak_source="NONE"),  # Y02
-        trailing(state="TRIGGERED", pct=None),                                    # Y02
-        trailing(state="OFF", pct="20", peak=None, threshold=None, peak_source="NONE"),   # Y03
-        trailing(threshold=None),                                                 # ARMED senza soglia (Y04)
-        trailing(threshold="16"),                                                 # soglia sopra il picco (Y05)
-        trailing(state="NOT_IN_CORE"),                                            # picco senza trailing armato
-        trailing(state="UNKNOWN", peak=None, peak_source="NONE"),                 # soglia senza picco
+        trailing(peak_source="NONE"),  # picco senza fonte (Y01)
+        trailing(state="WAITING_PROFIT", peak=None, threshold=None),  # fonte senza picco (Y01)
+        trailing(
+            state="WAITING_PROFIT", pct=None, peak=None, threshold=None, peak_source="NONE"
+        ),  # Y02
+        trailing(state="TRIGGERED", pct=None),  # Y02
+        trailing(state="OFF", pct="20", peak=None, threshold=None, peak_source="NONE"),  # Y03
+        trailing(threshold=None),  # ARMED senza soglia (Y04)
+        trailing(threshold="16"),  # soglia sopra il picco (Y05)
+        trailing(state="NOT_IN_CORE"),  # picco senza trailing armato
+        trailing(state="UNKNOWN", peak=None, peak_source="NONE"),  # soglia senza picco
     ],
 )
 def test_incoherent_trailing_is_rejected_by_the_mcp(tr: dict[str, Any]) -> None:
@@ -68,8 +75,9 @@ def test_incoherent_trailing_is_rejected_by_the_mcp(tr: dict[str, Any]) -> None:
         parse_exposure(raw(body(tr)))
 
 
-@pytest.mark.parametrize("bad", [trailing(state="ACTIVE"), trailing(peak="-1"), trailing(peak=15.0),
-                                 trailing(extra=1)])
+@pytest.mark.parametrize(
+    "bad", [trailing(state="ACTIVE"), trailing(peak="-1"), trailing(peak=15.0), trailing(extra=1)]
+)
 def test_trailing_shape_is_closed_in_the_schema(bad: dict[str, Any]) -> None:
     with pytest.raises(Exception):
         server_validate(body(bad), response_schema("exposure"))

@@ -120,8 +120,9 @@ def _as_windows(monkeypatch: pytest.MonkeyPatch) -> None:
     from pickfair_mcp.auth import token_file
 
     posix_only = {"getuid", "geteuid", "O_NOFOLLOW", "O_CLOEXEC"}
-    fake = types.SimpleNamespace(**{k: getattr(os, k) for k in dir(os)
-                                    if not k.startswith("__") and k not in posix_only})
+    fake = types.SimpleNamespace(
+        **{k: getattr(os, k) for k in dir(os) if not k.startswith("__") and k not in posix_only}
+    )
     fake.name = "nt"
     monkeypatch.setattr(token_file, "os", fake)
 
@@ -143,8 +144,17 @@ def test_cli_on_windows_is_a_usage_error_not_a_traceback(
     from pickfair_mcp import cli
 
     _as_windows(monkeypatch)
-    rc = cli.main(["serve", "--adapter", "http", "--control-api-port", "8765",
-                   "--control-api-token-file", str(token_dir / "token")])
+    rc = cli.main(
+        [
+            "serve",
+            "--adapter",
+            "http",
+            "--control-api-port",
+            "8765",
+            "--control-api-token-file",
+            str(token_dir / "token"),
+        ]
+    )
     assert rc != 0
     err = capsys.readouterr().err
     assert "TOKEN_PLATFORM_UNSUPPORTED" in err and "Traceback" not in err

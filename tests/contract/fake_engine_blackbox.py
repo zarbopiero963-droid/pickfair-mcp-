@@ -29,10 +29,22 @@ def uid(n: int) -> str:
 
 # Colonne che BB-1 elenca in `not_recorded` quando sono null.
 NULLABLE = (
-    "bet_id", "causation_id", "correlation_id", "data", "exchange_ts", "market_id", "order_id",
+    "bet_id",
+    "causation_id",
+    "correlation_id",
+    "data",
+    "exchange_ts",
+    "market_id",
+    "order_id",
     "reason",
-    "reason_code", "selection_id", "state_after", "state_before", "strategy", "table_id",
-    "values_after", "values_before",
+    "reason_code",
+    "selection_id",
+    "state_after",
+    "state_before",
+    "strategy",
+    "table_id",
+    "values_after",
+    "values_before",
 )
 
 
@@ -165,11 +177,24 @@ def scenario() -> list[dict[str, Any]]:
             8, source="ROBOT"
         ),  # fuori vocabolario: deve diventare una lacuna CORRUPT, mai un evento
         {k: v for k, v in record(9, category="SYSTEM", type="HEARTBEAT").items() if k != "reason"},
-        record(10, component="thread:Thread-3 (poller)", category="SYSTEM", type="TASK_EXCEPTION",
-               severity="ERROR"),
-        record(11, source="STRATEGY", category="ORDER", type="ORDER_PLACE", phase="ATTEMPT",
-               outcome="PENDING", table_id="2", selection_id="47973",
-               order_id=ORDER_ALIAS_2),  # BB-1: cifre come stringhe; alias dell'ordine
+        record(
+            10,
+            component="thread:Thread-3 (poller)",
+            category="SYSTEM",
+            type="TASK_EXCEPTION",
+            severity="ERROR",
+        ),
+        record(
+            11,
+            source="STRATEGY",
+            category="ORDER",
+            type="ORDER_PLACE",
+            phase="ATTEMPT",
+            outcome="PENDING",
+            table_id="2",
+            selection_id="47973",
+            order_id=ORDER_ALIAS_2,
+        ),  # BB-1: cifre come stringhe; alias dell'ordine
     ]
 
 
@@ -177,11 +202,27 @@ class FakeBlackboxQuery:
     """Interfaccia di lettura di BB-1 (`core/blackbox_query`), in memoria."""
 
     # Filtri accettati dal lettore (nomi del motore); qualunque altro nome è un errore.
-    FILTERS = frozenset({  # i 17 filtri del lettore di BB-1 (pfab-b-20261109-adapter-check-001)
-        "from_ts", "to_ts", "session_id", "table_id", "market_id", "order_id", "bet_id", "strategy",
-        "correlation_id", "category", "source", "type", "outcome", "selection_id", "phase",
-        "causation_id", "severity",
-    })
+    FILTERS = frozenset(
+        {  # i 17 filtri del lettore di BB-1 (pfab-b-20261109-adapter-check-001)
+            "from_ts",
+            "to_ts",
+            "session_id",
+            "table_id",
+            "market_id",
+            "order_id",
+            "bet_id",
+            "strategy",
+            "correlation_id",
+            "category",
+            "source",
+            "type",
+            "outcome",
+            "selection_id",
+            "phase",
+            "causation_id",
+            "severity",
+        }
+    )
 
     ok = True
     degraded = False
@@ -202,7 +243,9 @@ class FakeBlackboxQuery:
         seqs = [r["seq"] for r in self.records]
         runtime = self.health_scope == "RUNTIME"
         out = {  # forma di status() di BB-1 (dd7b7369)
-            "as_of_seq": max(seqs), "buffered": 0 if runtime else None, "count": len(seqs),
+            "as_of_seq": max(seqs),
+            "buffered": 0 if runtime else None,
+            "count": len(seqs),
             "degraded": self.degraded if runtime else None,
             "dropped_non_critical": int(self.degraded) if runtime else None,
             "ok": self.ok and not self.degraded,
@@ -247,9 +290,12 @@ class FakeBlackboxQuery:
         page = out[:limit]
         more = len(out) > limit
         # Forma di BB-1: dict; gaps_in_range sono lacune per tempo (vuote in questo scenario).
-        return {"records": page, "next_after_seq": page[-1]["seq"] if more else 0,
-                "gaps_in_range": list(self.time_gaps),
-                "as_of_seq": max(r["seq"] for r in self.records)}
+        return {
+            "records": page,
+            "next_after_seq": page[-1]["seq"] if more else 0,
+            "gaps_in_range": list(self.time_gaps),
+            "as_of_seq": max(r["seq"] for r in self.records),
+        }
 
     def get(
         self, event_id: str, chain_depth: int, *, external: bool = False

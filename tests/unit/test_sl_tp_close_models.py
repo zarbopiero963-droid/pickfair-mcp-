@@ -27,16 +27,29 @@ def rejected(b: dict[str, Any]) -> None:
 
 
 def test_valid_close_is_accepted_by_both_sides() -> None:
-    b = body(bodies.sl_tp_close(), bodies.sl_tp_close(
-        table_id=2, close_state="NOT_EXECUTED", retryable=True, detail="NO_HEDGE_PUBLISHED",
-        residual_exposure=None, residual_source="TABLE_RELEASED"))
+    b = body(
+        bodies.sl_tp_close(),
+        bodies.sl_tp_close(
+            table_id=2,
+            close_state="NOT_EXECUTED",
+            retryable=True,
+            detail="NO_HEDGE_PUBLISHED",
+            residual_exposure=None,
+            residual_source="TABLE_RELEASED",
+        ),
+    )
     server_validate(b, response_schema("exposure"))
     parsed = parse_exposure(raw(b))
     assert parsed.sl_tp_closes.closes[1].retryable is True  # type: ignore[union-attr]
 
 
-@pytest.mark.parametrize("missing", [{"state": "UNAVAILABLE", "reason": "CORE_PENDING_F04"},
-                                     {"state": "UNKNOWN", "reason": "DB_BUSY"}])
+@pytest.mark.parametrize(
+    "missing",
+    [
+        {"state": "UNAVAILABLE", "reason": "CORE_PENDING_F04"},
+        {"state": "UNKNOWN", "reason": "DB_BUSY"},
+    ],
+)
 def test_section_missing_is_explicit(missing: dict[str, Any]) -> None:
     b = bodies.exposure(sl_tp_closes=missing)
     server_validate(b, response_schema("exposure"))
@@ -48,16 +61,41 @@ def test_section_missing_is_explicit(missing: dict[str, Any]) -> None:
     [
         {"residual_exposure": "40", "residual_source": "TABLE_RELEASED"},  # residuo senza il tavolo
         {"residual_exposure": None, "residual_source": "TABLE"},
-        {"retryable": True},                                               # ROUTED mai ritentabile
+        {"retryable": True},  # ROUTED mai ritentabile
         {"close_state": "UNCERTAIN", "retryable": True},
-        {"bet_ids": []},                                                   # rivendicata senza betId
+        {"bet_ids": []},  # rivendicata senza betId
         {"bet_ids": ["1", "1"]},
-        {"position": {"orders": 1, "partially_matched": 2, "in_reconciliation": 0, "ambiguous": 0,
-                      "unreadable": 0}},
-        {"hedges": {"requests": 1, "pending": 0, "placed": 0, "unmatched": 0, "ambiguous": 0,
-                    "failed": 0, "not_in_ledger": 2}},                     # più mancanti che richieste
-        {"hedges": {"requests": 0, "pending": 1, "placed": 0, "unmatched": 0, "ambiguous": 0,
-                    "failed": 0, "not_in_ledger": 0}},                     # riga senza richiesta
+        {
+            "position": {
+                "orders": 1,
+                "partially_matched": 2,
+                "in_reconciliation": 0,
+                "ambiguous": 0,
+                "unreadable": 0,
+            }
+        },
+        {
+            "hedges": {
+                "requests": 1,
+                "pending": 0,
+                "placed": 0,
+                "unmatched": 0,
+                "ambiguous": 0,
+                "failed": 0,
+                "not_in_ledger": 2,
+            }
+        },  # più mancanti che richieste
+        {
+            "hedges": {
+                "requests": 0,
+                "pending": 1,
+                "placed": 0,
+                "unmatched": 0,
+                "ambiguous": 0,
+                "failed": 0,
+                "not_in_ledger": 0,
+            }
+        },  # riga senza richiesta
     ],
 )
 def test_close_rules_are_enforced_by_the_mcp(overrides: dict[str, Any]) -> None:
@@ -67,13 +105,23 @@ def test_close_rules_are_enforced_by_the_mcp(overrides: dict[str, Any]) -> None:
 @pytest.mark.parametrize(
     "overrides",
     [
-        {"customer_ref": "cref-secret"},                     # riferimento della posizione: mai
+        {"customer_ref": "cref-secret"},  # riferimento della posizione: mai
         {"close_state": "DONE"},
         {"trigger": "TRAILING"},
-        {"residual_exposure": 40.0},                         # importo in float
+        {"residual_exposure": 40.0},  # importo in float
         {"residual_exposure": "-1"},
-        {"hedges": {"requests": 1, "pending": 0, "placed": 0, "unmatched": 0, "ambiguous": 0,
-                    "failed": 0, "not_in_ledger": 0, "selection_id": "1"}},  # schema chiuso
+        {
+            "hedges": {
+                "requests": 1,
+                "pending": 0,
+                "placed": 0,
+                "unmatched": 0,
+                "ambiguous": 0,
+                "failed": 0,
+                "not_in_ledger": 0,
+                "selection_id": "1",
+            }
+        },  # schema chiuso
         {"detail": "free text with spaces"},
     ],
 )

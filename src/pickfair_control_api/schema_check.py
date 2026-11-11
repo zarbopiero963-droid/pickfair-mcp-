@@ -153,8 +153,11 @@ def _check(value: Any, schema: dict[str, Any], root: dict[str, Any], path: str) 
                 _check(value[name], sub, root, f"{path}.{name}")
         if "patternProperties" in schema:
             for name in set(value) - set(props):
-                matched = [sub for pat, sub in schema["patternProperties"].items()
-                           if type(name) is str and _compiled(pat).search(name)]
+                matched = [
+                    sub
+                    for pat, sub in schema["patternProperties"].items()
+                    if type(name) is str and _compiled(pat).search(name)
+                ]
                 if not matched:
                     raise SchemaViolation(path)  # mai il nome della chiave nel messaggio
                 for sub in matched:

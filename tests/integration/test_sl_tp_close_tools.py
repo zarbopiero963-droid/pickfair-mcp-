@@ -63,9 +63,16 @@ async def test_simulated_close_is_schema_valid() -> None:
 
 @pytest.mark.loopback
 async def test_real_control_api_round_trip(tmp_path: Path) -> None:
-    section = bodies.sl_tp_closes(bodies.sl_tp_close(), bodies.sl_tp_close(
-        table_id=2, close_state="UNCERTAIN", detail="ROUTE_ERROR", residual_exposure=None,
-        residual_source="UNAVAILABLE"))
+    section = bodies.sl_tp_closes(
+        bodies.sl_tp_close(),
+        bodies.sl_tp_close(
+            table_id=2,
+            close_state="UNCERTAIN",
+            detail="ROUTE_ERROR",
+            residual_exposure=None,
+            residual_source="UNAVAILABLE",
+        ),
+    )
     with control_api(tmp_path) as (server, _s, token_path, providers):
         providers.exposure = lambda: bodies.exposure(sl_tp_closes=section)
         adapter = HttpControlApiAdapter(
@@ -83,13 +90,14 @@ async def test_real_control_api_round_trip(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     "close",
     [
-        bodies.sl_tp_close(customer_ref="cref-secret"),                    # schema del server
-        bodies.sl_tp_close(close_state="UNCERTAIN", retryable=True),       # regola del MCP
+        bodies.sl_tp_close(customer_ref="cref-secret"),  # schema del server
+        bodies.sl_tp_close(close_state="UNCERTAIN", retryable=True),  # regola del MCP
         bodies.sl_tp_close(residual_exposure="40", residual_source="TABLE_RELEASED"),
     ],
 )
-async def test_misrepresented_closes_never_reach_the_agent(tmp_path: Path,
-                                                           close: dict[str, Any]) -> None:
+async def test_misrepresented_closes_never_reach_the_agent(
+    tmp_path: Path, close: dict[str, Any]
+) -> None:
     with control_api(tmp_path) as (server, _s, token_path, providers):
         providers.exposure = lambda: bodies.exposure(sl_tp_closes=bodies.sl_tp_closes(close))
         adapter = HttpControlApiAdapter(

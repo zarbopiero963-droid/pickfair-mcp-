@@ -18,7 +18,9 @@ from typing import Final
 _NOFOLLOW: Final[int | None] = os.O_NOFOLLOW if hasattr(os, "O_NOFOLLOW") else None
 _CLOEXEC: Final[int | None] = os.O_CLOEXEC if hasattr(os, "O_CLOEXEC") else None
 
-PLATFORM_SUPPORTED: bool = sys.platform != "win32" and _NOFOLLOW is not None and _CLOEXEC is not None
+PLATFORM_SUPPORTED: bool = (
+    sys.platform != "win32" and _NOFOLLOW is not None and _CLOEXEC is not None
+)
 
 
 class JournalPlatformUnsupported(OSError):

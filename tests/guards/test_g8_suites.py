@@ -15,8 +15,22 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import run_suites  # noqa: E402
 
 # Campi chiusi delle suite del catalogo canonico (scripts/pf_test_dispatch.py, Pickfair-nogui main 911562ad).
-PF_SUITE_FIELDS = {"id", "component", "behaviour", "category", "runner", "args", "environment", "risk",
-                   "timeout_seconds", "resources", "datasets", "evidence", "requires", "criteria"}
+PF_SUITE_FIELDS = {
+    "id",
+    "component",
+    "behaviour",
+    "category",
+    "runner",
+    "args",
+    "environment",
+    "risk",
+    "timeout_seconds",
+    "resources",
+    "datasets",
+    "evidence",
+    "requires",
+    "criteria",
+}
 
 
 def manifest() -> dict[str, Any]:
@@ -32,12 +46,15 @@ def test_manifest_is_valid_and_declares_the_catalog_gap() -> None:
 def test_every_test_file_of_the_repository_belongs_to_a_suite() -> None:
     args = [a for s in manifest()["suites"] for a in s["args"]]
     files = sorted(str(p.relative_to(ROOT)) for p in (ROOT / "tests").rglob("test_*.py"))
-    uncovered = [f for f in files if not any(f == a or f.startswith(a.rstrip("/") + "/") for a in args)]
+    uncovered = [
+        f for f in files if not any(f == a or f.startswith(a.rstrip("/") + "/") for a in args)
+    ]
     assert uncovered == []
 
 
 def test_crossrepo_suite_requires_the_core_and_is_never_pass_without_it(
-        monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     suite = run_suites.resolve(manifest(), "suite:mcp-crossrepo")[0]
     assert suite["requires"] == ["PICKFAIR_CORE_PATH", "PICKFAIR_CORE_PYTHON"]
     monkeypatch.delenv("PICKFAIR_CORE_PATH", raising=False)
@@ -85,20 +102,25 @@ def write_junit(path: Path, cases: str) -> None:
         ('<testcase classname="tests.unit.test_a" name="t1"><failure/></testcase>', 1, "FAIL"),
         ('<testcase classname="tests.unit.test_a" name="t1"><error/></testcase>', 1, "FAIL"),
         ('<testcase classname="tests.unit.test_a" name="t1"><skipped/></testcase>', 0, "BLOCKED"),
-        ('<testcase classname="tests.unit.test_journal" name="test_permission_denied_fails_closed">'
-         '<skipped/></testcase><testcase classname="tests.unit.test_a" name="t2"/>', 0, "PASS"),
+        (
+            '<testcase classname="tests.unit.test_journal" name="test_permission_denied_fails_closed">'
+            '<skipped/></testcase><testcase classname="tests.unit.test_a" name="t2"/>',
+            0,
+            "PASS",
+        ),
         ("", 5, "BLOCKED"),
     ],
 )
-def test_verdicts_follow_the_criteria(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, cases: str, code: int,
-                                      verdict: str) -> None:
+def test_verdicts_follow_the_criteria(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, cases: str, code: int, verdict: str
+) -> None:
     suite = run_suites.resolve(manifest(), "suite:mcp-unit")[0]
 
     class Done:
         returncode = code
 
     def fake_run(argv: list[str], **kwargs: Any) -> Done:
-        assert argv[-len(suite["args"]):] == suite["args"]  # argv fisso dal manifest
+        assert argv[-len(suite["args"]) :] == suite["args"]  # argv fisso dal manifest
         assert not any(a.startswith("-k") for a in argv)
         junit = next(a for a in argv if a.startswith("--junitxml=")).split("=", 1)[1]
         write_junit(Path(junit), cases)
@@ -109,12 +131,18 @@ def test_verdicts_follow_the_criteria(monkeypatch: pytest.MonkeyPatch, tmp_path:
 
 
 def test_core_catalog_proposal_matches_the_canonical_schema() -> None:
-    proposal = json.loads((ROOT / "catalog" / "g8" / "pf-test-catalog.control-api.json").read_text())
+    proposal = json.loads(
+        (ROOT / "catalog" / "g8" / "pf-test-catalog.control-api.json").read_text()
+    )
     assert proposal["schema"] == "pf-test-catalog/1"
     for s in proposal["suites"]:
         assert set(s) == PF_SUITE_FIELDS
         assert s["runner"] == "pytest" and all(a.startswith("tests/control_api") for a in s["args"])
-        assert s["environment"] in run_suites.ENVIRONMENTS and set(s["criteria"]) == {"PASS", "FAIL", "BLOCKED"}
+        assert s["environment"] in run_suites.ENVIRONMENTS and set(s["criteria"]) == {
+            "PASS",
+            "FAIL",
+            "BLOCKED",
+        }
 
 
 # Provenienza (PF-MCP-CONTINUE-01, punto 3): un esito vale solo se attribuibile a uno SHA preciso.
@@ -156,14 +184,19 @@ def test_provenance_of_a_dirty_or_unknown_tree_is_not(tmp_path: Path) -> None:
     ],
 )
 def test_a_passing_campaign_on_an_unattributable_tree_is_never_pass(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, code_clean: bool, core: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    code_clean: bool,
+    core: Any,
     expected: tuple[str, Any],
 ) -> None:
-    monkeypatch.setattr(run_suites, "run_suite",
-                        lambda s, ev: {"suite": s["id"], "verdict": "PASS"})
+    monkeypatch.setattr(
+        run_suites, "run_suite", lambda s, ev: {"suite": s["id"], "verdict": "PASS"}
+    )
     code = {"sha": "b" * 40, "clean": code_clean}
-    monkeypatch.setattr(run_suites, "provenance",
-                        lambda root: core if root != run_suites.ROOT else code)
+    monkeypatch.setattr(
+        run_suites, "provenance", lambda root: core if root != run_suites.ROOT else code
+    )
     if core is None:
         monkeypatch.delenv("PICKFAIR_CORE_PATH", raising=False)
     else:

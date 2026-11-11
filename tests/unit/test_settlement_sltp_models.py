@@ -36,8 +36,13 @@ ARMED = {
     "stop_loss_pct": "25",
     "take_profit_pct": "50",
     "trailing_stop_pct": None,
-    "trailing": {"state": "NOT_IN_CORE", "pct": None, "peak": None, "threshold": None,
-                 "peak_source": "NONE"},
+    "trailing": {
+        "state": "NOT_IN_CORE",
+        "pct": None,
+        "peak": None,
+        "threshold": None,
+        "peak_source": "NONE",
+    },
 }
 
 
@@ -77,8 +82,13 @@ def test_unknown_sl_tp_may_carry_no_amounts() -> None:
         "stop_loss_pct": None,
         "take_profit_pct": None,
         "trailing_stop_pct": None,
-        "trailing": {"state": "NOT_IN_CORE", "pct": None, "peak": None, "threshold": None,
-                     "peak_source": "NONE"},
+        "trailing": {
+            "state": "NOT_IN_CORE",
+            "pct": None,
+            "peak": None,
+            "threshold": None,
+            "peak_source": "NONE",
+        },
     }
     assert parse_exposure(raw(table_with(sl_tp))).tables[0].sl_tp.state == "UNKNOWN"  # type: ignore[index]
 

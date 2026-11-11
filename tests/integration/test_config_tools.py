@@ -62,16 +62,24 @@ async def test_simulated_config_is_read_only_and_schema_valid() -> None:
     assert tool.annotations is not None and tool.annotations.readOnlyHint is True
     assert tool.inputSchema.get("properties", {}) == {}  # nessun parametro: nulla da modificare
     settings = {s["key"]: s for s in payload["data"]["config"]["settings"]}
-    assert settings["max_session_loss"] == {"key": "max_session_loss", "kind": "DECIMAL",
-                                            "state": "NOT_SET", "value": None}
+    assert settings["max_session_loss"] == {
+        "key": "max_session_loss",
+        "kind": "DECIMAL",
+        "state": "NOT_SET",
+        "value": None,
+    }
     assert settings["risk_profile"]["value"] == "BALANCED"
     assert adapter.config_calls == 1
 
 
 @pytest.mark.parametrize(
     "scenario",
-    [StatusScenario.EXTRA_FIELD, StatusScenario.INJECTION_TEXT, StatusScenario.INCONSISTENT,
-     StatusScenario.WRONG_SOURCE],
+    [
+        StatusScenario.EXTRA_FIELD,
+        StatusScenario.INJECTION_TEXT,
+        StatusScenario.INCONSISTENT,
+        StatusScenario.WRONG_SOURCE,
+    ],
 )
 async def test_simulated_bad_bodies_are_rejected(scenario: StatusScenario) -> None:
     async with session_for(SimulatedControlApiAdapter(status_scenario=scenario)) as s:
@@ -111,14 +119,21 @@ async def test_real_control_api_round_trip(tmp_path: Path) -> None:
         # segreto con nome sensibile in `unlisted`: lo ferma il MCP
         bodies.config(unlisted=["betfair_password"]),
         # chiave fuori allowlist con valore: lo ferma lo schema del server
-        bodies.config(settings=[*bodies.config()["settings"][:-1],
-                                {"key": "app_key", "kind": "DECIMAL", "state": "SET",
-                                 "value": "1"}]),
+        bodies.config(
+            settings=[
+                *bodies.config()["settings"][:-1],
+                {"key": "app_key", "kind": "DECIMAL", "state": "SET", "value": "1"},
+            ]
+        ),
         # campo extra con un segreto
         bodies.config(credentials={"password": "x"}),
         # INVALID convertito in zero
-        bodies.config(settings=[{**bodies.setting("max_daily_loss"), "state": "INVALID",
-                                 "value": "0"}, *bodies.config()["settings"][1:]]),
+        bodies.config(
+            settings=[
+                {**bodies.setting("max_daily_loss"), "state": "INVALID", "value": "0"},
+                *bodies.config()["settings"][1:],
+            ]
+        ),
     ],
 )
 async def test_leaks_never_reach_the_agent(tmp_path: Path, body: dict[str, Any]) -> None:

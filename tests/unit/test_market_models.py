@@ -18,9 +18,18 @@ def raw(b: dict[str, Any]) -> bytes:
 
 
 def test_valid_bodies_pass_both_sides() -> None:
-    m = bodies.markets(markets=[bodies.market("1.1"), bodies.market("1.2", book_status="SUSPENDED",
-                                                                  inplay=None, total_matched=None,
-                                                                  last_match_time=None)])
+    m = bodies.markets(
+        markets=[
+            bodies.market("1.1"),
+            bodies.market(
+                "1.2",
+                book_status="SUSPENDED",
+                inplay=None,
+                total_matched=None,
+                last_match_time=None,
+            ),
+        ]
+    )
     server_validate(m, response_schema("markets"))
     assert len(parse_markets(raw(m)).markets or ()) == 2
     b = bodies.market_book("1.2")
@@ -34,13 +43,13 @@ def test_valid_bodies_pass_both_sides() -> None:
 @pytest.mark.parametrize(
     "body",
     [
-        bodies.markets(markets=[bodies.market("1.2"), bodies.market("1.1")]),          # non ordinati
-        bodies.markets(markets=[bodies.market("1.1"), bodies.market("1.1")]),          # duplicati
-        bodies.markets(markets=None, unavailable=[]),                                  # nullo non dichiarato
+        bodies.markets(markets=[bodies.market("1.2"), bodies.market("1.1")]),  # non ordinati
+        bodies.markets(markets=[bodies.market("1.1"), bodies.market("1.1")]),  # duplicati
+        bodies.markets(markets=None, unavailable=[]),  # nullo non dichiarato
         bodies.markets(markets=None, unavailable=["markets"], truncated=True),
         bodies.markets(markets=[bodies.market("../x")]),
-        bodies.markets(markets=[bodies.market(total_matched=12.5)]),                   # float
-        bodies.markets(markets=[bodies.market(book_status="TRADABLE")]),              # giudizio inventato
+        bodies.markets(markets=[bodies.market(total_matched=12.5)]),  # float
+        bodies.markets(markets=[bodies.market(book_status="TRADABLE")]),  # giudizio inventato
         bodies.markets(markets=[bodies.market(event_name="Juventus v Inter")]),
     ],
 )
@@ -52,21 +61,44 @@ def test_markets_rejected(body: dict[str, Any]) -> None:
 @pytest.mark.parametrize(
     "body",
     [
-        bodies.market_book(state="NOT_TRACKED"),                                        # book con NOT_TRACKED
+        bodies.market_book(state="NOT_TRACKED"),  # book con NOT_TRACKED
         bodies.market_book(state="OK", book=None),
         bodies.market_book(market_id="1.2/../x"),
-        bodies.market_book(book={**bodies.market_book()["book"],
-                                 "runners": [bodies.runner(back=[{"price": "2.4", "size": "1"},
-                                                                 {"price": "2.5", "size": "1"}])]}),
-        bodies.market_book(book={**bodies.market_book()["book"],
-                                 "runners": [bodies.runner(lay=[{"price": "2.6", "size": "1"},
-                                                                {"price": "2.5", "size": "1"}])]}),
-        bodies.market_book(book={**bodies.market_book()["book"],
-                                 "runners": [bodies.runner(), bodies.runner()]}),       # selezione doppia
-        bodies.market_book(book={**bodies.market_book()["book"],
-                                 "runners": [bodies.runner(back=[{"price": "-2", "size": "1"}])]}),
-        bodies.market_book(book={**bodies.market_book()["book"],
-                                 "runners": [bodies.runner(back=[{"price": "2", "size": "1"}] * 4)]}),
+        bodies.market_book(
+            book={
+                **bodies.market_book()["book"],
+                "runners": [
+                    bodies.runner(
+                        back=[{"price": "2.4", "size": "1"}, {"price": "2.5", "size": "1"}]
+                    )
+                ],
+            }
+        ),
+        bodies.market_book(
+            book={
+                **bodies.market_book()["book"],
+                "runners": [
+                    bodies.runner(
+                        lay=[{"price": "2.6", "size": "1"}, {"price": "2.5", "size": "1"}]
+                    )
+                ],
+            }
+        ),
+        bodies.market_book(
+            book={**bodies.market_book()["book"], "runners": [bodies.runner(), bodies.runner()]}
+        ),  # selezione doppia
+        bodies.market_book(
+            book={
+                **bodies.market_book()["book"],
+                "runners": [bodies.runner(back=[{"price": "-2", "size": "1"}])],
+            }
+        ),
+        bodies.market_book(
+            book={
+                **bodies.market_book()["book"],
+                "runners": [bodies.runner(back=[{"price": "2", "size": "1"}] * 4)],
+            }
+        ),
     ],
 )
 def test_book_rejected(body: dict[str, Any]) -> None:
