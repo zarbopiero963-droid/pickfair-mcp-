@@ -9,6 +9,7 @@ la Control API è BLOCKED_CORE.
 
 from __future__ import annotations
 
+import os
 import socket
 import sys
 import threading
@@ -21,6 +22,20 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SRC_ROOT = REPO_ROOT / "src" / "pickfair_mcp"
 
 _INET_FAMILIES = {socket.AF_INET, socket.AF_INET6}
+
+
+# MCP-CI (Windows): un processo figlio senza SYSTEMROOT non inizializza i socket
+# (`import _overlapped` -> WinError 10106). Ai sottoprocessi dei test si passa un ambiente minimo:
+# PATH, le variabili del test e, solo su Windows, le variabili di sistema indispensabili.
+_WINDOWS_SYSTEM_ENV = ("SYSTEMROOT", "SYSTEMDRIVE", "WINDIR", "COMSPEC", "TEMP", "TMP")
+
+
+def subprocess_env(**extra: str) -> dict[str, str]:
+    """Ambiente minimo per i sottoprocessi dei test: nessuna variabile oltre a queste."""
+    env = {"PATH": os.environ.get("PATH", ""), **extra}
+    if sys.platform == "win32":
+        env.update({k: os.environ[k] for k in _WINDOWS_SYSTEM_ENV if k in os.environ})
+    return env
 
 
 class NetworkAttemptError(AssertionError):

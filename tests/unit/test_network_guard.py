@@ -91,3 +91,20 @@ def test_socketpair_is_guarded_during_tests() -> None:
     """La fixture installa il socketpair circoscritto: un socketpair qualsiasi passa da lì."""
     assert socket.socketpair.__name__ == "socketpair"
     assert socket.socketpair.__qualname__.startswith("guarded_socketpair")
+
+
+def test_subprocess_env_is_minimal_and_adds_windows_system_vars_only_on_windows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sys
+
+    import tests.conftest as guard
+
+    monkeypatch.setenv("SYSTEMROOT", "C:\\Windows")
+    monkeypatch.setenv("PICKFAIR_SECRET_LIKE", "x")
+    monkeypatch.setattr(sys, "platform", "linux")
+    assert set(guard.subprocess_env(PYTHONPATH="src")) == {"PATH", "PYTHONPATH"}
+    monkeypatch.setattr(sys, "platform", "win32")
+    env = guard.subprocess_env(PYTHONPATH="src")
+    assert env["SYSTEMROOT"] == "C:\\Windows" and env["PYTHONPATH"] == "src"
+    assert "PICKFAIR_SECRET_LIKE" not in env  # mai l'ambiente completo del processo di test

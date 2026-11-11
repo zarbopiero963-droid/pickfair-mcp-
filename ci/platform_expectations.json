@@ -24,6 +24,18 @@
         "::tests.unit.test_journal_hardening": {
           "dependency": "MCP-WIN",
           "reason": "modulo di test POSIX (importa fcntl): verifica flock, O_NOFOLLOW e permessi del journal; su Windows il journal è fail-closed (C-AUD-04) e l'equivalente LockFileEx/ACL arriva con MCP-WIN"
+        },
+        "tests.unit.test_journal::test_replaced_file_detected": {
+          "dependency": "MCP-WIN",
+          "reason": "rinomina di un file aperto vietata su Windows (WinError 32): il rilevamento della sostituzione del journal presuppone la semantica POSIX; equivalente con handle senza FILE_SHARE_DELETE in MCP-WIN"
+        },
+        "tests.unit.test_journal::test_permission_denied_fails_closed": {
+          "dependency": "MCP-WIN",
+          "reason": "test POSIX (os.geteuid, permessi a bit): su Windows i permessi sono ACL, verifica equivalente in MCP-WIN"
+        },
+        "tests.unit.test_journal::test_file_mode_private": {
+          "dependency": "MCP-WIN",
+          "reason": "modo 0600 non applicabile su Windows (st_mode 0o666): la riservatezza del journal richiede una DACL solo-utente, prevista in MCP-WIN"
         }
       },
       "skips": {}
