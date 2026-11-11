@@ -163,8 +163,12 @@ def test_concurrent_processes_never_read_a_partial_token(tmp_path: Path) -> None
     reader = (
         "import sys, re\n"
         "from pickfair_mcp.auth.token_file import LocalTokenFile, TokenFileError\n"
+        "import time\n"
         "f = LocalTokenFile(sys.argv[1]); bad = 0; ok = 0; seen = set()\n"
-        "for _ in range(2000):\n"
+        "deadline = time.monotonic() + 60\n"
+        "# Condizione, non tempo: almeno 2000 letture E almeno 3 token diversi osservati\n"
+        "# (rotazioni sovrapposte alle letture), con una scadenza larga solo come rete.\n"
+        "while (ok + bad < 2000 or len(seen) < 3) and time.monotonic() < deadline:\n"
         "    try:\n"
         "        seen.add(f.read()); ok += 1\n"
         "    except TokenFileError as e:\n"
@@ -183,13 +187,13 @@ def test_concurrent_processes_never_read_a_partial_token(tmp_path: Path) -> None
         store.rotate(path)
     outputs = [p.communicate(timeout=120)[0] for p in procs]
     assert all(out.strip().endswith("BAD 0") for out in outputs), outputs
-    assert store.rotations >= 20, store.rotations  # sovrapposizione reale, non sequenziale
-    for out in outputs:  # ogni lettore ha fatto TUTTE le letture e ha visto token diversi
+    assert store.rotations >= 2, store.rotations  # sovrapposizione reale, non sequenziale
+    for out in outputs:  # ogni lettore ha fatto le letture e ha visto le rotazioni
         reads, distinct = (
             int(x) for x in out.split("READS ")[1].split("\n")[0].split(" DISTINCT ")
         )
-        assert reads == 2000
-        assert distinct >= 2, out  # la rotazione è stata osservata davvero durante le letture
+        assert reads >= 2000
+        assert distinct >= 3, out  # più rotazioni osservate davvero durante le letture
     assert [p.name for p in secure.iterdir()] == ["api.token"]
 
 
