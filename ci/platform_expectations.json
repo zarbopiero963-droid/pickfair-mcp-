@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "_doc": "MCP-CI (PF-OWNER-MCP-PARALLEL-EXECUTION-20261111). Manifest letto da scripts/ci_platform_report.py. 'blocked': test che su quella piattaforma non possono ancora passare per una dipendenza dichiarata; il loro esito è BLOCKED_BY_DEPENDENCY, mai PASS, e un blocco che passa o non esiste più fa fallire il job. 'skips': soli skip ambientali ammessi (prefisso 'ENV: '); ogni altro skip fa fallire il job. Linux non ha blocchi.",
+  "dependencies": {
+    "MCP-WIN": "parità Windows di MCP e Control API (#625): ACL/SID, reparse point, LockFileEx, SO_EXCLUSIVEADDRUSE, terminazione dei processi; dipende da MCP-116 e da PR-19 BB-1W"
+  },
+  "platforms": {
+    "linux": {
+      "blocked": {},
+      "skips": {
+        "tests.unit.test_journal::test_permission_denied_fails_closed": "ENV: root ignora i permessi (solo se il runner gira come root)"
+      }
+    },
+    "windows": {
+      "blocked": {
+        "tests.e2e.test_journal_kill::test_random_sigkill_200_no_loss_no_duplicate": {
+          "dependency": "MCP-WIN",
+          "reason": "crash con SIGKILL solo POSIX: manca l'equivalente con TerminateProcess e la prova di recovery del journal su Windows"
+        },
+        "tests.e2e.test_journal_kill::test_two_processes_only_one_writes": {
+          "dependency": "MCP-WIN",
+          "reason": "lock esclusivo tra processi su Windows (msvcrt/LockFileEx) mai verificato su host reale"
+        }
+      },
+      "skips": {}
+    }
+  }
+}
