@@ -20,6 +20,10 @@
         "tests.e2e.test_journal_kill::test_two_processes_only_one_writes": {
           "dependency": "MCP-WIN",
           "reason": "lock esclusivo tra processi su Windows (msvcrt/LockFileEx) mai verificato su host reale"
+        },
+        "::tests.unit.test_journal_hardening": {
+          "dependency": "MCP-WIN",
+          "reason": "modulo di test POSIX (importa fcntl): verifica flock, O_NOFOLLOW e permessi del journal; su Windows il journal è fail-closed (C-AUD-04) e l'equivalente LockFileEx/ACL arriva con MCP-WIN"
         }
       },
       "skips": {}
