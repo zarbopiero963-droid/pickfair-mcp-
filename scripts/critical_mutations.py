@@ -6,8 +6,9 @@ Un mutante che sopravvive indica un controllo non coperto dai test.
 
 Uso: python scripts/critical_mutations.py [--json report.json] [--jobs N]
 
-I mutanti girano in parallelo (``--jobs``, predefinito min(4, CPU)): ognuno nella propria copia,
-con la propria suite; l'esito di ciascuno non dipende dagli altri. Il rapporto segue l'ordine del
+I mutanti girano in parallelo (``--jobs``, predefinito il doppio delle CPU, al più 8: molti test
+attendono socket, timer e sottoprocessi più che la CPU), ognuno nella propria copia e con la
+propria suite; l'esito di ciascuno non dipende dagli altri. Il rapporto segue l'ordine del
 catalogo.
 """
 
@@ -2601,7 +2602,7 @@ def run_suite(tmp: Path, *, explain: bool = False) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--json", type=Path)
-    parser.add_argument("--jobs", type=int, default=min(4, os.cpu_count() or 1))
+    parser.add_argument("--jobs", type=int, default=min(8, 2 * (os.cpu_count() or 1)))
     args = parser.parse_args()
     if args.jobs < 1:
         print("--jobs deve essere almeno 1")
