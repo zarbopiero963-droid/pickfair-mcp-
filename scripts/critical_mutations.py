@@ -4,7 +4,11 @@ Ogni mutante disattiva un controllo di sicurezza in una copia temporanea del
 repository; la suite unit+integration deve fallire (mutante KILLED). Soglia: 100 %.
 Un mutante che sopravvive indica un controllo non coperto dai test.
 
-Uso: python scripts/critical_mutations.py [--json report.json]
+Uso: python scripts/critical_mutations.py [--json report.json] [--jobs N]
+
+I mutanti girano in parallelo (``--jobs``, predefinito min(4, CPU)): ognuno nella propria copia,
+con la propria suite; l'esito di ciascuno non dipende dagli altri. Il rapporto segue l'ordine del
+catalogo.
 """
 
 from __future__ import annotations
@@ -17,6 +21,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -2560,11 +2565,17 @@ def apply(tmp: Path, mutant: Mutant) -> None:
         path.write_text(text.replace(old, new), encoding="utf-8")
 
 
-SUITE_TIMEOUT_S = 90  # la suite pulita impiega pochi secondi
+# Tetto per una singola suite: oltre, il mutante conta come rilevato (suite bloccata). Largo
+# rispetto alla suite pulita (circa 1 minuto con le CPU occupate dagli altri mutanti in parallelo).
+SUITE_TIMEOUT_S = 300
 
 
-def run_suite(tmp: Path) -> str:
-    """'pass', 'fail', 'timeout' (suite bloccata = mutante rilevato) o 'error'."""
+def run_suite(tmp: Path, *, explain: bool = False) -> str:
+    """'pass', 'fail', 'timeout' (suite bloccata = mutante rilevato) o 'error'.
+
+    Con ``explain`` (solo la baseline) un esito diverso da 'pass' stampa il codice d'uscita e la
+    coda dell'output di pytest: una baseline rossa senza motivo non si può diagnosticare in CI.
+    """
     env = {**os.environ, "PYTHONPATH": str(tmp / "src"), "PYTHONDONTWRITEBYTECODE": "1"}
     try:
         proc = subprocess.run(
@@ -2577,7 +2588,12 @@ def run_suite(tmp: Path) -> str:
             check=False,
         )
     except subprocess.TimeoutExpired:
+        if explain:
+            print(f"baseline: suite oltre {SUITE_TIMEOUT_S} s")
         return "timeout"
+    if explain and proc.returncode != 0:
+        tail = (proc.stdout + proc.stderr).splitlines()[-40:]
+        print(f"baseline: pytest rc={proc.returncode}", *tail, sep="\n")
     # 0 = verde; 1 = test falliti; altri codici (collezione, uso) non provano nulla.
     return {0: "pass", 1: "fail"}.get(proc.returncode, "error")
 
@@ -2585,7 +2601,11 @@ def run_suite(tmp: Path) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--json", type=Path)
+    parser.add_argument("--jobs", type=int, default=min(4, os.cpu_count() or 1))
     args = parser.parse_args()
+    if args.jobs < 1:
+        print("--jobs deve essere almeno 1")
+        return 2
     idents = [m.ident for m in MUTANTS]
     if len(set(idents)) != len(idents):
         print("CATALOGO NON VALIDO: identificativi di mutante duplicati")
@@ -2599,28 +2619,29 @@ def main() -> int:
                 shutil.copytree(src, clean / item, ignore=shutil.ignore_patterns("__pycache__"))
             else:
                 shutil.copy2(src, clean / item)
-        if run_suite(clean) != "pass":
+        if run_suite(clean, explain=True) != "pass":
             print("BASELINE FAIL: la suite non passa sul codice non mutato")
             return 1
-        results = []
-        for mutant in MUTANTS:
+
+        def run_one(mutant: Mutant) -> dict[str, object]:
             work = Path(base) / mutant.ident
             shutil.copytree(clean, work)
             apply(work, mutant)
             started = time.monotonic()
             outcome = run_suite(work)
             status = {"pass": "SURVIVED", "error": "ERROR"}.get(outcome, "KILLED")
-            results.append(
-                {
-                    "id": mutant.ident,
-                    "control": mutant.control,
-                    "status": status,
-                    "detected_by": outcome,
-                    "seconds": round(time.monotonic() - started, 2),
-                }
-            )
             print(f"{mutant.ident} {status:8} ({outcome:7}) {mutant.control}", flush=True)
             shutil.rmtree(work)
+            return {
+                "id": mutant.ident,
+                "control": mutant.control,
+                "status": status,
+                "detected_by": outcome,
+                "seconds": round(time.monotonic() - started, 2),
+            }
+
+        with ThreadPoolExecutor(max_workers=args.jobs) as pool:
+            results = list(pool.map(run_one, MUTANTS))  # stesso ordine del catalogo
     killed = sum(r["status"] == "KILLED" for r in results)
     score = killed / len(results)
     print(f"critical mutation score: {killed}/{len(results)} = {score:.0%}")

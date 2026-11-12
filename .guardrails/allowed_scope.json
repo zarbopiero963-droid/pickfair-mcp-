@@ -1027,9 +1027,11 @@
     "mcp116-prep": {
       "issue": "PF-OWNER-MCP-PARALLEL-EXECUTION-20261111 priorità 2 (MCP-116); Pickfair-nogui #491 piano v2; C-AUD-04, C-AUD-06, C-AUD-11",
       "scheda": "MCP-116 — preparazione del contratto 1.16.0 (nessuna PR finché D04 non è autorizzata)",
-      "description": "C-AUD-04 journal fail-closed su piattaforme senza protezioni; C-AUD-11 test di rotazione del token a condizione; C-AUD-06 limite di frequenza della Control API (token bucket per token, 429 RATE_LIMITED con Retry-After, audit dei rifiuti per finestra, limite obbligatorio) e mappatura MCP RATE_LIMITED ritentabile senza ritentativi; contratto 1.16.0 (descrittore rigenerato, nuovo hash); risposte d'errore di protocollo con stato e header anche su Python < 3.13. Debito preesistente rispetto agli strumenti del lock (ruff 0.14, mypy 1.18 strict): 89 rilievi di lint e 10 errori di tipo corretti senza cambiare il comportamento; descrittore cambiato solo nelle descrizioni (docstring riformattate).",
+      "description": "C-AUD-04 journal fail-closed su piattaforme senza protezioni; C-AUD-11 test di rotazione del token a condizione; C-AUD-06 limite di frequenza della Control API (token bucket per token, 429 RATE_LIMITED con Retry-After, audit dei rifiuti per finestra, limite obbligatorio) e mappatura MCP RATE_LIMITED ritentabile senza ritentativi; contratto 1.16.0 (descrittore rigenerato, nuovo hash); risposte d'errore di protocollo con stato e header anche su Python < 3.13. Debito preesistente rispetto agli strumenti del lock (ruff 0.14, mypy 1.18 strict): 89 rilievi di lint e 10 errori di tipo corretti senza cambiare il comportamento; descrittore cambiato solo nelle descrizioni (docstring riformattate). Estensione dichiarata (GO D04, dopo la prima CI reale di PR #39): CI della catena resa eseguibile e onesta — mutmut copia pickfair_control_api/scripts/catalog/ci e i sottoprocessi dei test ricevono il selettore di mutmut (tests/conftest.py); catalogo critico in parallelo con diagnostica della baseline e tetto 300 s; test dipendenti dall'ambiente resi deterministici (race slowloris, proprietario del token da non-root, race del rate limiter con attese limitate, faulthandler_timeout); guardie G8 e catalogo marcate guard; manifest CI: 17 test crossrepo NOT_RUN dichiarati ENV e 263 test della catena bloccati su Windows da MCP-WIN, ciascuno con motivo.",
       "files": [
         ".guardrails/allowed_scope.json",
+        "ci/platform_expectations.json",
+        "pyproject.toml",
         "scripts/critical_mutations.py",
         "scripts/run_suites.py",
         "src/pickfair_control_api/__init__.py",
@@ -1057,6 +1059,7 @@
         "src/pickfair_mcp/tools/__init__.py",
         "src/pickfair_mcp/tools/markets.py",
         "src/pickfair_mcp/tools/status.py",
+        "tests/conftest.py",
         "tests/contract/fake_engine_blackbox.py",
         "tests/contract/test_blackbox_bb1_contract.py",
         "tests/contract/test_blackbox_bb1_fixture.py",
@@ -1073,6 +1076,7 @@
         "tests/crossrepo/test_core_e2e.py",
         "tests/e2e/test_stdio_subprocess.py",
         "tests/guards/test_g8_suites.py",
+        "tests/guards/test_mutation_catalog.py",
         "tests/integration/test_config_tools.py",
         "tests/integration/test_http_adapter.py",
         "tests/integration/test_market_tools.py",
@@ -1086,13 +1090,15 @@
         "tests/unit/test_handshake.py",
         "tests/unit/test_journal_platform.py",
         "tests/unit/test_market_models.py",
+        "tests/unit/test_network_guard.py",
         "tests/unit/test_resolve_git_sha.py",
         "tests/unit/test_settlement_sltp_models.py",
         "tests/unit/test_sl_tp_close_models.py",
+        "tests/unit/test_source_explicit.py",
         "tests/unit/test_token_file.py",
         "tests/unit/test_trailing_models.py"
       ],
-      "max_files": 62
+      "max_files": 68
     },
     "mcp-ci-matrix": {
       "issue": "PF-OWNER-MCP-PARALLEL-EXECUTION-20261111 (Pickfair-nogui #628, priorità 1); #625 parità Windows/Linux; C-AUD-09",

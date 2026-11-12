@@ -10,6 +10,11 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
+# guardia: sotto mutmut i sorgenti sono riscritti e i testi da mutare non compaiono più
+pytestmark = pytest.mark.guard
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 

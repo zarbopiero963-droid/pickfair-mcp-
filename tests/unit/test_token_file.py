@@ -45,10 +45,21 @@ def test_permissions_beyond_owner_rejected(token_dir: Path, perm: int) -> None:
         assert code(path) == expected
 
 
-def test_wrong_owner_rejected(token_dir: Path) -> None:
+def test_wrong_owner_rejected(token_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Il controllo sul proprietario del FILE, isolato da quello sulla cartella."""
     path = token_dir / "t"
     issue_token_file(path)
+    monkeypatch.setattr(LocalTokenFile, "_check_directory", lambda self: None)
     assert code(path, expected_uid=os.getuid() + 1) == "TOKEN_FILE_OWNER"
+
+
+def test_wrong_owner_never_accepted_whatever_check_fires_first(token_dir: Path) -> None:
+    """Senza isolare nulla: da utente normale la cartella (non sua) è già rifiutata; da root la
+    cartella di root è ammessa e scatta il controllo sul file. In entrambi i casi: rifiuto."""
+    path = token_dir / "t"
+    issue_token_file(path)
+    expected = "TOKEN_FILE_OWNER" if os.getuid() == 0 else "TOKEN_DIR_UNSAFE"
+    assert code(path, expected_uid=os.getuid() + 1) == expected
 
 
 def test_symlink_rejected(token_dir: Path) -> None:

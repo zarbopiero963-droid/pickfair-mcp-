@@ -12,6 +12,7 @@ import pytest
 
 import pickfair_control_api.tokens as tokens_mod
 from pickfair_control_api.tokens import TokenStore, issue_token_file
+from tests.conftest import subprocess_env
 
 TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{43}$")
 
@@ -178,7 +179,11 @@ def test_concurrent_processes_never_read_a_partial_token(tmp_path: Path) -> None
     )
     procs = [
         subprocess.Popen(
-            [sys.executable, "-c", reader, str(path)], stdout=subprocess.PIPE, text=True
+            [sys.executable, "-c", reader, str(path)],
+            stdout=subprocess.PIPE,
+            text=True,
+            # il figlio importa lo stesso sorgente del test (anche le copie di mutmut)
+            env=subprocess_env(PYTHONPATH=str(Path(__file__).resolve().parents[2] / "src")),
         )
         for _ in range(3)
     ]

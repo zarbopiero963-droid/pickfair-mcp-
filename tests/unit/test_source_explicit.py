@@ -7,7 +7,6 @@ avvio, quindi anche dopo un riavvio. Sorgente invalida → errore di argomenti (
 
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 from collections.abc import Iterator
@@ -17,6 +16,7 @@ import pytest
 
 from pickfair_mcp import cli
 from pickfair_mcp.cli import EXIT_USAGE, main
+from tests.conftest import subprocess_env
 
 SOURCE_REQUIRED = "CONFIG_ERROR: SOURCE_REQUIRED"
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -124,7 +124,7 @@ def test_real_process_without_source_exits_and_prints_only_the_code(tmp_path: Pa
         text=True,
         timeout=60,
         cwd=tmp_path,
-        env={"PATH": os.environ.get("PATH", ""), "PYTHONPATH": str(REPO_ROOT / "src")},
+        env=subprocess_env(PYTHONPATH=str(REPO_ROOT / "src")),
         check=False,
     )
     assert proc.returncode == EXIT_USAGE

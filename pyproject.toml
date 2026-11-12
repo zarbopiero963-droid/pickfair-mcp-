@@ -42,6 +42,8 @@ markers = [
     "loopback: ammette SOLO connessioni TCP a 127.0.0.1 (adapter MCP-01d e Control API)",
 ]
 filterwarnings = ["error::pytest.PytestUnraisableExceptionWarning"]
+# Un test bloccato stampa lo stack di tutti i thread (diagnosi in CI), senza cambiare gli esiti.
+faulthandler_timeout = 300
 
 [tool.coverage.run]
 branch = true

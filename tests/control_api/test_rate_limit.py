@@ -62,17 +62,21 @@ def test_race_with_frozen_clock_admits_exactly_burst_200_times() -> None:
         lock = threading.Lock()
 
         # I thread finiscono (join) dentro la stessa iterazione: nessuna cattura tardiva.
+        # Attese limitate: un thread che non arriva alla barriera fa fallire il test (barriera
+        # rotta), mai un processo appeso; i thread sono daemon e il join verifica la fine.
         def worker() -> None:
-            barrier.wait()  # noqa: B023
+            barrier.wait(timeout=30)  # noqa: B023
             ok = tb.acquire(KEY) is None  # noqa: B023
             with lock:  # noqa: B023
                 admitted.append(ok)  # noqa: B023
 
-        threads = [threading.Thread(target=worker) for _ in range(threads_n)]
+        threads = [threading.Thread(target=worker, daemon=True) for _ in range(threads_n)]
         for t in threads:
             t.start()
         for t in threads:
-            t.join()
+            t.join(timeout=60)
+        assert not any(t.is_alive() for t in threads), "thread della race non terminati"
+        assert len(admitted) == threads_n, "un thread non ha completato l'acquisizione"
         assert admitted.count(True) == 5
         assert admitted.count(False) == 59
         assert 0.0 <= tb.tokens(KEY) <= 5.0

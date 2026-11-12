@@ -14,6 +14,9 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import run_suites  # noqa: E402
 
+# guardia (catalogo e script): fuori dal mutation testing, come le altre in tests/guards
+pytestmark = pytest.mark.guard
+
 # Campi chiusi delle suite del catalogo canonico (scripts/pf_test_dispatch.py, Pickfair-nogui main
 # 911562ad).
 PF_SUITE_FIELDS = {

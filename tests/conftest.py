@@ -28,6 +28,13 @@ _INET_FAMILIES = {socket.AF_INET, socket.AF_INET6}
 # (`import _overlapped` -> WinError 10106). Ai sottoprocessi dei test si passa un ambiente minimo:
 # PATH, le variabili del test e, solo su Windows, le variabili di sistema indispensabili.
 _WINDOWS_SYSTEM_ENV = ("SYSTEMROOT", "SYSTEMDRIVE", "WINDIR", "COMSPEC", "TEMP", "TMP")
+# mutmut (job «mutation testing generale»): il codice mutato decide quale mutante attivare leggendo
+# MUTANT_UNDER_TEST; un processo figlio senza la variabile non importa i moduli mutati (KeyError).
+# Si propaga solo quella, e solo se è impostata: fuori da mutmut l'ambiente resta identico.
+# In fase «stats» il figlio non può registrare le chiamate (lo stato di mutmut vive nel padre):
+# riceve "" ed esegue il codice originale, come mutmut fa per ogni funzione fuori mutante.
+_MUTMUT_ENV = "MUTANT_UNDER_TEST"
+_MUTMUT_PARENT_ONLY = frozenset({"stats", "list_all_tests"})
 
 
 def subprocess_env(**extra: str) -> dict[str, str]:
@@ -35,6 +42,9 @@ def subprocess_env(**extra: str) -> dict[str, str]:
     env = {"PATH": os.environ.get("PATH", ""), **extra}
     if sys.platform == "win32":
         env.update({k: os.environ[k] for k in _WINDOWS_SYSTEM_ENV if k in os.environ})
+    if _MUTMUT_ENV in os.environ:
+        selector = os.environ[_MUTMUT_ENV]
+        env[_MUTMUT_ENV] = "" if selector in _MUTMUT_PARENT_ONLY else selector
     return env
 
 

@@ -117,29 +117,33 @@ def _closed(s: socket.socket, wait: float) -> bool:
 def test_idle_connections_are_bounded_and_expire(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    deadline = 8.0  # larga rispetto alla classificazione: tiene anche con la CPU contesa
     monkeypatch.setattr(server_mod, "MAX_CONNECTIONS", 8)
-    monkeypatch.setattr(server_mod, "REQUEST_DEADLINE_S", 2.0)
+    monkeypatch.setattr(server_mod, "REQUEST_DEADLINE_S", deadline)
     monkeypatch.setattr(
         server_mod, "REQUEST_TIMEOUT_S", 30.0
     )  # solo la scadenza può chiudere le servite
     with control_api(tmp_path) as (server, _s, token_path, providers):
         socks = []
+        # La scadenza di ogni connessione servita parte dal suo accept, mai prima di t0: finché
+        # il controllo resta sotto t0 + deadline - 2 s, una connessione chiusa può essere solo una
+        # rifiutata oltre il tetto, non una servita già scaduta (anche con la CPU contesa).
+        t0 = time.monotonic()
         for _ in range(30):  # slowloris: connessione aperta, mai una richiesta completa
             s = connect(server.port)
             s.sendall(b"GET /v1/status HTTP/1.1\r\n")
             socks.append(s)
-        started = time.monotonic()
-        # oltre il tetto: chiuse subito, senza thread (attesa limitata per la sola contesa di CPU)
+        # oltre il tetto: chiuse subito, senza thread
         early: list[socket.socket] = []
-        while len(early) < 22 and time.monotonic() - started < 1.0:
+        while len(early) < 22 and time.monotonic() - t0 < deadline - 2.0:
             early += [s for s in socks if s not in early and _closed(s, 0.01)]
+        assert time.monotonic() - t0 < deadline, "classificazione oltre la scadenza: non valida"
         held = [s for s in socks if s not in early]
         assert len(early) == 22 and len(held) == 8
         assert providers.calls == 0
-        # le servite chiudono per la scadenza complessiva (2 s), mai per il timeout per ricezione
-        # (30 s)
-        assert all(_closed(s, max(0.1, 2.0 + 2.0 - (time.monotonic() - started))) for s in held)
-        assert time.monotonic() - started < 6.0
+        # le servite chiudono per la scadenza complessiva, mai per il timeout per ricezione (30 s)
+        assert all(_closed(s, max(0.1, deadline + 2.0 - (time.monotonic() - t0))) for s in held)
+        assert time.monotonic() - t0 < deadline + 4.0
         for s in socks:
             s.close()
         # dopo la scadenza il servizio risponde di nuovo normalmente
