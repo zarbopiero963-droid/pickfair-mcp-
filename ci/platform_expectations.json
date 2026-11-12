@@ -1149,6 +1149,14 @@
         "tests.unit.test_token_file::test_wrong_owner_never_accepted_whatever_check_fires_first": {
           "dependency": "MCP-WIN",
           "reason": "token della Control API e di MCP: apertura con O_NOFOLLOW/permessi POSIX, che su Windows non esistono (AttributeError su os.O_NOFOLLOW). Serve la verifica equivalente con DACL/SID e reparse point (MCP-WIN, C-AUD-05)"
+        },
+        "tests.unit.test_journal_platform::test_open_flags_requires_both_protections[_NOFOLLOW-_CLOEXEC]": {
+          "dependency": "MCP-WIN",
+          "reason": "test della piattaforma POSIX del journal (O_NOFOLLOW/O_CLOEXEC e lock): su Windows il journal è non supportato per decisione D05; il test equivalente arriva con MCP-WIN"
+        },
+        "tests.unit.test_journal_platform::test_open_flags_requires_both_protections[_CLOEXEC-_NOFOLLOW]": {
+          "dependency": "MCP-WIN",
+          "reason": "test della piattaforma POSIX del journal (O_NOFOLLOW/O_CLOEXEC e lock): su Windows il journal è non supportato per decisione D05; il test equivalente arriva con MCP-WIN"
         }
       },
       "skips": {
