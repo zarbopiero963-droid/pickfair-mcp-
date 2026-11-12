@@ -1050,10 +1050,6 @@
           "dependency": "MCP-WIN",
           "reason": "test della piattaforma POSIX del journal (O_NOFOLLOW/O_CLOEXEC e lock): su Windows il journal è non supportato per decisione D05; il test equivalente arriva con MCP-WIN"
         },
-        "tests.unit.test_source_explicit::test_real_process_without_source_exits_and_prints_only_the_code": {
-          "dependency": "MCP-WIN",
-          "reason": "processo reale del server MCP su Windows: codici d'uscita e ambiente del sottoprocesso non ancora verificati su Windows (MCP-WIN)"
-        },
         "tests.unit.test_token_file::test_valid_file_is_read": {
           "dependency": "MCP-WIN",
           "reason": "token della Control API e di MCP: apertura con O_NOFOLLOW/permessi POSIX, che su Windows non esistono (AttributeError su os.O_NOFOLLOW). Serve la verifica equivalente con DACL/SID e reparse point (MCP-WIN, C-AUD-05)"

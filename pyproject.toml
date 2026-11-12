@@ -89,4 +89,4 @@ do_not_mutate = [
 ]
 pytest_add_cli_args_test_selection = ["tests/unit", "tests/integration"]
 pytest_add_cli_args = ["-p", "no:cacheprovider", "-m", "not e2e and not guard"]
-also_copy = ["tests/", "docs/", "AGENTS.md"]
+also_copy = ["tests/", "docs/", "AGENTS.md", "src/pickfair_control_api/", "scripts/", "catalog/", "ci/", ".guardrails/", "pyproject.toml"]

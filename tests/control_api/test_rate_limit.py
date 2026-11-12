@@ -64,15 +64,24 @@ def test_race_with_frozen_clock_admits_exactly_burst_200_times() -> None:
         # I thread finiscono (join) dentro la stessa iterazione: nessuna cattura tardiva.
         # Attese limitate: un thread che non arriva alla barriera fa fallire il test (barriera
         # rotta), mai un processo appeso; i thread sono daemon e il join verifica la fine.
-        def worker() -> None:
+        # Avvio in serie (ogni thread segnala di essere partito prima del successivo): su 3.11 il
+        # tracer di coverage non regge l'avvio simultaneo di decine di thread («Cannot install a
+        # trace function while another trace function is being installed»). La contesa vera resta
+        # sulla barriera: tutti chiamano acquire insieme.
+        def worker(started: threading.Event) -> None:
+            started.set()
             barrier.wait(timeout=30)  # noqa: B023
             ok = tb.acquire(KEY) is None  # noqa: B023
             with lock:  # noqa: B023
                 admitted.append(ok)  # noqa: B023
 
-        threads = [threading.Thread(target=worker, daemon=True) for _ in range(threads_n)]
-        for t in threads:
+        threads = []
+        for _ in range(threads_n):
+            started = threading.Event()
+            t = threading.Thread(target=worker, args=(started,), daemon=True)
             t.start()
+            assert started.wait(timeout=30), "thread della race non avviato"
+            threads.append(t)
         for t in threads:
             t.join(timeout=60)
         assert not any(t.is_alive() for t in threads), "thread della race non terminati"
