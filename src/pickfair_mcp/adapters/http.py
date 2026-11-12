@@ -15,7 +15,10 @@ moduli. Proprietà, ciascuna verificata dai test:
 - status diverso da 200 o content-type diverso da JSON UTF-8 => errore tipizzato;
 - ogni guasto di trasporto, 401 o rilettura del token incrementa `connection_epoch`: il
   prossimo uso ripete l'handshake di contratto;
-- nessun fallback verso l'adapter simulato: l'errore arriva al client come tale.
+- nessun fallback verso l'adapter simulato: l'errore arriva al client come tale;
+- al più ``MAX_CONCURRENT_REQUESTS`` richieste in volo verso la Control API (metà del suo tetto di
+  connessioni servite, MCP-SEC-01): le altre aspettano qui invece di ricevere BUSY dal server;
+  un posto non ottenuto entro il timeout è UPSTREAM_TIMEOUT, senza richiesta e senza nuova epoca.
 
 Solo GET di lettura: questo adapter non ha metodi di comando.
 """
@@ -43,6 +46,9 @@ from pickfair_mcp.adapters.base import (
 from pickfair_mcp.auth.token_file import LocalTokenFile, TokenFileError
 from pickfair_mcp.contract.parsing import MAX_UPSTREAM_BYTES
 
+# Gate crossrepo MCP-116: con la scatola nera reale ogni richiesta del core dura di più e 30 letture
+# concorrenti superavano il tetto del server (16), esaurendo i tentativi di lettura.
+MAX_CONCURRENT_REQUESTS: Final = 8
 _MARKET_ID_RE = re.compile(r"[0-9]{1,4}\.[0-9]{1,15}")
 # MCP-01o: whitelist dei filtri di GET /v1/blackbox/events (la stessa del server, controllata da un
 # test).
@@ -113,6 +119,7 @@ class HttpControlApiAdapter:
         self._timeout_s = float(timeout_s)
         self._max = int(max_response_bytes)
         self._lock = threading.Lock()
+        self._slots = threading.BoundedSemaphore(MAX_CONCURRENT_REQUESTS)
         self._epoch = 1
         self._token: str | None = None
         self.requests = 0
@@ -201,8 +208,17 @@ class HttpControlApiAdapter:
             raise UpstreamProtocolError("CONTENT_TYPE")
         return body
 
+    def _get_bounded(self, path: str) -> bytes:
+        # Semaforo di thread, non di anyio: lo stesso adapter può servire event loop diversi.
+        if not self._slots.acquire(timeout=self._timeout_s):
+            raise UpstreamTimeout  # nessuna richiesta partita: nessuna nuova epoca
+        try:
+            return self._get_blocking(path)
+        finally:
+            self._slots.release()
+
     async def _get(self, path: str) -> bytes:
-        return await anyio.to_thread.run_sync(self._get_blocking, path, abandon_on_cancel=True)
+        return await anyio.to_thread.run_sync(self._get_bounded, path, abandon_on_cancel=True)
 
     async def get_meta_raw(self) -> bytes:
         return await self._get("/v1/meta")

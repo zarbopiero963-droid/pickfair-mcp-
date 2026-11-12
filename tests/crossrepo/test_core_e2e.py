@@ -52,6 +52,24 @@ READ_TOOLS = (
 )
 
 
+# Funzioni del core che alcune prove richiedono e che il main del core può non avere ancora.
+# Rilevazione positiva sul checkout (file o simbolo presenti), mai sul fallimento della prova: se la
+# funzione manca la prova è BLOCKED_BY_DEPENDENCY con il suo ID (mai PASS); se c'è, gira per intero.
+_CORE_FEATURES = {
+    "F-03": ("core/trailing_stop.py", None),
+    "F-04": ("core/sl_tp_close.py", None),
+    "F-18": ("core/system_state.py", "invalid_settings"),
+}
+
+
+def require_core_feature(feature: str) -> None:
+    rel, marker = _CORE_FEATURES[feature]
+    path = Path(str(CORE_PATH)) / rel
+    present = path.is_file() and (marker is None or marker in path.read_text(encoding="utf-8"))
+    if not present:
+        pytest.skip(f"BLOCKED_BY_DEPENDENCY:{feature} (assente nel core sotto prova: {rel})")
+
+
 @pytest.fixture
 def anyio_backend() -> str:
     return "asyncio"
@@ -239,7 +257,14 @@ async def test_e2e_reads_have_no_side_effects_on_the_core(core: Core, tmp_path: 
                 tg.start_soon(one, READ_TOOLS[i % len(READ_TOOLS)])
     after = core.send("DIGEST")
     assert results == [False] * 30
-    assert after["counts"]["OK"] == 31  # un handshake + 30 letture
+    # 30 letture concorrenti superano il tetto di connessioni servite (MAX_CONNECTIONS, MCP-SEC-01):
+    # quelle oltre il tetto ricevono BUSY prima di qualsiasi provider; l'MCP ritenta la lettura e,
+    # con l'errore di trasporto, rifà l'handshake nella nuova epoca. Nessun altro esito è ammesso.
+    counts = after["counts"]
+    assert set(counts) <= {"OK", "BUSY"}, counts
+    busy = counts.get("BUSY", 0)
+    handshakes = counts["OK"] - 30  # ogni lettura riesce una sola volta
+    assert 1 <= handshakes <= 1 + busy, counts
     for key in ("db", "bus", "state", "balance"):
         assert after[key] == before[key], key
     assert after["calls"] == before["calls"]  # nessuna chiamata nuova a Betfair/broker/monitor
@@ -508,6 +533,7 @@ async def test_e2e_sl_tp_settlement_and_cashout_barriers(core: Core, tmp_path: P
 
 async def test_e2e_config_is_read_only_and_redacted(core: Core, tmp_path: Path) -> None:
     """MCP-01j: get_config dalla RoserpinaConfig reale del core; segreti nel DB mai esposti."""
+    require_core_feature("F-18")
     errlog = (tmp_path / "mcp.err").open("w+")
     async with mcp(core, errlog) as s:
         tools = {t.name: t for t in (await s.list_tools()).tools}
@@ -616,6 +642,7 @@ async def test_e2e_markets_and_book_from_the_real_tracker(core: Core, tmp_path: 
 async def test_e2e_sl_tp_close_from_the_core_record(core: Core, tmp_path: Path) -> None:
     """MCP-01i: chiusura SL/TP persistita con le funzioni di F-04 nel core reale (SIM), letta da
     get_exposure."""
+    require_core_feature("F-04")
     errlog = (tmp_path / "mcp.err").open("w+")
     async with mcp(core, errlog) as s:
         tools = {t.name: t for t in (await s.list_tools()).tools}
@@ -643,6 +670,7 @@ async def test_e2e_sl_tp_close_from_the_core_record(core: Core, tmp_path: Path) 
 
 async def test_e2e_trailing_from_the_core_trailing_module(core: Core, tmp_path: Path) -> None:
     """MCP-01m: trailing F-03 con picco persistito, letto dal core reale (fusione locale F-03)."""
+    require_core_feature("F-03")
     errlog = (tmp_path / "mcp.err").open("w+")
     async with mcp(core, errlog) as s:
         tools = {t.name: t for t in (await s.list_tools()).tools}

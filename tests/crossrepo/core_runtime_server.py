@@ -35,6 +35,8 @@ def _loopback_only(self: socket.socket, address: Any) -> Any:
 socket.socket.connect = _loopback_only  # type: ignore[method-assign]
 
 from control_api.bridge import start_control_api  # noqa: E402
+from core import blackbox_runtime  # noqa: E402
+from core.blackbox_query import BlackBoxReader  # noqa: E402
 from core.event_bus import EventBus  # noqa: E402
 from core.runtime_controller import RuntimeController  # noqa: E402
 from database import Database  # noqa: E402
@@ -58,6 +60,15 @@ class RecordingBus(EventBus):
 
 state = {"skew": 0.0, "hang": 0.0, "recording": True}
 calls: list[str] = []
+# Scatola nera REALE (BB-1) in una cartella privata del test, aperta come fanno headless_main e
+# mini_gui prima del runtime: il gate di avvio della scatola nera resta attivo, non aggirato.
+_bb_dir = WORK / "blackbox"
+_bb_dir.mkdir(mode=0o700)
+_box = blackbox_runtime.install(str(_bb_dir / "blackbox.sqlite"), entrypoint="crossrepo_test")
+_reader = BlackBoxReader(_box)
+# Limite di frequenza dichiarato dal chiamante (contratto 1.16.0, C-AUD-06): il massimo ammesso,
+# perché le prove fanno raffiche di letture legittime; il limite stesso è provato altrove.
+RATE_PER_S, BURST = 20.0, 50
 db = Database(str(WORK / "pickfair.db"))
 bus = RecordingBus()
 settings = SettingsService(db)
@@ -165,7 +176,20 @@ def deep_state() -> str:
     return hashlib.sha256("\n".join(parts).encode()).hexdigest()
 
 
-server = start_control_api(rc, port=PORT, token_path=TOKEN, git_sha=code_sha, clock=clock)
+def start_api() -> Any:
+    return start_control_api(
+        rc,
+        port=PORT,
+        token_path=TOKEN,
+        git_sha=code_sha,
+        clock=clock,
+        blackbox_reader=_reader,
+        rate_per_s=RATE_PER_S,
+        burst=BURST,
+    )
+
+
+server = start_api()
 counts_total: dict[str, int] = {}
 
 
@@ -195,13 +219,13 @@ for line in sys.stdin:
         server = None
         reply(event="STOP_API")
     elif cmd[0] == "START_API":
-        server = start_control_api(rc, port=PORT, token_path=TOKEN, git_sha=code_sha, clock=clock)
+        server = start_api()
         reply(event="START_API")
     elif cmd[0] == "INCOMPATIBLE":
         collect_counts()
         server.stop()
         api_server.schema_hash = lambda: "0" * 64  # type: ignore[assignment]
-        server = start_control_api(rc, port=PORT, token_path=TOKEN, git_sha=code_sha, clock=clock)
+        server = start_api()
         api_server.schema_hash = real_schema_hash  # type: ignore[assignment]
         reply(event="INCOMPATIBLE")
     elif cmd[0] == "HANG":

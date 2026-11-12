@@ -1295,6 +1295,22 @@ MUTANTS: tuple[Mutant, ...] = (
         ),
     ),
     Mutant(
+        "X07",
+        "adapter HTTP senza limite di richieste in volo (BUSY dal server sotto carico)",
+        (
+            (
+                "src/pickfair_mcp/adapters/http.py",
+                "        if not self._slots.acquire(timeout=self._timeout_s):\n"
+                "            raise UpstreamTimeout  # nessuna richiesta partita: nessuna nuova epoca\n"
+                "        try:\n"
+                "            return self._get_blocking(path)\n"
+                "        finally:\n"
+                "            self._slots.release()",
+                "        return self._get_blocking(path)",
+            ),
+        ),
+    ),
+    Mutant(
         "L01",
         "esposizione residua senza il tavolo che porta la posizione accettata",
         (

@@ -343,3 +343,74 @@ async def test_rate_limited_is_a_retryable_error_never_retried_automatically(
     assert limited["error"]["code"] == "RATE_LIMITED"
     assert limited["error"]["retryable"] is True and limited["data"] is None
     assert again_error is False
+
+
+def test_in_flight_requests_never_exceed_the_adapter_bound(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Gate crossrepo MCP-116: 30 letture concorrenti, mai più di MAX_CONCURRENT_REQUESTS in volo.
+
+    Con la scatola nera reale ogni richiesta del core dura di più: senza limite lato MCP le letture
+    superavano il tetto del server (16) e ricevevano BUSY fino a esaurire i tentativi.
+    """
+    import threading
+
+    import pickfair_mcp.adapters.http as http_mod
+
+    adapter = HttpControlApiAdapter(
+        port=12345, token_file=LocalTokenFile("/nonexistent/t"), timeout_s=5.0
+    )
+    monkeypatch.setattr(adapter, "_current_token", lambda *, reload: "t" * 43)
+    lock = threading.Lock()
+    in_flight = peak = 0
+    entered = threading.Barrier(http_mod.MAX_CONCURRENT_REQUESTS, timeout=10)
+
+    def slow_request(path: str, token: str, request_id: str) -> tuple[int, str, bytes]:
+        nonlocal in_flight, peak
+        with lock:
+            in_flight += 1
+            peak = max(peak, in_flight)
+        try:
+            entered.wait()  # il limite si riempie davvero: tutte le 8 in volo insieme
+        except threading.BrokenBarrierError:
+            pass
+        time.sleep(0.02)
+        with lock:
+            in_flight -= 1
+        return 200, http_mod.EXPECTED_CONTENT_TYPE, b"{}"
+
+    monkeypatch.setattr(adapter, "_request", slow_request)
+
+    async def main() -> list[bytes]:
+        out: list[bytes] = []
+
+        async def one() -> None:
+            out.append(await adapter.get_status_raw())
+
+        async with anyio.create_task_group() as tg:
+            for _ in range(30):
+                tg.start_soon(one)
+        return out
+
+    results = anyio.run(main)
+    assert results == [b"{}"] * 30  # tutte riuscite, nessuna rifiutata
+    assert peak == http_mod.MAX_CONCURRENT_REQUESTS  # il limite è raggiunto e mai superato
+    assert http_mod.MAX_CONCURRENT_REQUESTS < api_server.MAX_CONNECTIONS
+
+
+def test_waiting_for_a_slot_beyond_the_timeout_is_a_timeout_without_request(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import pickfair_mcp.adapters.http as http_mod
+    from pickfair_mcp.adapters.base import UpstreamTimeout
+
+    adapter = HttpControlApiAdapter(
+        port=12345, token_file=LocalTokenFile("/nonexistent/t"), timeout_s=0.05
+    )
+    sent: list[str] = []
+    monkeypatch.setattr(adapter, "_request", lambda path, *_a: sent.append(path))
+    for _ in range(http_mod.MAX_CONCURRENT_REQUESTS):  # tutti i posti occupati
+        assert adapter._slots.acquire(timeout=1)
+    epoch = adapter.connection_epoch
+    with pytest.raises(UpstreamTimeout):
+        anyio.run(adapter.get_status_raw)
+    assert sent == []  # nessuna richiesta partita
+    assert adapter.connection_epoch == epoch  # nessuna nuova epoca: il trasporto non ha fallito
