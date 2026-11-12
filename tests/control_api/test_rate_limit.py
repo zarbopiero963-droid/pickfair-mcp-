@@ -12,6 +12,7 @@ import math
 import random
 import threading
 from collections.abc import Callable
+from fractions import Fraction
 from typing import Any
 
 import pytest
@@ -114,6 +115,87 @@ def test_capacity_invariant_random_sequence() -> None:
         t = tb.tokens(KEY)
         assert 0.0 <= t <= 5.0
         assert admitted <= 5 + 2.0 * (clk.now - start) + 1e-9
+
+
+EPS = 1e-9
+
+
+class GcraOracle:
+    """Oracolo indipendente (GCRA, «virtual scheduling»), in aritmetica razionale esatta.
+
+    Non conta gettoni come ``TokenBucket``: tiene per chiave il tempo teorico d'arrivo (TAT).
+    Con intervallo T = 1/rate e tolleranza tau = (burst - 1)·T una richiesta all'istante t è
+    ammessa se TAT - t <= tau (poi TAT = max(TAT, t) + T), altrimenti è rifiutata con attesa
+    TAT - tau - t, senza consumare nulla. È equivalente a un token bucket pieno all'avvio.
+    """
+
+    def __init__(self, rate: Fraction, burst: int) -> None:
+        self.t = 1 / rate
+        self.tau = (burst - 1) * self.t
+        self.tat: dict[bytes, Fraction] = {}
+
+    def acquire(self, key: bytes, now: Fraction) -> Fraction | None:
+        tat = self.tat.get(key, now)
+        if tat - now > self.tau:
+            return tat - self.tau - now
+        self.tat[key] = max(tat, now) + self.t
+        return None
+
+    def distance_to_boundary(self, key: bytes, now: Fraction) -> float:
+        """Distanza (s) dal confine ammesso/rifiutato, prima della richiesta.
+
+        Con TAT <= now il secchio è pieno (``burst`` gettoni esatti anche in virgola mobile) e
+        la richiesta è sempre ammessa: nessun confine ambiguo.
+        """
+        tat = self.tat.get(key, now)
+        if tat <= now:
+            return math.inf
+        return float(abs(tat - now - self.tau))
+
+
+@pytest.mark.parametrize(
+    ("rate", "burst", "seed"),
+    [("2", 5, 1), ("0.1", 1, 2), ("20", 50, 3), ("3.5", 7, 4), ("1", 2, 5)],
+)
+def test_bucket_matches_independent_oracle_request_by_request(
+    rate: str, burst: int, seed: int
+) -> None:
+    """Categoria 1 (oracolo indipendente): esito e Retry-After identici a ogni richiesta."""
+    rng = random.Random(seed)
+    exact_rate = Fraction(rate)
+    tb, clk = bucket(rate=float(exact_rate), burst=burst)
+    oracle = GcraOracle(exact_rate, burst)
+    now = Fraction(1000)
+    clk.now = float(now)
+    keys = [b"a" * 32, b"b" * 32, b"c" * 32]  # meno di MAX_KEYS: nessuna espulsione
+    # avanzamenti in multipli dell'intervallo 1/rate (consumo medio superiore al ricarico, così
+    # ogni configurazione tocca entrambi i rami); raramente un salto lungo che riempie il secchio
+    steps = [Fraction(n, 10) / exact_rate for n in (0, 1, 3, 5, 10, 20)]
+    long_jump = 100 / exact_rate
+    admitted = rejected = 0
+    for i in range(5_000):
+        roll = rng.random()
+        if roll < 0.01:
+            now += long_jump
+        elif roll < 0.36:
+            now += rng.choice(steps)
+        key = rng.choice(keys)
+        # Limite dichiarato della virgola mobile: sul confine esatto ammesso/rifiutato il bucket
+        # (float) può differire dall'oracolo (esatto) per un residuo di arrotondamento. Nessuna
+        # richiesta cade a meno di 1 ns dal confine: l'orologio avanza di T/997 finché serve.
+        while oracle.distance_to_boundary(key, now) < EPS:
+            now += 1 / (997 * exact_rate)
+        clk.now = float(now)
+        got = tb.acquire(key)
+        want = oracle.acquire(key, now)
+        if want is None:
+            assert got is None, f"passo {i}: ammessa dall'oracolo, rifiutata dal bucket"
+            admitted += 1
+        else:
+            assert got is not None, f"passo {i}: rifiutata dall'oracolo, ammessa dal bucket"
+            assert math.isclose(got, float(want), rel_tol=1e-9, abs_tol=1e-9), (i, got, want)
+            rejected += 1
+    assert admitted > 0 and rejected > 0  # la sequenza esercita entrambi i rami
 
 
 def test_retry_after_is_the_time_to_the_next_token() -> None:
