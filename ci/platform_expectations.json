@@ -1,0 +1,92 @@
+{
+  "schema": 1,
+  "_doc": "MCP-CI (PF-OWNER-MCP-PARALLEL-EXECUTION-20261111). Manifest letto da scripts/ci_platform_report.py. 'blocked': test che su quella piattaforma non possono ancora passare per una dipendenza dichiarata; il loro esito è BLOCKED_BY_DEPENDENCY, mai PASS, e un blocco che passa o non esiste più fa fallire il job. 'skips': soli skip ambientali ammessi (prefisso 'ENV: '); ogni altro skip fa fallire il job. Linux non ha blocchi.",
+  "dependencies": {
+    "MCP-WIN": "parità Windows di MCP e Control API (#625): ACL/SID, reparse point, LockFileEx, SO_EXCLUSIVEADDRUSE, terminazione dei processi; dipende da MCP-116 e da PR-19 BB-1W"
+  },
+  "platforms": {
+    "linux": {
+      "blocked": {},
+      "skips": {
+        "tests.unit.test_journal::test_permission_denied_fails_closed": "ENV: root ignora i permessi (solo se il runner gira come root)"
+      }
+    },
+    "windows": {
+      "blocked": {
+        "tests.e2e.test_journal_kill::test_random_sigkill_200_no_loss_no_duplicate": {
+          "dependency": "MCP-WIN",
+          "reason": "crash con SIGKILL solo POSIX: manca l'equivalente con TerminateProcess e la prova di recovery del journal su Windows"
+        },
+        "tests.e2e.test_journal_kill::test_two_processes_only_one_writes": {
+          "dependency": "MCP-WIN",
+          "reason": "lock esclusivo tra processi su Windows (msvcrt/LockFileEx) mai verificato su host reale"
+        },
+        "::tests.unit.test_journal_hardening": {
+          "dependency": "MCP-WIN",
+          "reason": "modulo di test POSIX (importa fcntl): verifica flock, O_NOFOLLOW e permessi del journal; su Windows il journal è fail-closed (C-AUD-04) e l'equivalente LockFileEx/ACL arriva con MCP-WIN"
+        },
+        "tests.unit.test_journal::test_replaced_file_detected": {
+          "dependency": "MCP-WIN",
+          "reason": "rinomina di un file aperto vietata su Windows (WinError 32): il rilevamento della sostituzione del journal presuppone la semantica POSIX; equivalente con handle senza FILE_SHARE_DELETE in MCP-WIN"
+        },
+        "tests.unit.test_journal::test_permission_denied_fails_closed": {
+          "dependency": "MCP-WIN",
+          "reason": "test POSIX (os.geteuid, permessi a bit): su Windows i permessi sono ACL, verifica equivalente in MCP-WIN"
+        },
+        "tests.unit.test_journal::test_file_mode_private": {
+          "dependency": "MCP-WIN",
+          "reason": "modo 0600 non applicabile su Windows (st_mode 0o666): la riservatezza del journal richiede una DACL solo-utente, prevista in MCP-WIN"
+        },
+        "tests.e2e.test_stdio_raw::test_sigint_shutdown_writes_only_audit_to_stderr": {
+          "dependency": "MCP-WIN",
+          "reason": "chiusura del server con SIGINT: su Windows Popen.send_signal(SIGINT) non esiste (ValueError: Unsupported signal: 2); la parità richiede CTRL_C_EVENT/CTRL_BREAK_EVENT con un gruppo di processi dedicato e la stessa garanzia di uscita (MCP-WIN, terminazione dei processi)"
+        },
+        "tests.e2e.test_stdio_raw::test_sigint_never_hangs_the_server": {
+          "dependency": "MCP-WIN",
+          "reason": "chiusura del server con SIGINT: su Windows Popen.send_signal(SIGINT) non esiste (ValueError: Unsupported signal: 2); la parità richiede CTRL_C_EVENT/CTRL_BREAK_EVENT con un gruppo di processi dedicato e la stessa garanzia di uscita (MCP-WIN, terminazione dei processi)"
+        },
+        "tests.e2e.test_stdio_raw::test_sigint_stops_an_idle_server_with_stdin_still_open": {
+          "dependency": "MCP-WIN",
+          "reason": "chiusura del server con SIGINT: su Windows Popen.send_signal(SIGINT) non esiste (ValueError: Unsupported signal: 2); la parità richiede CTRL_C_EVENT/CTRL_BREAK_EVENT con un gruppo di processi dedicato e la stessa garanzia di uscita (MCP-WIN, terminazione dei processi)"
+        },
+        "tests.e2e.test_stdio_raw::test_repeated_sigint_never_waits_for_stdin[gaps0]": {
+          "dependency": "MCP-WIN",
+          "reason": "chiusura del server con SIGINT: su Windows Popen.send_signal(SIGINT) non esiste (ValueError: Unsupported signal: 2); la parità richiede CTRL_C_EVENT/CTRL_BREAK_EVENT con un gruppo di processi dedicato e la stessa garanzia di uscita (MCP-WIN, terminazione dei processi)"
+        },
+        "tests.e2e.test_stdio_raw::test_repeated_sigint_never_waits_for_stdin[gaps1]": {
+          "dependency": "MCP-WIN",
+          "reason": "chiusura del server con SIGINT: su Windows Popen.send_signal(SIGINT) non esiste (ValueError: Unsupported signal: 2); la parità richiede CTRL_C_EVENT/CTRL_BREAK_EVENT con un gruppo di processi dedicato e la stessa garanzia di uscita (MCP-WIN, terminazione dei processi)"
+        },
+        "tests.e2e.test_stdio_raw::test_repeated_sigint_never_waits_for_stdin[gaps2]": {
+          "dependency": "MCP-WIN",
+          "reason": "chiusura del server con SIGINT: su Windows Popen.send_signal(SIGINT) non esiste (ValueError: Unsupported signal: 2); la parità richiede CTRL_C_EVENT/CTRL_BREAK_EVENT con un gruppo di processi dedicato e la stessa garanzia di uscita (MCP-WIN, terminazione dei processi)"
+        },
+        "tests.e2e.test_stdio_raw::test_repeated_sigint_never_waits_for_stdin[gaps3]": {
+          "dependency": "MCP-WIN",
+          "reason": "chiusura del server con SIGINT: su Windows Popen.send_signal(SIGINT) non esiste (ValueError: Unsupported signal: 2); la parità richiede CTRL_C_EVENT/CTRL_BREAK_EVENT con un gruppo di processi dedicato e la stessa garanzia di uscita (MCP-WIN, terminazione dei processi)"
+        },
+        "tests.e2e.test_stdio_raw::test_late_sigint_during_the_interrupted_exit_never_hangs": {
+          "dependency": "MCP-WIN",
+          "reason": "chiusura del server con SIGINT: su Windows Popen.send_signal(SIGINT) non esiste (ValueError: Unsupported signal: 2); la parità richiede CTRL_C_EVENT/CTRL_BREAK_EVENT con un gruppo di processi dedicato e la stessa garanzia di uscita (MCP-WIN, terminazione dei processi)"
+        },
+        "tests.e2e.test_stdio_raw::test_sigint_storm_after_stdin_close_keeps_the_exit_contract": {
+          "dependency": "MCP-WIN",
+          "reason": "chiusura del server con SIGINT: su Windows Popen.send_signal(SIGINT) non esiste (ValueError: Unsupported signal: 2); la parità richiede CTRL_C_EVENT/CTRL_BREAK_EVENT con un gruppo di processi dedicato e la stessa garanzia di uscita (MCP-WIN, terminazione dei processi)"
+        },
+        "tests.e2e.test_stdio_raw::test_sigint_storm_with_stdin_open_never_hangs_or_aborts[0.0]": {
+          "dependency": "MCP-WIN",
+          "reason": "chiusura del server con SIGINT: su Windows Popen.send_signal(SIGINT) non esiste (ValueError: Unsupported signal: 2); la parità richiede CTRL_C_EVENT/CTRL_BREAK_EVENT con un gruppo di processi dedicato e la stessa garanzia di uscita (MCP-WIN, terminazione dei processi)"
+        },
+        "tests.e2e.test_stdio_raw::test_sigint_storm_with_stdin_open_never_hangs_or_aborts[0.3]": {
+          "dependency": "MCP-WIN",
+          "reason": "chiusura del server con SIGINT: su Windows Popen.send_signal(SIGINT) non esiste (ValueError: Unsupported signal: 2); la parità richiede CTRL_C_EVENT/CTRL_BREAK_EVENT con un gruppo di processi dedicato e la stessa garanzia di uscita (MCP-WIN, terminazione dei processi)"
+        },
+        "tests.e2e.test_stdio_raw::test_sigint_storm_right_after_server_start_keeps_the_exit_contract": {
+          "dependency": "MCP-WIN",
+          "reason": "chiusura del server con SIGINT: su Windows Popen.send_signal(SIGINT) non esiste (ValueError: Unsupported signal: 2); la parità richiede CTRL_C_EVENT/CTRL_BREAK_EVENT con un gruppo di processi dedicato e la stessa garanzia di uscita (MCP-WIN, terminazione dei processi)"
+        }
+      },
+      "skips": {}
+    }
+  }
+}

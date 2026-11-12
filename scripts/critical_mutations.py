@@ -26,6 +26,7 @@ COPY = (
     "tests",
     "docs",
     "scripts",
+    "ci",
     "catalog",
     "pyproject.toml",
     "AGENTS.md",
@@ -2477,6 +2478,72 @@ MUTANTS: tuple[Mutant, ...] = (
                 MO,
                 "Percent = Annotated[float, Field(ge=0, le=100)]",
                 "Percent = Annotated[float, Field(ge=0)]",
+            ),
+        ),
+    ),
+    Mutant(
+        "W01",
+        "un blocco dichiarato dà PASS (falso verde su Windows)",
+        (
+            (
+                "scripts/ci_platform_report.py",
+                "    if res.blocked:\n",
+                "    if False:\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "W02",
+        "skip non dichiarato accettato (skip silenzioso)",
+        (
+            (
+                "scripts/ci_platform_report.py",
+                "                res.undeclared_skips.append(test_id)\n",
+                "                res.env_skips.append(test_id)\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "W03",
+        "blocco dichiarato che ora passa non segnalato (blocco stantio)",
+        (
+            (
+                "scripts/ci_platform_report.py",
+                "                res.stale.append(test_id)\n",
+                "                res.passed += 1\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "W04",
+        "codice d'uscita anomalo di pytest ignorato",
+        (
+            (
+                "scripts/ci_platform_report.py",
+                "    if pytest_rc not in (0, 1):\n",
+                "    if False:\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "W05",
+        "blocco dichiarato per un test inesistente non segnalato",
+        (
+            (
+                "scripts/ci_platform_report.py",
+                "    res.missing = sorted(set(blocked_decl) - seen)\n",
+                "    res.missing = []\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "W06",
+        "pytest fallito senza fallimenti nel rapporto accettato",
+        (
+            (
+                "scripts/ci_platform_report.py",
+                "    if pytest_rc == 1 and failures == 0:\n",
+                "    if False:\n",
             ),
         ),
     ),

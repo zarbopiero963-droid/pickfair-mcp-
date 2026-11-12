@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import REPO_ROOT, SRC_ROOT
+from tests.conftest import REPO_ROOT, SRC_ROOT, subprocess_env
 
 pytestmark = pytest.mark.guard
 
@@ -231,7 +231,7 @@ def test_runtime_import_does_not_load_engine_or_db_modules() -> None:
         capture_output=True,
         text=True,
         timeout=60,
-        env={"PYTHONPATH": str(REPO_ROOT / "src")},
+        env=subprocess_env(PYTHONPATH=str(REPO_ROOT / "src")),
         check=True,
     )
     assert proc.stdout.strip() == "[]"

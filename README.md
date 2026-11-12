@@ -102,3 +102,28 @@ mutmut run                               # mutation testing generale
 
 I test con adapter simulato sono verifiche offline: **non** equivalgono alla
 certificazione runtime di Pickfair, che resta NOT_RUN fino a MCP-07.
+
+### CI multipiattaforma (MCP-CI)
+
+La CI esegue i test su Ubuntu (Python 3.11, 3.12, 3.13) e su Windows (Python 3.11, 3.12),
+installando sempre dal lock con hash (`requirements/dev.lock`, generato con `--universal`:
+le dipendenze solo Windows, `pywin32` e `colorama`, hanno il marcatore `sys_platform == 'win32'`).
+
+L'esito di ogni piattaforma lo decide `scripts/ci_platform_report.py`, sul rapporto JUnit di
+pytest e sul manifest `ci/platform_expectations.json`:
+
+- `PASS`: ogni test eseguito è passato e gli skip sono dichiarati come ambientali (`ENV: …`);
+- `FAIL`: un fallimento o uno skip non dichiarato, un blocco dichiarato che ora passa o non
+  esiste più, un rapporto assente o incoerente con il codice d'uscita di pytest;
+- `BLOCKED_BY_DEPENDENCY:MCP-WIN`: su Windows, i test che dipendono dalla parità Windows
+  (MCP-WIN) non passano ancora. **Non è un PASS**: il job resta rosso.
+
+Il job Windows non è un check richiesto: lo diventerà solo quando MCP-WIN sarà pronta e
+verificata (decisione owner PF-OWNER-MCP-PARALLEL-EXECUTION-20261111). Su Linux non ci sono
+blocchi dichiarati: ogni test deve passare davvero.
+
+```bash
+pytest --junitxml=pytest-junit.xml; rc=$?
+python scripts/ci_platform_report.py --platform linux --junit pytest-junit.xml \
+  --expectations ci/platform_expectations.json --pytest-rc $rc
+```

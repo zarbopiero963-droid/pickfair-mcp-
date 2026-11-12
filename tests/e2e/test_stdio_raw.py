@@ -7,7 +7,6 @@ stdout e i log dell'SDK finivano su stderr con l'input grezzo.
 from __future__ import annotations
 
 import json
-import os
 import signal
 import subprocess
 import sys
@@ -19,6 +18,8 @@ from typing import Any
 
 import pytest
 
+from tests.conftest import subprocess_env
+
 pytestmark = pytest.mark.e2e
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -27,7 +28,7 @@ TIMEOUT_S = 30
 
 class RawServer:
     def __init__(self) -> None:
-        env = {"PATH": os.environ.get("PATH", ""), "PYTHONPATH": str(REPO_ROOT / "src")}
+        env = subprocess_env(PYTHONPATH=str(REPO_ROOT / "src"))
         self.proc = subprocess.Popen(
             [sys.executable, "-m", "pickfair_mcp", "serve", "--adapter", "simulated"],
             stdin=subprocess.PIPE,
