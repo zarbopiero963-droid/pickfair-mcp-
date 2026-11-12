@@ -13,14 +13,33 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from pydantic import ValidationError
 
 import pickfair_control_api.contract as api_contract
 from pickfair_control_api.schema_check import SchemaViolation, validate
 from pickfair_mcp.contract.descriptor import build_contract_descriptor, serialize_descriptor
+from pickfair_mcp.contract.models import (
+    CONFIG_KEYS,
+    BlackboxEventsResponse,
+    BlackboxStatusResponse,
+    ConfigResponse,
+    ExposureResponse,
+    MarketsResponse,
+    OrdersSnapshotRead,
+    StatusResponse,
+)
 from pickfair_mcp.contract.parsing import (
     UpstreamInvalidResponse,
+    _tuplify,
     parse_account,
+    parse_blackbox_event,
+    parse_blackbox_events,
+    parse_blackbox_sessions,
+    parse_blackbox_status,
+    parse_config,
     parse_exposure,
+    parse_market_book,
+    parse_markets,
     parse_orders,
     parse_positions,
     parse_reconciliation_status,
@@ -35,12 +54,20 @@ from pickfair_mcp.contract.version import (
 from pickfair_mcp.errors import ErrorCode
 from tests.control_api import bodies
 
-GENERATED = serialize_descriptor(build_contract_descriptor())
+
+def _generated() -> str:
+    """Descrittore rigenerato al momento del test, mai all'import del modulo.
+
+    mutmut 3 esegue i test in processi figli di un genitore che ha già importato questo modulo:
+    un valore calcolato all'import non vedrebbe mai il mutante del generatore.
+    """
+    return serialize_descriptor(build_contract_descriptor())
 
 
 def test_both_committed_copies_equal_the_generated_descriptor() -> None:
-    assert Path(DESCRIPTOR_PATH).read_text(encoding="ascii") == GENERATED
-    assert api_contract.DESCRIPTOR_PATH.read_text(encoding="ascii") == GENERATED
+    generated = _generated()
+    assert Path(DESCRIPTOR_PATH).read_text(encoding="ascii") == generated
+    assert api_contract.DESCRIPTOR_PATH.read_text(encoding="ascii") == generated
 
 
 def test_hash_and_version_are_shared() -> None:
@@ -50,7 +77,7 @@ def test_hash_and_version_are_shared() -> None:
 
 
 def test_descriptor_covers_tools_errors_and_semantics() -> None:
-    d = json.loads(GENERATED)
+    d = json.loads(_generated())
     assert set(d["tools"]) == {
         "get_meta",
         "get_status",
@@ -106,14 +133,15 @@ def test_descriptor_covers_tools_errors_and_semantics() -> None:
 def test_any_contract_change_changes_the_hash() -> None:
     from pickfair_mcp.contract.version import hash_descriptor
 
-    base = json.loads(GENERATED)
+    generated = _generated()
+    base = json.loads(generated)
     for mutate in (
         lambda d: d["upstream_schemas"]["status"]["properties"].pop("stop"),
         lambda d: d["error_codes"]["mcp"].append("NEW_CODE"),
         lambda d: d["semantics"].update(unavailable="defaults allowed"),
         lambda d: d["tools"]["get_status"].update(scope="write"),
     ):
-        changed = json.loads(GENERATED)
+        changed = json.loads(generated)
         mutate(changed)
         assert hash_descriptor(changed) != hash_descriptor(base)
 
@@ -571,3 +599,179 @@ MCP_ONLY_RULES_15 = [
 def test_15_cross_field_rules_are_enforced_by_the_mcp(name: str, parse: Any, body: Any) -> None:
     assert not _mcp_accepts(parse, body)
     assert _api_accepts(name, body)
+
+
+# ------------------------------------------------------------------ codici e messaggi esatti
+# Un corpo che rispetta il JSON ma non lo schema produce SEMPRE il codice stabile
+# SCHEMA_VIOLATION (mai None, mai un'altra grafia): è il motivo che il tool riporta al client.
+
+
+@pytest.mark.parametrize(
+    "parse",
+    [
+        parse_config,
+        parse_markets,
+        parse_market_book,
+        parse_blackbox_status,
+        parse_blackbox_sessions,
+        parse_blackbox_events,
+        parse_blackbox_event,
+    ],
+)
+def test_schema_violation_carries_the_exact_code(parse: Any) -> None:
+    with pytest.raises(UpstreamInvalidResponse) as excinfo:
+        parse(b'{"unexpected": 1}')
+    assert excinfo.value.reason == "SCHEMA_VIOLATION"
+    assert excinfo.value.args == ("SCHEMA_VIOLATION",)
+
+
+def _validation_messages(model: Any, body: dict[str, Any]) -> list[str]:
+    with pytest.raises(ValidationError) as excinfo:
+        model.model_validate(_tuplify(body))
+    return [str(e["msg"]) for e in excinfo.value.errors()]
+
+
+def _components(*names: str) -> dict[str, Any]:
+    trading = bodies.engine()["trading_engine"]
+    comps = [{"name": n, "state": "READY", "reason": None} for n in names]
+    return bodies.engine(trading_engine={**trading, "components": comps})
+
+
+# Ogni regola fra elementi ha il suo messaggio, esatto (anche nelle maiuscole): il messaggio è
+# la prova di QUALE regola ha rifiutato il corpo.
+VALIDATOR_MESSAGES = [
+    (
+        MarketsResponse,
+        bodies.markets(markets=[bodies.market("1.2"), bodies.market("1.2")]),
+        "duplicate market_id",
+    ),
+    (
+        MarketsResponse,
+        bodies.markets(markets=[bodies.market("1.3"), bodies.market("1.2")]),
+        "markets must be sorted by market_id",
+    ),
+    (ConfigResponse, bodies.config(unlisted=["foo", "foo"]), "duplicate unlisted names"),
+    (
+        ConfigResponse,
+        bodies.config(unlisted=[sorted(CONFIG_KEYS)[0]]),
+        "listed key reported as unlisted",
+    ),
+    (
+        ConfigResponse,
+        bodies.config(unlisted=["api_token"]),
+        "sensitive field name must be redacted, not listed",
+    ),
+    (
+        ConfigResponse,
+        bodies.config(invalid_persisted=["foo", "foo"]),
+        "duplicate invalid setting names",
+    ),
+    (
+        ConfigResponse,
+        bodies.config(invalid_persisted=["roserpina.api_token"]),
+        "sensitive setting name must be redacted, not listed",
+    ),
+    (
+        BlackboxEventsResponse,
+        bodies.bb_events([bodies.bb_event(2), bodies.bb_event(1)]),
+        "events not in strictly increasing seq order",
+    ),
+    (  # seq uguale: non strettamente crescente, anche con event_id diversi
+        BlackboxEventsResponse,
+        bodies.bb_events([bodies.bb_event(1), bodies.bb_event(1, event_id="f" * 32)]),
+        "events not in strictly increasing seq order",
+    ),
+    (
+        BlackboxEventsResponse,
+        bodies.bb_events([bodies.bb_event(1), bodies.bb_event(2, event_id=f"{1:032x}")]),
+        "duplicate event_id",
+    ),
+    (
+        BlackboxEventsResponse,
+        bodies.bb_events([bodies.bb_event(1, values_after={"api_token": "x"})]),
+        "sensitive value not redacted",
+    ),
+    (  # segmento breve sensibile solo come parte intera del nome (separatori _ . -)
+        BlackboxEventsResponse,
+        bodies.bb_events([bodies.bb_event(1, values_after={"api_auth": "x"})]),
+        "sensitive value not redacted",
+    ),
+    (
+        BlackboxEventsResponse,
+        bodies.bb_events([bodies.bb_event(1, values_after={"session.otp": "x"})]),
+        "sensitive value not redacted",
+    ),
+    (
+        BlackboxEventsResponse,
+        bodies.bb_events([bodies.bb_event(1, values_after={"client.pem": "x"})]),
+        "sensitive value not redacted",
+    ),
+    (
+        BlackboxStatusResponse,
+        bodies.bb_status(
+            gaps=[
+                {"from_seq": 400, "to_seq": 402, "kind": "LOST"},
+                {"from_seq": 402, "to_seq": 403, "kind": "LOST"},
+            ]
+        ),
+        "gaps not sorted or overlapping",
+    ),
+    (
+        ExposureResponse,
+        bodies.exposure(tables=[bodies.table(1), bodies.table(1)]),
+        "duplicate table_id",
+    ),
+    (
+        StatusResponse,
+        bodies.status(
+            readiness={
+                "level": "NOT_READY",
+                "ready": False,
+                "blockers": ["A", "A"],
+                "mcp_aware": False,
+            }
+        ),
+        "duplicate codes",
+    ),
+    (StatusResponse, bodies.status(engine=_components("db", "db")), "duplicate component"),
+]
+
+
+@pytest.mark.parametrize(
+    ("model", "body", "message"), VALIDATOR_MESSAGES, ids=range(len(VALIDATOR_MESSAGES))
+)
+def test_validator_rejects_with_its_exact_message(
+    model: Any, body: dict[str, Any], message: str
+) -> None:
+    assert f"Value error, {message}" in _validation_messages(model, body)
+
+
+def test_duplicate_orders_rejected_with_their_exact_message() -> None:
+    snapshot = {**bodies.orders()["snapshot"], "orders": [bodies.order(), bodies.order()]}
+    messages = _validation_messages(OrdersSnapshotRead, snapshot)
+    assert messages == ["Value error, duplicate local_id"]
+
+
+def test_sensitive_value_check_is_on_whole_segments_only() -> None:
+    """`stake_authorized` contiene «auth» ma non come segmento: non è sensibile (G7)."""
+    body = bodies.bb_events([bodies.bb_event(1, values_after={"stake_authorized": "1"})])
+    assert BlackboxEventsResponse.model_validate(_tuplify(body)).events is not None
+
+
+def test_serialization_requests_ascii_explicitly(monkeypatch: pytest.MonkeyPatch) -> None:
+    """La forma su disco è ASCII per contratto (le due copie si leggono con encoding="ascii"):
+    il serializzatore lo chiede esplicitamente, senza affidarsi al default di `json.dumps`."""
+    import pickfair_mcp.contract.descriptor as descriptor_module
+
+    calls: list[dict[str, Any]] = []
+    real_dumps = json.dumps
+
+    def recording_dumps(obj: Any, **kwargs: Any) -> str:
+        calls.append(kwargs)
+        return real_dumps(obj, **kwargs)
+
+    monkeypatch.setattr(
+        descriptor_module, "json", type("_Json", (), {"dumps": staticmethod(recording_dumps)})
+    )
+    assert serialize_descriptor({"b": "è", "a": 1}) == '{\n  "a": 1,\n  "b": "\\u00e8"\n}\n'
+    assert calls == [{"indent": 2, "sort_keys": True, "ensure_ascii": True}]

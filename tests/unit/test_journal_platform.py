@@ -80,3 +80,25 @@ def test_supported_platform_still_protects(tmp_path: Path) -> None:
     assert flags & os.O_NOFOLLOW and flags & os.O_CLOEXEC
     j = Journal.open(tmp_path / "journal.jsonl")
     assert j.writable and j.failure_reason is None
+
+
+def test_unsupported_platform_declares_its_exact_reason(unsupported: None) -> None:
+    with pytest.raises(lock.JournalPlatformUnsupported) as excinfo:
+        lock.open_flags()
+    assert excinfo.value.args == ("JOURNAL_PLATFORM_UNSUPPORTED",)
+    assert str(excinfo.value) == "JOURNAL_PLATFORM_UNSUPPORTED"
+
+
+@pytest.mark.parametrize(
+    ("missing", "present"), [("_NOFOLLOW", "_CLOEXEC"), ("_CLOEXEC", "_NOFOLLOW")]
+)
+def test_open_flags_requires_both_protections(
+    monkeypatch: pytest.MonkeyPatch, missing: str, present: str
+) -> None:
+    """Anche se PLATFORM_SUPPORTED fosse incoerente, una sola protezione non basta: l'asserzione
+    ferma l'apertura prima di combinare i flag (mai un flag a metà)."""
+    monkeypatch.setattr(lock, "PLATFORM_SUPPORTED", True)
+    monkeypatch.setattr(lock, missing, None)
+    monkeypatch.setattr(lock, present, getattr(os, "O" + present))
+    with pytest.raises(AssertionError):
+        lock.open_flags()

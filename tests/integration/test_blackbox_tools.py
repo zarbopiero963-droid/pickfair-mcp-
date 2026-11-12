@@ -216,3 +216,21 @@ async def test_a_core_that_ignores_the_cursor_is_not_trusted() -> None:
     assert is_error is True and payload["data"] is None
     assert payload["error"]["code"] == "UPSTREAM_INVALID_RESPONSE"
     assert ok[0] is False
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("2026-11-07T15:00:00.123Z", (2026, 11, 7, 15, 0, 0, 123000)),
+        ("2026-11-07T15:00:00Z", (2026, 11, 7, 15, 0, 0, 0)),
+    ],
+)
+def test_instants_are_aware_utc(value: str, expected: tuple[int, ...]) -> None:
+    """Gli istanti di input sono UTC espliciti, mai datetime «naive» confrontati per caso."""
+    from datetime import UTC, datetime
+
+    from pickfair_mcp.tools.blackbox import _instant
+
+    parsed = _instant(value)
+    assert parsed.tzinfo is UTC
+    assert parsed == datetime(*expected, tzinfo=UTC)

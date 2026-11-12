@@ -169,3 +169,12 @@ def test_cli_on_windows_is_a_usage_error_not_a_traceback(
     assert rc != 0
     err = capsys.readouterr().err
     assert "TOKEN_PLATFORM_UNSUPPORTED" in err and "Traceback" not in err
+
+
+def test_token_file_error_carries_only_its_stable_code(token_dir: Path) -> None:
+    with pytest.raises(TokenFileError) as info:
+        LocalTokenFile(token_dir / "missing").read()
+    err = info.value
+    assert err.args == (err.code,)
+    assert str(err) == err.code
+    assert err.code.isupper() and err.code.startswith("TOKEN_")
