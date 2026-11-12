@@ -20,10 +20,13 @@ from mcp.server.lowlevel import Server
 from mcp.server.stdio import stdio_server
 
 from pickfair_mcp import __version__
-from pickfair_mcp.adapters.simulated import Scenario, SimulatedControlApiAdapter
+from pickfair_mcp.adapters.base import ControlApiAdapter
+from pickfair_mcp.adapters.http import HttpControlApiAdapter, validate_port
+from pickfair_mcp.adapters.simulated import Scenario, SimulatedControlApiAdapter, StatusScenario
 from pickfair_mcp.audit import audit_event, configure_stderr_logging
 from pickfair_mcp.auth import Principal, Scope
-from pickfair_mcp.config import BLOCKED_CORE_MESSAGE, ConfigError, validate_timeout
+from pickfair_mcp.auth.token_file import LocalTokenFile, TokenFileError
+from pickfair_mcp.config import ConfigError, validate_timeout
 from pickfair_mcp.contract.routes import APPROVED_ROUTES
 from pickfair_mcp.contract.version import SUPPORTED_CONTRACT_VERSION, contract_schema_hash
 from pickfair_mcp.policy.exposure import LIVE_COMMANDS, MUTATION_EXPOSURE
@@ -46,15 +49,45 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="pickfair-mcp", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     serve = sub.add_parser("serve", help="avvia il server MCP su stdio")
-    serve.add_argument("--adapter", choices=("simulated", "http"), default="simulated")
+    # Sorgente dati obbligatoria ed esplicita (C-AUD-10, PF-OWNER-MCP-SOURCE-EXPLICIT-20261110):
+    # nessun default. `simulated` = SIMULATED, `http` = CONTROL_API su 127.0.0.1. Senza
+    # `--adapter` l'avvio è rifiutato con CONFIG_ERROR: SOURCE_REQUIRED; nessuna opzione
+    # o variabile d'ambiente sceglie la sorgente al suo posto.
+    serve.add_argument(
+        "--adapter",
+        choices=("simulated", "http"),
+        default=None,
+        help="sorgente dati, obbligatoria: simulated (SIMULATED) o http (CONTROL_API)",
+    )
     serve.add_argument(
         "--sim-scenario",
         choices=[s.value for s in Scenario],
         default=Scenario.COMPATIBLE.value,
         help="solo adapter simulato: scenario deterministico",
     )
+    serve.add_argument(
+        "--sim-status-scenario",
+        choices=[s.value for s in StatusScenario],
+        default=StatusScenario.SIM_READY.value,
+        help="solo adapter simulato: scenario di GET /v1/status e /v1/reconciliation/status",
+    )
     serve.add_argument("--upstream-timeout", type=float, default=5.0)
+    serve.add_argument(
+        "--control-api-port",
+        type=int,
+        default=None,
+        help="solo adapter http: porta della Control API su 127.0.0.1 (configurazione locale)",
+    )
+    serve.add_argument(
+        "--control-api-token-file",
+        default=None,
+        help="solo adapter http: percorso assoluto del file del token (0600, stesso utente)",
+    )
     sub.add_parser("contract-info", help="stampa versione e schema hash del contratto supportato")
+    sub.add_parser(
+        "contract-descriptor",
+        help="stampa il descrittore canonico del contratto generato dal codice (rigenerazione)",
+    )
     return parser
 
 
@@ -136,9 +169,7 @@ class InterruptTracker:
         self._signalled.set()  # libera il watchdog anche se SIGINT non è mai arrivato
 
 
-async def _serve(
-    adapter: SimulatedControlApiAdapter, timeout_s: float, tracker: InterruptTracker
-) -> None:
+async def _serve(adapter: ControlApiAdapter, timeout_s: float, tracker: InterruptTracker) -> None:
     tracker.install()  # prima di server_start: da quella riga SIGINT è sempre gestito (N4)
     try:
         audit_event(
@@ -174,20 +205,70 @@ def _contract_info() -> int:
     return 0
 
 
+def _usage_error(code: str) -> None:
+    """Errore di configurazione: solo un codice fisso su stderr (mai percorsi o contenuti)."""
+    print(f"CONFIG_ERROR: {code}", file=sys.stderr)
+
+
+def _build_adapter(args: argparse.Namespace, timeout_s: float) -> ControlApiAdapter | None:
+    """Adapter esplicito. Nessun fallback: un adapter http mal configurato non diventa simulato.
+
+    Sorgente assente → ``SOURCE_REQUIRED`` prima di costruire qualsiasi adapter (C-AUD-10).
+    """
+    if args.adapter is None:
+        _usage_error("SOURCE_REQUIRED")
+        return None
+    http_args = (args.control_api_port, args.control_api_token_file)
+    if args.adapter == "simulated":
+        if any(a is not None for a in http_args):
+            _usage_error("HTTP_OPTIONS_WITH_SIMULATED_ADAPTER")
+            return None
+        return SimulatedControlApiAdapter(
+            Scenario(args.sim_scenario), status_scenario=StatusScenario(args.sim_status_scenario)
+        )
+    if args.sim_scenario != Scenario.COMPATIBLE.value or (
+        args.sim_status_scenario != StatusScenario.SIM_READY.value
+    ):
+        _usage_error("SIM_OPTIONS_WITH_HTTP_ADAPTER")
+        return None
+    if any(a is None for a in http_args):
+        _usage_error("HTTP_ADAPTER_REQUIRES_PORT_AND_TOKEN_FILE")
+        return None
+    try:
+        port = validate_port(args.control_api_port)
+    except ValueError:
+        _usage_error("CONFIG_PORT")
+        return None
+    try:
+        token_file = LocalTokenFile(args.control_api_token_file)
+        token_file.read()  # verifica all'avvio; il token non viene tenuto né stampato
+    except TokenFileError as exc:
+        _usage_error(exc.code)
+        return None
+    return HttpControlApiAdapter(port=port, token_file=token_file, timeout_s=timeout_s)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _parser()
     args = parser.parse_args(argv)
     if args.command == "contract-info":
         return _contract_info()
+    if args.command == "contract-descriptor":
+        from pickfair_mcp.contract.descriptor import (
+            build_contract_descriptor,
+            serialize_descriptor,
+        )
+
+        print(serialize_descriptor(build_contract_descriptor()), end="")
+        return 0
     try:
         timeout_s = validate_timeout(args.upstream_timeout)
     except ConfigError as exc:
         parser.error(f"--upstream-timeout: {exc}")
-    if args.adapter == "http":
-        print(BLOCKED_CORE_MESSAGE, file=sys.stderr)
+    adapter = _build_adapter(args, timeout_s)
+    if adapter is None:
         return EXIT_USAGE
     configure_stderr_logging()
-    adapter = SimulatedControlApiAdapter(Scenario(args.sim_scenario))
     tracker = InterruptTracker(_force_interrupted_exit)
     try:
         anyio.run(_serve, adapter, timeout_s, tracker)

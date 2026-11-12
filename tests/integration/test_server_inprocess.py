@@ -48,10 +48,25 @@ async def session_for(
             yield session
 
 
-async def test_list_tools_exposes_only_get_meta_with_strict_schemas() -> None:
+async def test_list_tools_exposes_only_read_tools_with_strict_schemas() -> None:
     async with session_for(SimulatedControlApiAdapter()) as session:
         tools = (await session.list_tools()).tools
-    assert [t.name for t in tools] == ["get_meta"]
+    assert [t.name for t in tools] == [
+        "get_meta",
+        "get_status",
+        "get_reconciliation_status",
+        "get_account",
+        "get_exposure",
+        "list_positions",
+        "list_orders",
+        "get_config",
+        "list_markets",
+        "get_market_book",
+        "get_blackbox_status",
+        "list_blackbox_sessions",
+        "list_blackbox_events",
+        "get_blackbox_event",
+    ]
     tool = tools[0]
     assert tool.inputSchema["type"] == "object"
     assert tool.inputSchema.get("additionalProperties") is False
@@ -143,7 +158,7 @@ async def test_extra_arguments_are_rejected_without_upstream_call(
 async def test_unknown_tool_is_rejected_without_upstream_call() -> None:
     adapter = SimulatedControlApiAdapter()
     async with session_for(adapter) as session:
-        for name in ("place_order", "sim_place_order", "get_status", "raw_rpc"):
+        for name in ("place_order", "sim_place_order", "list_events", "raw_rpc"):
             result = await session.call_tool(name, {})
             assert result.isError is True
             assert result.structuredContent is not None
@@ -165,8 +180,8 @@ async def test_internal_errors_do_not_leak_exception_text() -> None:
     registry = build_default_registry()
     registry.register(
         ToolSpec(
-            name="get_status",
-            route="GET /v1/status",
+            name="list_events",
+            route="GET /v1/events",
             scope=Scope.READ,
             description="test",
             input_model=NoInput,
@@ -175,7 +190,7 @@ async def test_internal_errors_do_not_leak_exception_text() -> None:
         )
     )
     async with session_for(SimulatedControlApiAdapter(), registry=registry) as session:
-        result = await session.call_tool("get_status", {})
+        result = await session.call_tool("list_events", {})
     assert result.isError is True
     text = json.dumps(result.structuredContent) + "".join(
         getattr(c, "text", "") for c in result.content
@@ -184,7 +199,7 @@ async def test_internal_errors_do_not_leak_exception_text() -> None:
     assert "/home/secret" not in text
     assert result.structuredContent is not None
     assert result.structuredContent["error"]["code"] == "INTERNAL_ERROR"
-    assert result.structuredContent["tool"] == "get_status"
+    assert result.structuredContent["tool"] == "list_events"
     assert result.structuredContent["error"]["details"]["reasons"] == ["INTERNAL"]
     assert result.structuredContent["error"]["retryable"] is False
 
@@ -237,8 +252,8 @@ async def test_output_not_matching_declared_model_becomes_internal_error() -> No
     registry = build_default_registry()
     registry.register(
         ToolSpec(
-            name="get_status",
-            route="GET /v1/status",
+            name="list_events",
+            route="GET /v1/events",
             scope=Scope.READ,
             description="test",
             input_model=NoInput,
@@ -247,7 +262,7 @@ async def test_output_not_matching_declared_model_becomes_internal_error() -> No
         )
     )
     async with session_for(SimulatedControlApiAdapter(), registry=registry) as session:
-        result = await session.call_tool("get_status", {})
+        result = await session.call_tool("list_events", {})
     assert result.isError is True
     assert result.structuredContent is not None
     assert result.structuredContent["error"]["code"] == "INTERNAL_ERROR"

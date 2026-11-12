@@ -1,0 +1,237 @@
+"""Server di prova su 127.0.0.1: Control API reale con provider sostituibili e server ostili."""
+
+from __future__ import annotations
+
+import socket
+import socketserver
+import threading
+import time
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from typing import Any
+
+from pickfair_control_api.rate_limit import BURST_MAX, RATE_MAX_PER_S, RateLimit
+from pickfair_control_api.server import ControlApiServer
+from pickfair_control_api.tokens import TokenStore, issue_token_file
+from tests.control_api import bodies
+
+SHA = "c" * 40
+
+
+class Providers:
+    """Provider sostituibili dai test (il core reale li fornisce tramite il ponte)."""
+
+    def __init__(self) -> None:
+        self.status: Callable[[], dict[str, Any]] = bodies.status
+        self.reconciliation: Callable[[], dict[str, Any]] = bodies.reconciliation
+        self.account: Callable[[], dict[str, Any]] = bodies.account
+        self.exposure: Callable[[], dict[str, Any]] = bodies.exposure
+        self.positions: Callable[[], dict[str, Any]] = bodies.positions
+        self.orders: Callable[[], dict[str, Any]] = bodies.orders
+        self.config: Callable[[], dict[str, Any]] = bodies.config
+        self.markets: Callable[[], dict[str, Any]] = bodies.markets
+        self.market_book: Callable[[str], dict[str, Any]] = bodies.market_book
+        self.book_requests: list[str] = []
+        self.calls = 0
+        # MCP-01o (PF-BLACKBOX-01): letture della scatola nera e hook di registrazione delle
+        # richieste.
+        self.bb_status: Callable[[], dict[str, Any]] = bodies.bb_status
+        self.bb_sessions: Callable[[], dict[str, Any]] = bodies.bb_sessions
+        self.bb_events: Callable[[dict[str, object]], dict[str, Any]] = lambda f: bodies.bb_events()
+        self.bb_event: Callable[[str], dict[str, Any]] = lambda eid: bodies.bb_event_detail()
+        self.bb_queries: list[dict[str, object]] = []
+        self.records: list[dict[str, Any]] = []
+        self.hook_accepts: bool | Callable[[dict[str, Any]], bool] = True
+
+    def hook(self, record: dict[str, Any]) -> bool:
+        self.records.append(record)
+        accepts = self.hook_accepts
+        return accepts(record) if callable(accepts) else accepts
+
+    def mapping(self) -> dict[str, Callable[[], dict[str, Any]]]:
+        def status() -> dict[str, Any]:
+            self.calls += 1
+            return self.status()
+
+        def recon() -> dict[str, Any]:
+            self.calls += 1
+            return self.reconciliation()
+
+        def account() -> dict[str, Any]:
+            self.calls += 1
+            return self.account()
+
+        def exposure() -> dict[str, Any]:
+            self.calls += 1
+            return self.exposure()
+
+        def positions() -> dict[str, Any]:
+            self.calls += 1
+            return self.positions()
+
+        def orders() -> dict[str, Any]:
+            self.calls += 1
+            return self.orders()
+
+        def config() -> dict[str, Any]:
+            self.calls += 1
+            return self.config()
+
+        def markets() -> dict[str, Any]:
+            self.calls += 1
+            return self.markets()
+
+        def market_book(market_id: str) -> dict[str, Any]:
+            self.calls += 1
+            self.book_requests.append(market_id)
+            return self.market_book(market_id)
+
+        def bb_status() -> dict[str, Any]:
+            self.calls += 1
+            return self.bb_status()
+
+        def bb_sessions() -> dict[str, Any]:
+            self.calls += 1
+            return self.bb_sessions()
+
+        def bb_events(filters: dict[str, object]) -> dict[str, Any]:
+            self.calls += 1
+            self.bb_queries.append(dict(filters))
+            return self.bb_events(filters)
+
+        def bb_event(event_id: str) -> dict[str, Any]:
+            self.calls += 1
+            return self.bb_event(event_id)
+
+        return {
+            "blackbox_status": bb_status,
+            "blackbox_sessions": bb_sessions,
+            "blackbox_events": bb_events,
+            "blackbox_event": bb_event,
+            "markets": markets,
+            "market_book": market_book,
+            "config": config,
+            "orders": orders,
+            "positions": positions,
+            "status": status,
+            "reconciliation_status": recon,
+            "account": account,
+            "exposure": exposure,
+        }
+
+
+def secure_dir(base: Path) -> Path:
+    d = base / "pickfair-control-api"
+    d.mkdir(mode=0o700, exist_ok=True)
+    return d
+
+
+# Limite dei test: il massimo ammesso (C-AUD-06). I test con traffico intenso passano un orologio
+# accelerato (`fast_clock`), mai un limite disattivato: il server non ne ha uno.
+TEST_RATE_LIMIT = RateLimit.from_values(RATE_MAX_PER_S, BURST_MAX)
+
+
+def fast_clock() -> float:
+    """Orologio monotono accelerato: il secchio si riempie subito (traffico intenso nei test)."""
+    return time.monotonic() * 1_000_000
+
+
+@contextmanager
+def control_api(
+    tmp_path: Path,
+    *,
+    port: int = 0,
+    providers: Providers | None = None,
+    rate_limit: RateLimit = TEST_RATE_LIMIT,
+    clock: Callable[[], float] = time.monotonic,
+) -> Iterator[tuple[ControlApiServer, TokenStore, Path, Providers]]:
+    token_path = secure_dir(tmp_path) / "control_api.token"
+    if token_path.exists():
+        token_path.unlink()
+    store = TokenStore(issue_token_file(token_path))
+    prov = providers or Providers()
+    server = ControlApiServer(
+        prov.mapping(),
+        port=port,
+        tokens=store,
+        git_sha=SHA,
+        request_hook=prov.hook,
+        rate_limit=rate_limit,
+        clock=clock,
+        allow_ephemeral_port=True,
+    )
+    server.start()
+    try:
+        yield server, store, token_path, prov
+    finally:
+        server.stop()
+
+
+@contextmanager
+def hostile_http(
+    respond: Callable[[BaseHTTPRequestHandler], None],
+) -> Iterator[tuple[int, list[str]]]:
+    """Server HTTP che risponde come vuole il test; registra i percorsi richiesti."""
+    seen: list[str] = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *_a: Any) -> None:
+            pass
+
+        def do_GET(self) -> None:
+            seen.append(self.path)
+            respond(self)
+
+    class Server(ThreadingHTTPServer):
+        def server_bind(self) -> None:  # niente getfqdn (DNS inverso) nei test
+            socketserver.TCPServer.server_bind(self)
+            self.server_name, self.server_port = "127.0.0.1", int(self.server_address[1])
+
+    httpd = Server(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield int(httpd.server_address[1]), seen
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+@contextmanager
+def silent_server() -> Iterator[int]:
+    """Accetta connessioni e non risponde mai (timeout)."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(("127.0.0.1", 0))
+    sock.listen(16)
+    held: list[socket.socket] = []
+    stop = threading.Event()
+
+    def accept() -> None:
+        sock.settimeout(0.1)
+        while not stop.is_set():
+            try:
+                conn, _ = sock.accept()
+                held.append(conn)
+            except OSError:
+                continue
+
+    thread = threading.Thread(target=accept, daemon=True)
+    thread.start()
+    try:
+        yield int(sock.getsockname()[1])
+    finally:
+        stop.set()
+        thread.join(timeout=2)
+        for c in held:
+            c.close()
+        sock.close()
+
+
+def free_port() -> int:
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("127.0.0.1", 0))
+    port = int(s.getsockname()[1])
+    s.close()
+    return port

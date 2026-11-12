@@ -7,7 +7,14 @@ from typing import TypeVar
 
 import anyio
 
-from pickfair_mcp.adapters.base import UpstreamTimeout, UpstreamUnavailable
+from pickfair_mcp.adapters.base import (
+    UpstreamNotImplemented,
+    UpstreamProtocolError,
+    UpstreamRateLimited,
+    UpstreamTimeout,
+    UpstreamUnauthorized,
+    UpstreamUnavailable,
+)
 from pickfair_mcp.errors import ErrorCode, ToolError
 
 T = TypeVar("T")
@@ -28,4 +35,22 @@ async def read_with_retry(
             last = ErrorCode.UPSTREAM_TIMEOUT
         except UpstreamUnavailable:
             last = ErrorCode.UPSTREAM_UNAVAILABLE
+        except UpstreamUnauthorized:
+            # Credenziali rifiutate: ripetere non serve e non è mai sicuro.
+            raise ToolError(
+                ErrorCode.UPSTREAM_UNAUTHORIZED, reasons=("UPSTREAM_UNAUTHORIZED",)
+            ) from None
+        except UpstreamRateLimited:
+            # C-AUD-06: ritentabile per il client, mai ritentato qui (si consumerebbe il limite).
+            raise ToolError(ErrorCode.RATE_LIMITED, reasons=("RATE_LIMITED",)) from None
+        except UpstreamNotImplemented:
+            # Capacità assente nel core: ripetere non la fa comparire.
+            raise ToolError(
+                ErrorCode.UPSTREAM_NOT_IMPLEMENTED, reasons=("UPSTREAM_NOT_IMPLEMENTED",)
+            ) from None
+        except UpstreamProtocolError as exc:
+            raise ToolError(
+                ErrorCode.UPSTREAM_INVALID_RESPONSE,
+                reasons=(f"UPSTREAM_INVALID_RESPONSE:{exc.reason}",),
+            ) from None
     raise ToolError(last, reasons=("READ_RETRY_EXHAUSTED",))

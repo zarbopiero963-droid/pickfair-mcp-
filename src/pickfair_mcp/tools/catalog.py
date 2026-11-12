@@ -1,6 +1,7 @@
 """Catalogo dei nomi tool approvati: un solo set, una route ciascuno.
 
-I 25 nomi coprono le 25 route di pickfair-mcp- #1. Nessun tool per modalità
+I 29 nomi coprono le 25 route di pickfair-mcp- #1 e le 4 di sola lettura della scatola
+nera (decisione owner PF-BLACKBOX-01 del 08/11/2026). Nessun tool per modalità
 (niente prefissi sim_/live_), nessun tool per funzionalità sospese o future.
 Essere nel catalogo NON significa essere esposto: in MCP-01a è registrato
 soltanto `get_meta`.
@@ -39,6 +40,11 @@ APPROVED_TOOL_ROUTES: Final = MappingProxyType(
         "reconcile": "POST /v1/reconcile",
         "patch_config": "PATCH /v1/config",
         "set_mode": "POST /v1/mode",
+        # PF-BLACKBOX-01: sola lettura della scatola nera.
+        "get_blackbox_status": "GET /v1/blackbox/status",
+        "list_blackbox_sessions": "GET /v1/blackbox/sessions",
+        "list_blackbox_events": "GET /v1/blackbox/events",
+        "get_blackbox_event": "GET /v1/blackbox/events/{event_id}",
     }
 )
 

@@ -122,4 +122,4 @@ def test_contract_doc_table_matches_code() -> None:
     text = (REPO_ROOT / "docs" / "contract_v1.md").read_text(encoding="utf-8")
     rows = re.findall(r"^\| (?:Read|Command) \| (GET|POST|PATCH) \| `([^`]+)` \|", text, re.M)
     assert {f"{m} {p}" for m, p in rows} == {route_key(r) for r in APPROVED_ROUTES}
-    assert len(rows) == 25
+    assert len(rows) == 29  # 25 + 4 di lettura della scatola nera (PF-BLACKBOX-01)

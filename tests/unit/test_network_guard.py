@@ -102,9 +102,26 @@ def test_subprocess_env_is_minimal_and_adds_windows_system_vars_only_on_windows(
 
     monkeypatch.setenv("SYSTEMROOT", "C:\\Windows")
     monkeypatch.setenv("PICKFAIR_SECRET_LIKE", "x")
+    monkeypatch.delenv("MUTANT_UNDER_TEST", raising=False)
     monkeypatch.setattr(sys, "platform", "linux")
     assert set(guard.subprocess_env(PYTHONPATH="src")) == {"PATH", "PYTHONPATH"}
     monkeypatch.setattr(sys, "platform", "win32")
     env = guard.subprocess_env(PYTHONPATH="src")
     assert env["SYSTEMROOT"] == "C:\\Windows" and env["PYTHONPATH"] == "src"
     assert "PICKFAIR_SECRET_LIKE" not in env  # mai l'ambiente completo del processo di test
+
+
+def test_subprocess_env_forwards_only_the_mutmut_selector(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Sotto mutmut il figlio riceve il selettore del mutante, e nient'altro in più."""
+    import tests.conftest as guard
+
+    monkeypatch.setenv("PICKFAIR_SECRET_LIKE", "x")
+    monkeypatch.setenv("MUTANT_UNDER_TEST", "pickfair_mcp.x.f__mutmut_1")
+    env = guard.subprocess_env(PYTHONPATH="src")
+    assert env["MUTANT_UNDER_TEST"] == "pickfair_mcp.x.f__mutmut_1"
+    assert "PICKFAIR_SECRET_LIKE" not in env
+    for parent_only in ("stats", "list_all_tests"):  # lo stato di mutmut vive solo nel padre
+        monkeypatch.setenv("MUTANT_UNDER_TEST", parent_only)
+        assert guard.subprocess_env()["MUTANT_UNDER_TEST"] == ""
+    monkeypatch.delenv("MUTANT_UNDER_TEST")
+    assert "MUTANT_UNDER_TEST" not in guard.subprocess_env(PYTHONPATH="src")

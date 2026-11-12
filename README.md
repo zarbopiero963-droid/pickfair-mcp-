@@ -5,11 +5,25 @@ Server MCP **locale su stdio** per controllare Pickfair attraverso strumenti aut
 un'autorità di trading**. Roserpina e l'Order Authority del core restano le uniche
 autorità finanziarie.
 
-Stato attuale (MCP-01a):
+Stato attuale (MCP-01a … MCP-01l e MCP-SEC-01, contratto 1.10.0; MCP-01i preparato offline, dipende da F-04):
 
-- unico tool esposto: `get_meta` (sola lettura, handshake di contratto fail-closed);
-- adapter verso la Control API: **solo simulato** e dichiarato `certified: false`;
-- adapter HTTP reale: **BLOCKED_CORE** finché la Control API (PF-API-0/1) non esiste;
+- tool esposti, tutti di sola lettura: `get_meta` (handshake di contratto fail-closed),
+  `get_status` e `get_reconciliation_status` (MCP-02a: stato runtime, modalità, readiness, STOP,
+  riconciliazione), `get_account` e `get_exposure` (MCP-01e: bankroll, cassa verificata, ultimo
+  snapshot dei fondi, desk mode, tavoli Roserpina, esposizione totale, capacità di recovery),
+  diagnostica del motore e stato di 22 protezioni finanziarie dentro `get_status`
+  (ACTIVE/INACTIVE/TRIGGERED/UNKNOWN/UNAVAILABLE: ciò che non è verificabile non è mai «sicuro») e
+  `list_positions` (MCP-01f, importi e quote in Decimal senza perdita) e `list_orders` (MCP-01g:
+  ledger degli ordini letto in sola lettura, stati del core con mappa esplicita, AMBIGUOUS mai
+  FAILED, stato dello snapshot OK/PARTIAL/STALE/UNKNOWN/UNAVAILABLE); da MCP-01h anche SL/TP per
+  tavolo, conteggi dei settlement e barriere di cashout; `get_config` (MCP-01j: impostazioni
+  operative di Roserpina da un'allowlist, SET/NOT_SET/INVALID, credenziali mai lette); `list_markets` e
+  `get_market_book` (MCP-01l: ultimo book ricevuto da Pickfair per mercato, nessuna chiamata di rete); i
+  risultati dell'adapter simulato sono marcati `source: "simulated"` e sono fittizi;
+- le altre letture approvate rispondono `UPSTREAM_NOT_IMPLEMENTED` finché il core non le espone
+  (la Control API risponde `501 NOT_IMPLEMENTED`, mai un dato);
+- adapter verso la Control API: simulato oppure **HTTP di prodotto** (MCP-01d), entrambi
+  dichiarati `certified: false` finché non c'è una certificazione (MCP-07b);
 - comandi (ordini, cashout, STOP, config, modalità): **non esposti**
   (`MCP_MUTATION_EXPOSURE = BLOCKED_UNTIL_CORE_AUTHORITY_READY`);
 - nessun LIVE, nessuna credenziale Betfair, nessun accesso al DB Pickfair.
@@ -32,8 +46,15 @@ pip install --no-deps -e .
 ```bash
 pickfair-mcp contract-info                      # versione e schema hash supportati
 pickfair-mcp serve --adapter simulated          # server MCP su stdio
-pickfair-mcp serve --sim-scenario incompatible_major   # prova del fail-closed
+pickfair-mcp serve --adapter simulated --sim-scenario incompatible_major   # prova del fail-closed
+pickfair-mcp serve --adapter simulated --sim-status-scenario live_blocked  # scenario di stato simulato
 ```
+
+La sorgente dati è **obbligatoria ed esplicita** (C-AUD-10, decisione owner
+PF-OWNER-MCP-SOURCE-EXPLICIT-20261110): `--adapter simulated` (SIMULATED) oppure
+`--adapter http` (CONTROL_API). Senza `--adapter` il server non parte (exit 2,
+`CONFIG_ERROR: SOURCE_REQUIRED`) e non sceglie mai i dati simulati da solo; nessuna altra
+opzione o variabile d'ambiente sceglie la sorgente. Un valore diverso è rifiutato (exit 2).
 
 Esempio di configurazione per un client MCP desktop (stdio):
 
@@ -48,7 +69,10 @@ Esempio di configurazione per un client MCP desktop (stdio):
 }
 ```
 
-`--adapter http` termina con codice 2 e messaggio `BLOCKED_CORE`. Diagnostica e audit
+Adapter di prodotto verso la Control API locale (MCP-01d): `pickfair-mcp serve --adapter http
+--control-api-port 8765 --control-api-token-file /percorso/assoluto/control_api.token` (solo
+127.0.0.1, token 0600, nessun fallback verso il simulato). La Control API stessa è il package
+`pickfair_control_api`; il ponte verso il motore è consegnato a Pickfair-nogui (`docs/handoff/`). Diagnostica e audit
 (JSON per riga, campi in allowlist) vanno su stderr; stdout è riservato al protocollo.
 
 ## Risultato di `get_meta`

@@ -14,7 +14,22 @@ from typing import Any, Final
 
 from pydantic import ValidationError
 
-from pickfair_mcp.contract.models import MetaResponse
+from pickfair_mcp.contract.models import (
+    AccountResponse,
+    BlackboxEventResponse,
+    BlackboxEventsResponse,
+    BlackboxSessionsResponse,
+    BlackboxStatusResponse,
+    ConfigResponse,
+    ExposureResponse,
+    MarketBookResponse,
+    MarketsResponse,
+    MetaResponse,
+    OrdersResponse,
+    PositionsResponse,
+    ReconciliationStatusResponse,
+    StatusResponse,
+)
 
 MAX_UPSTREAM_BYTES: Final = 64 * 1024
 
@@ -83,4 +98,118 @@ def parse_meta(raw: bytes) -> MetaResponse:
     try:
         return MetaResponse.model_validate(obj)
     except ValidationError:
+        raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None
+
+
+def _tuplify(value: Any) -> Any:
+    """Il JSON non ha tuple: le liste diventano tuple prima della validazione strict."""
+    if isinstance(value, list):
+        return tuple(_tuplify(v) for v in value)
+    if isinstance(value, dict):
+        return {k: _tuplify(v) for k, v in value.items()}
+    return value
+
+
+def parse_status(raw: bytes) -> StatusResponse:
+    obj = parse_json_object(raw)
+    try:
+        return StatusResponse.model_validate(_tuplify(obj))
+    except ValidationError:
+        raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None
+
+
+def parse_reconciliation_status(raw: bytes) -> ReconciliationStatusResponse:
+    obj = parse_json_object(raw)
+    try:
+        return ReconciliationStatusResponse.model_validate(_tuplify(obj))
+    except ValidationError:
+        raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None
+
+
+def parse_account(raw: bytes) -> AccountResponse:
+    obj = parse_json_object(raw)
+    try:
+        return AccountResponse.model_validate(_tuplify(obj))
+    except ValidationError:
+        raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None
+
+
+def parse_exposure(raw: bytes) -> ExposureResponse:
+    obj = parse_json_object(raw)
+    try:
+        return ExposureResponse.model_validate(_tuplify(obj))
+    except ValidationError:
+        raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None
+
+
+def parse_positions(raw: bytes) -> PositionsResponse:
+    obj = parse_json_object(raw)
+    try:
+        return PositionsResponse.model_validate(_tuplify(obj))
+    except ValidationError:
+        raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None
+
+
+def parse_orders(raw: bytes) -> OrdersResponse:
+    obj = parse_json_object(raw)
+    try:
+        return OrdersResponse.model_validate(_tuplify(obj))
+    except (ValidationError, ArithmeticError):
+        raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None
+
+
+def parse_config(raw: bytes) -> ConfigResponse:
+    obj = parse_json_object(raw)
+    try:
+        return ConfigResponse.model_validate(_tuplify(obj))
+    except (ValidationError, ArithmeticError):
+        raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None
+
+
+def parse_markets(raw: bytes) -> MarketsResponse:
+    obj = parse_json_object(raw)
+    try:
+        return MarketsResponse.model_validate(_tuplify(obj))
+    except (ValidationError, ArithmeticError):
+        raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None
+
+
+def parse_market_book(raw: bytes) -> MarketBookResponse:
+    obj = parse_json_object(raw)
+    try:
+        return MarketBookResponse.model_validate(_tuplify(obj))
+    except (ValidationError, ArithmeticError):
+        raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None
+
+
+# MCP-01o: scatola nera (PF-BLACKBOX-01), sola lettura.
+def parse_blackbox_status(raw: bytes) -> BlackboxStatusResponse:
+    obj = parse_json_object(raw)
+    try:
+        return BlackboxStatusResponse.model_validate(_tuplify(obj))
+    except (ValidationError, ArithmeticError):
+        raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None
+
+
+def parse_blackbox_sessions(raw: bytes) -> BlackboxSessionsResponse:
+    obj = parse_json_object(raw)
+    try:
+        return BlackboxSessionsResponse.model_validate(_tuplify(obj))
+    except (ValidationError, ArithmeticError):
+        raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None
+
+
+def parse_blackbox_events(raw: bytes) -> BlackboxEventsResponse:
+    obj = parse_json_object(raw)
+    try:
+        return BlackboxEventsResponse.model_validate(_tuplify(obj))
+    except (ValidationError, ArithmeticError):
+        raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None
+
+
+def parse_blackbox_event(raw: bytes) -> BlackboxEventResponse:
+    obj = parse_json_object(raw)
+    try:
+        return BlackboxEventResponse.model_validate(_tuplify(obj))
+    except (ValidationError, ArithmeticError):
         raise UpstreamInvalidResponse("SCHEMA_VIOLATION") from None

@@ -1,0 +1,473 @@
+{
+  "version": 2,
+  "baseline": {
+    "pickfair_nogui_sha": "7a70062252777519361b65ec4d785ed1896d724a"
+  },
+  "extractors": {
+    "methods": [
+      {
+        "file": "core/runtime_controller.py",
+        "class": "RuntimeController"
+      }
+    ],
+    "fields": [
+      {
+        "file": "core/system_state.py",
+        "class": "RoserpinaConfig"
+      }
+    ]
+  },
+  "signals": {
+    "config:RoserpinaConfig.allow_recovery": [
+      "CAP-ROS-06"
+    ],
+    "config:RoserpinaConfig.anti_duplication_enabled": [
+      "CAP-ORD-11"
+    ],
+    "config:RoserpinaConfig.auto_green_delay_enabled": [
+      "CAP-CSH-20"
+    ],
+    "config:RoserpinaConfig.auto_green_delay_sec": [
+      "CAP-CSH-20"
+    ],
+    "config:RoserpinaConfig.auto_reset_drawdown_pct": [
+      "CAP-ROS-09"
+    ],
+    "config:RoserpinaConfig.book_block": [
+      "CAP-BKR-18"
+    ],
+    "config:RoserpinaConfig.book_warning": [
+      "CAP-BKR-18"
+    ],
+    "config:RoserpinaConfig.commission_pct": [
+      "CAP-BKR-09"
+    ],
+    "config:RoserpinaConfig.defense_drawdown_pct": [
+      "CAP-ROS-08"
+    ],
+    "config:RoserpinaConfig.defense_multiplier": [
+      "CAP-ROS-08"
+    ],
+    "config:RoserpinaConfig.expansion_multiplier": [
+      "CAP-ROS-08"
+    ],
+    "config:RoserpinaConfig.expansion_profit_pct": [
+      "CAP-ROS-08"
+    ],
+    "config:RoserpinaConfig.liquidity_guard_enabled": [
+      "CAP-BKR-14"
+    ],
+    "config:RoserpinaConfig.liquidity_multiplier": [
+      "CAP-BKR-14"
+    ],
+    "config:RoserpinaConfig.liquidity_warning_only": [
+      "CAP-BKR-14"
+    ],
+    "config:RoserpinaConfig.lockdown_drawdown_pct": [
+      "CAP-ROS-08"
+    ],
+    "config:RoserpinaConfig.max_daily_loss": [
+      "CAP-BKR-06",
+      "CAP-BKR-16"
+    ],
+    "config:RoserpinaConfig.max_drawdown_abs": [
+      "CAP-BKR-05",
+      "CAP-BKR-16"
+    ],
+    "config:RoserpinaConfig.max_drawdown_hard_stop_pct": [
+      "CAP-BKR-05",
+      "CAP-BKR-16"
+    ],
+    "config:RoserpinaConfig.max_event_exposure_abs": [
+      "CAP-BKR-04",
+      "CAP-BKR-16"
+    ],
+    "config:RoserpinaConfig.max_event_exposure_pct": [
+      "CAP-BKR-04",
+      "CAP-BKR-16"
+    ],
+    "config:RoserpinaConfig.max_exposure_stop": [
+      "CAP-STP-10"
+    ],
+    "config:RoserpinaConfig.max_market_exposure": [
+      "CAP-BKR-04",
+      "CAP-BKR-16"
+    ],
+    "config:RoserpinaConfig.max_open_exposure": [
+      "CAP-BKR-03",
+      "CAP-BKR-16"
+    ],
+    "config:RoserpinaConfig.max_order_exposure": [
+      "CAP-BKR-04",
+      "CAP-BKR-16"
+    ],
+    "config:RoserpinaConfig.max_recovery_chase_abs": [
+      "CAP-ROS-14"
+    ],
+    "config:RoserpinaConfig.max_recovery_tables": [
+      "CAP-ROS-06"
+    ],
+    "config:RoserpinaConfig.max_session_loss": [
+      "CAP-BKR-06",
+      "CAP-BKR-16"
+    ],
+    "config:RoserpinaConfig.max_single_bet_pct": [
+      "CAP-BKR-07",
+      "CAP-BKR-16"
+    ],
+    "config:RoserpinaConfig.max_stake_abs": [
+      "CAP-BKR-07",
+      "CAP-BKR-16"
+    ],
+    "config:RoserpinaConfig.max_stake_pct": [
+      "CAP-BKR-07",
+      "CAP-BKR-16"
+    ],
+    "config:RoserpinaConfig.max_total_exposure_pct": [
+      "CAP-BKR-03",
+      "CAP-BKR-16"
+    ],
+    "config:RoserpinaConfig.max_win": [
+      "CAP-BKR-15"
+    ],
+    "config:RoserpinaConfig.max_win_warning_only": [
+      "CAP-BKR-15"
+    ],
+    "config:RoserpinaConfig.min_liquidity_absolute": [
+      "CAP-BKR-14"
+    ],
+    "config:RoserpinaConfig.min_price": [
+      "CAP-BKR-19"
+    ],
+    "config:RoserpinaConfig.min_stake": [
+      "CAP-BKR-08"
+    ],
+    "config:RoserpinaConfig.profit_epsilon": [
+      "CAP-BKR-20"
+    ],
+    "config:RoserpinaConfig.profit_epsilon_enabled": [
+      "CAP-BKR-20"
+    ],
+    "config:RoserpinaConfig.risk_profile": [
+      "CAP-BKR-12"
+    ],
+    "config:RoserpinaConfig.table_count": [
+      "CAP-ROS-01"
+    ],
+    "config:RoserpinaConfig.target_profit_cycle_pct": [
+      "CAP-ROS-07"
+    ],
+    "event:AUTO_TRADE_MM_RESULT": [
+      "CAP-ROS-15"
+    ],
+    "event:BANKROLL_SYNC_RESULT": [
+      "CAP-BKR-17"
+    ],
+    "event:BATCH_POSITION_CLOSED": [
+      "CAP-DUT-11"
+    ],
+    "event:CASHOUT_FAILED": [
+      "CAP-CSH-01",
+      "CAP-AUD-04"
+    ],
+    "event:CASHOUT_SUCCESS": [
+      "CAP-CSH-01",
+      "CAP-AUD-04"
+    ],
+    "event:CMD_CANCEL_ORDER": [
+      "CAP-ORD-06"
+    ],
+    "event:CMD_EXECUTE_CASHOUT": [
+      "CAP-CSH-01"
+    ],
+    "event:CMD_PLACE_DUTCHING": [
+      "CAP-DUT-02"
+    ],
+    "event:CMD_QUICK_BET": [
+      "CAP-ORD-02",
+      "CAP-ORD-03"
+    ],
+    "event:CMD_REPLACE_ORDER": [
+      "CAP-ORD-07"
+    ],
+    "event:CYCLE_RESET_ABANDONED": [
+      "CAP-ROS-09"
+    ],
+    "event:DAILY_LOSS_BREACH_TRIGGERED": [
+      "CAP-BKR-06",
+      "CAP-AUD-07"
+    ],
+    "event:DIRECT_UNMATCHED_CANCEL_DEFERRED": [
+      "CAP-ORD-10"
+    ],
+    "event:DIRECT_UNMATCHED_CANCEL_FAILED": [
+      "CAP-ORD-10"
+    ],
+    "event:DUTCHING_FAILED": [
+      "CAP-DUT-02"
+    ],
+    "event:DUTCHING_SUCCESS": [
+      "CAP-DUT-02"
+    ],
+    "event:EMERGENCY_STOP_RESET": [
+      "CAP-STP-06",
+      "CAP-AUD-07"
+    ],
+    "event:EMERGENCY_STOP_TRIGGERED": [
+      "CAP-STP-04",
+      "CAP-AUD-07"
+    ],
+    "event:HEDGE_REGISTRY_UNRELIABLE": [
+      "CAP-REC-11"
+    ],
+    "event:LIVE_EXECUTION_REFUSED": [
+      "CAP-MOD-08"
+    ],
+    "event:MARKET_BOOK_UPDATE": [
+      "CAP-MKT-04"
+    ],
+    "event:MARKET_DATA_FALLBACK_SNAPSHOT": [
+      "CAP-MKT-05"
+    ],
+    "event:ORDER_CANCEL_FAILED": [
+      "CAP-ORD-06"
+    ],
+    "event:ORDER_REPLACE_FAILED": [
+      "CAP-ORD-07"
+    ],
+    "event:QUICK_BET_ACCEPTED": [
+      "CAP-ORD-09",
+      "CAP-AUD-03"
+    ],
+    "event:QUICK_BET_AMBIGUOUS": [
+      "CAP-ORD-12"
+    ],
+    "event:QUICK_BET_DUPLICATE": [
+      "CAP-ORD-11"
+    ],
+    "event:QUICK_BET_FAILED": [
+      "CAP-ORD-09",
+      "CAP-AUD-03"
+    ],
+    "event:QUICK_BET_FILLED": [
+      "CAP-ORD-09",
+      "CAP-AUD-03"
+    ],
+    "event:QUICK_BET_PARTIAL": [
+      "CAP-ORD-09",
+      "CAP-AUD-03"
+    ],
+    "event:QUICK_BET_ROLLBACK_DONE": [
+      "CAP-ORD-19"
+    ],
+    "event:QUICK_BET_SUBMITTED": [
+      "CAP-ORD-09",
+      "CAP-AUD-03"
+    ],
+    "event:QUICK_BET_SUBMIT_ACK": [
+      "CAP-ORD-09",
+      "CAP-AUD-03"
+    ],
+    "event:QUICK_BET_SUCCESS": [
+      "CAP-ORD-09",
+      "CAP-AUD-03"
+    ],
+    "event:RECOVERY_STATE_PERSIST_FAILED": [
+      "CAP-REC-07"
+    ],
+    "event:RECOVER_ORDER": [
+      "CAP-REC-07"
+    ],
+    "event:REQ_EXECUTE_CASHOUT": [
+      "CAP-CSH-01"
+    ],
+    "event:RISK_STOP_RESET": [
+      "CAP-STP-06",
+      "CAP-AUD-07"
+    ],
+    "event:RISK_STOP_TRIGGERED": [
+      "CAP-STP-03",
+      "CAP-AUD-07"
+    ],
+    "event:ROSERPINA_AUTO_RESET": [
+      "CAP-ROS-09"
+    ],
+    "event:RUNTIME_AUTHORITY_LOST": [
+      "CAP-RT-08"
+    ],
+    "event:RUNTIME_AUTHORITY_LOST_AFTER_SEND": [
+      "CAP-RT-08"
+    ],
+    "event:RUNTIME_AUTHORITY_RELEASE_PENDING": [
+      "CAP-RT-08"
+    ],
+    "event:RUNTIME_CLOSE_POSITION": [
+      "CAP-CSH-01"
+    ],
+    "event:RUNTIME_CYCLE_RESET": [
+      "CAP-RT-10"
+    ],
+    "event:RUNTIME_LOCKDOWN": [
+      "CAP-STP-07"
+    ],
+    "event:RUNTIME_PAUSED": [
+      "CAP-STP-01"
+    ],
+    "event:RUNTIME_RESUMED": [
+      "CAP-STP-05"
+    ],
+    "event:RUNTIME_STARTED": [
+      "CAP-RT-09"
+    ],
+    "event:RUNTIME_START_REFUSED": [
+      "CAP-RT-09"
+    ],
+    "event:RUNTIME_STOPPED": [
+      "CAP-STP-02"
+    ],
+    "event:SESSION_LOSS_BREACH_TRIGGERED": [
+      "CAP-BKR-06",
+      "CAP-AUD-07"
+    ],
+    "event:SETTLEMENT_RECONCILIATION_UNCERTAIN": [
+      "CAP-SET-03"
+    ],
+    "event:SIGNAL_APPROVED": [
+      "CAP-SIG-02"
+    ],
+    "event:SIGNAL_RECEIVED": [
+      "CAP-SIG-01"
+    ],
+    "event:SIGNAL_REJECTED": [
+      "CAP-SIG-02"
+    ],
+    "event:STARTUP_GHOST_ORDER_RECOVERED": [
+      "CAP-REC-04"
+    ],
+    "event:STARTUP_POSITIONS_REBUILT": [
+      "CAP-REC-03"
+    ],
+    "event:TELEGRAM_STATUS": [
+      "CAP-SIG-01"
+    ],
+    "event:UNMATCHED_ORDER_RELEASED": [
+      "CAP-ORD-10"
+    ],
+    "method:RuntimeController.absolute_cap_reason_for_orders": [
+      "CAP-BKR-04"
+    ],
+    "method:RuntimeController.admission_fence_discard": {
+      "untracked": "interno: protocollo di ammissione degli ingressi (PR28/PR29) usato dal percorso ordini; non e' una capacita' autonoma, e' coperto indirettamente da CAP-ORD-01/02/17 e dai test di concorrenza PF-MCP-021"
+    },
+    "method:RuntimeController.admission_fence_verdict": {
+      "untracked": "interno: protocollo di ammissione degli ingressi (PR28/PR29) usato dal percorso ordini; non e' una capacita' autonoma, e' coperto indirettamente da CAP-ORD-01/02/17 e dai test di concorrenza PF-MCP-021"
+    },
+    "method:RuntimeController.admission_placement_done": {
+      "untracked": "interno: protocollo di ammissione degli ingressi (PR28/PR29) usato dal percorso ordini; non e' una capacita' autonoma, e' coperto indirettamente da CAP-ORD-01/02/17 e dai test di concorrenza PF-MCP-021"
+    },
+    "method:RuntimeController.admit_controller_entries": {
+      "untracked": "interno: protocollo di ammissione degli ingressi (PR28/PR29) usato dal percorso ordini; non e' una capacita' autonoma, e' coperto indirettamente da CAP-ORD-01/02/17 e dai test di concorrenza PF-MCP-021"
+    },
+    "method:RuntimeController.after_order_send_authority_check": [
+      "CAP-RT-08"
+    ],
+    "method:RuntimeController.assert_runtime_authority": [
+      "CAP-RT-08"
+    ],
+    "method:RuntimeController.authority_operation": [
+      "CAP-RT-08"
+    ],
+    "method:RuntimeController.cashout_authority_check": [
+      "CAP-RT-08"
+    ],
+    "method:RuntimeController.catalog_sync": [
+      "CAP-RT-11"
+    ],
+    "method:RuntimeController.controller_entry_funds_reason": [
+      "CAP-ORD-17",
+      "CAP-BKR-01"
+    ],
+    "method:RuntimeController.controller_event_exposure": [
+      "CAP-BKR-04"
+    ],
+    "method:RuntimeController.direct_unmatched_bet_ids": [
+      "CAP-ORD-10"
+    ],
+    "method:RuntimeController.emergency_stop": [
+      "CAP-STP-04"
+    ],
+    "method:RuntimeController.enforce_deploy_gate": [
+      "CAP-RT-06"
+    ],
+    "method:RuntimeController.evaluate_live_readiness": [
+      "CAP-RT-04"
+    ],
+    "method:RuntimeController.force_lockdown": [
+      "CAP-STP-07"
+    ],
+    "method:RuntimeController.get_deploy_gate_status": [
+      "CAP-RT-06"
+    ],
+    "method:RuntimeController.get_effective_execution_mode": [
+      "CAP-MOD-01"
+    ],
+    "method:RuntimeController.get_status": [
+      "CAP-RT-01"
+    ],
+    "method:RuntimeController.is_deploy_allowed": [
+      "CAP-RT-06"
+    ],
+    "method:RuntimeController.is_emergency_stopped": [
+      "CAP-STP-04"
+    ],
+    "method:RuntimeController.is_live_allowed": [
+      "CAP-MOD-08"
+    ],
+    "method:RuntimeController.is_live_readiness_ok": [
+      "CAP-RT-04"
+    ],
+    "method:RuntimeController.pause": [
+      "CAP-STP-01"
+    ],
+    "method:RuntimeController.read_funds_for_controller_entry": [
+      "CAP-ORD-17",
+      "CAP-BKR-01"
+    ],
+    "method:RuntimeController.reconcile_held_settlements": [
+      "CAP-REC-06"
+    ],
+    "method:RuntimeController.reload_config": [
+      "CAP-CFG-07"
+    ],
+    "method:RuntimeController.reset_cycle": [
+      "CAP-RT-10"
+    ],
+    "method:RuntimeController.reset_emergency": [
+      "CAP-STP-06"
+    ],
+    "method:RuntimeController.reset_risk_stop": [
+      "CAP-STP-06"
+    ],
+    "method:RuntimeController.resume": [
+      "CAP-STP-05"
+    ],
+    "method:RuntimeController.risk_stop": [
+      "CAP-STP-03"
+    ],
+    "method:RuntimeController.runtime_io_snapshot": [
+      "CAP-RT-07"
+    ],
+    "method:RuntimeController.set_simulation_mode": [
+      "CAP-MOD-04"
+    ],
+    "method:RuntimeController.start": [
+      "CAP-RT-09"
+    ],
+    "method:RuntimeController.stop": [
+      "CAP-STP-02"
+    ],
+    "method:RuntimeController.withdraw_controller_entries": {
+      "untracked": "interno: protocollo di ammissione degli ingressi (PR28/PR29) usato dal percorso ordini; non e' una capacita' autonoma, e' coperto indirettamente da CAP-ORD-01/02/17 e dai test di concorrenza PF-MCP-021"
+    }
+  }
+}

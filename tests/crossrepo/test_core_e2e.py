@@ -1,0 +1,696 @@
+"""Fase E — end-to-end REALE fra processi: MCP di prodotto → Control API → Pickfair SIM.
+
+Processi:
+1. `pickfair-mcp serve --adapter http` (processo MCP reale, adapter HTTP di prodotto);
+2. processo «core» (`core_runtime_server.py`) con RuntimeController reale avviato in SIM
+   (SimulationBroker, SQLite temporaneo, EventBus) e Control API tramite il ponte del core.
+
+Richiede un checkout di Pickfair-nogui con il ponte (`docs/handoff/`) e il suo Python:
+    PICKFAIR_CORE_PATH=/percorso/Pickfair-nogui  PICKFAIR_CORE_PYTHON=/percorso/python
+Senza queste variabili il modulo è SKIPPED: esito NOT_RUN, mai PASS.
+Nessun Betfair LIVE, nessun denaro reale, nessuna rete oltre 127.0.0.1.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+from collections.abc import AsyncIterator, Iterator
+from contextlib import asynccontextmanager
+from decimal import Decimal
+from pathlib import Path
+from typing import Any
+
+import anyio
+import jsonschema
+import pytest
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+
+CORE_PATH = os.environ.get("PICKFAIR_CORE_PATH")
+CORE_PYTHON = os.environ.get("PICKFAIR_CORE_PYTHON")
+pytestmark = [
+    pytest.mark.anyio,
+    pytest.mark.e2e,
+    pytest.mark.loopback,
+    pytest.mark.skipif(not (CORE_PATH and CORE_PYTHON), reason="NOT_RUN: core non configurato"),
+]
+REPO_ROOT = Path(__file__).resolve().parents[2]
+HELPER = Path(__file__).with_name("core_runtime_server.py")
+READ_TOOLS = (
+    "get_status",
+    "get_reconciliation_status",
+    "get_account",
+    "get_exposure",
+    "list_positions",
+    "list_orders",
+    "get_config",
+    "list_markets",
+    "get_market_book",
+)
+
+
+# Funzioni del core che alcune prove richiedono e che il main del core può non avere ancora.
+# Rilevazione positiva sul checkout (file o simbolo presenti), mai sul fallimento della prova: se la
+# funzione manca la prova è BLOCKED_BY_DEPENDENCY con il suo ID (mai PASS); se c'è, gira per intero.
+_CORE_FEATURES = {
+    "F-03": ("core/trailing_stop.py", None),
+    "F-04": ("core/sl_tp_close.py", None),
+    "F-18": ("core/system_state.py", "invalid_settings"),
+}
+
+
+def require_core_feature(feature: str) -> None:
+    rel, marker = _CORE_FEATURES[feature]
+    path = Path(str(CORE_PATH)) / rel
+    present = path.is_file() and (marker is None or marker in path.read_text(encoding="utf-8"))
+    if not present:
+        pytest.skip(f"BLOCKED_BY_DEPENDENCY:{feature} (assente nel core sotto prova: {rel})")
+
+
+@pytest.fixture
+def anyio_backend() -> str:
+    return "asyncio"
+
+
+class Core:
+    """Processo core comandato via stdin; ogni comando restituisce una riga JSON."""
+
+    def __init__(self, tmp_path: Path) -> None:
+        import socket
+
+        self.token_dir = tmp_path / "secure"
+        self.token_dir.mkdir(mode=0o700)
+        self.token_path = self.token_dir / "control_api.token"
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind(("127.0.0.1", 0))
+        self.port = int(s.getsockname()[1])
+        s.close()
+        work = tmp_path / "core-work"
+        work.mkdir()
+        env = {
+            "PATH": os.environ.get("PATH", ""),
+            # Il core usa il package pickfair_control_api dello STESSO albero sotto test (non
+            # l'installazione
+            # editabile di un altro checkout): il pin del ponte confronta versione e schema hash.
+            "PYTHONPATH": str(REPO_ROOT / "src"),
+            "HOME": str(tmp_path),
+            "HTTP_PROXY": "http://127.0.0.1:9",
+            "ALL_PROXY": "http://127.0.0.1:9",
+        }
+        self.proc = subprocess.Popen(
+            [
+                str(CORE_PYTHON),
+                str(HELPER),
+                str(CORE_PATH),
+                str(work),
+                str(self.port),
+                str(self.token_path),
+            ],
+            cwd=work,
+            env=env,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        self.ready = self._read()
+        assert self.ready["event"] == "READY" and self.ready["started"] is True, self.ready
+
+    def _read(self) -> dict[str, Any]:
+        assert self.proc.stdout is not None
+        line = self.proc.stdout.readline()
+        assert line, self.proc.stderr.read() if self.proc.stderr else "core terminato"
+        result: dict[str, Any] = json.loads(line)
+        return result
+
+    def send(self, command: str) -> dict[str, Any]:
+        assert self.proc.stdin is not None
+        self.proc.stdin.write(command + "\n")
+        self.proc.stdin.flush()
+        return self._read()
+
+    def close(self) -> str:
+        if self.proc.poll() is None:
+            self.send("QUIT")
+        _out, err = self.proc.communicate(timeout=30)
+        return err
+
+
+@pytest.fixture
+def core(tmp_path: Path) -> Iterator[Core]:
+    c = Core(tmp_path)
+    try:
+        yield c
+    finally:
+        c.close()
+
+
+def mcp_params(
+    core: Core, *, token_file: Path | None = None, timeout_s: float = 2.0
+) -> StdioServerParameters:
+    env = {
+        "PATH": os.environ.get("PATH", ""),
+        "PYTHONPATH": str(REPO_ROOT / "src"),
+        "PYTHONUNBUFFERED": "1",
+        "HTTP_PROXY": "http://127.0.0.1:9",
+        "ALL_PROXY": "http://127.0.0.1:9",
+    }
+    return StdioServerParameters(
+        command=sys.executable,
+        args=[
+            "-m",
+            "pickfair_mcp",
+            "serve",
+            "--adapter",
+            "http",
+            "--control-api-port",
+            str(core.port),
+            "--control-api-token-file",
+            str(token_file or core.token_path),
+            "--upstream-timeout",
+            str(timeout_s),
+        ],
+        env=env,
+    )
+
+
+@asynccontextmanager
+async def mcp(core: Core, errlog: Any, **kwargs: Any) -> AsyncIterator[ClientSession]:
+    with anyio.fail_after(90):
+        async with (
+            stdio_client(mcp_params(core, **kwargs), errlog=errlog) as (read, write),
+            ClientSession(read, write) as session,
+        ):
+            await session.initialize()
+            yield session
+
+
+async def call(session: ClientSession, name: str) -> tuple[bool, dict[str, Any]]:
+    result = await session.call_tool(name, {})
+    assert result.structuredContent is not None
+    return bool(result.isError), result.structuredContent
+
+
+async def test_e2e_normal_start_reconciliation_and_emergency_stop(
+    core: Core, tmp_path: Path
+) -> None:
+    errlog = (tmp_path / "mcp.err").open("w+")
+    before = core.send("DIGEST")
+    async with mcp(core, errlog) as s:
+        tools = {t.name: t for t in (await s.list_tools()).tools}
+        meta = await call(s, "get_meta")
+        status = await call(s, "get_status")
+        recon = await call(s, "get_reconciliation_status")
+        reads_done = core.send("DIGEST")
+        core.send("EMERGENCY")  # comando impartito al CORE, non alla Control API
+        baseline = core.send("DIGEST")  # nuova linea di base: gli effetti di emergency_stop()
+        after_stop = await call(s, "get_status")
+    for name, (is_error, payload) in (
+        ("get_meta", meta),
+        ("get_status", status),
+        ("get_reconciliation_status", recon),
+    ):
+        assert is_error is False, payload
+        jsonschema.validate(payload, tools[name].outputSchema)
+    assert meta[1]["data"]["handshake"]["status"] == "COMPATIBLE"
+    assert meta[1]["data"]["git_sha"] == core.ready["sha"]
+    st = status[1]["data"]
+    assert st["upstream"] == {"kind": "http", "certified": False}
+    assert st["status"]["source"] == "core" and st["status"]["runtime_state"] == "ACTIVE"
+    assert st["status"]["execution_mode"] == "SIM"
+    assert st["status"]["consistency"] == "PER_FIELD_NON_ATOMIC"
+    assert recon[1]["data"]["reconciliation"]["startup"]["state"] == "OK"
+    stop = after_stop[1]["data"]["status"]["stop"]
+    assert stop["emergency_stopped"] is True and stop["emergency_reason"] == "DAILY_LOSS_BREACH"
+    assert "soglia" not in json.dumps(after_stop)
+    after = core.send("DIGEST")
+    # Il runtime avviato chiama una volta `broker.list_events` all'avvio (sync del catalogo in
+    # background, prima di ogni lettura): si confrontano le chiamate NUOVE in ciascuna finestra
+    # di sole letture. Le chiamate fatte da emergency_stop() stanno fra le due finestre.
+    assert reads_done["calls"] == before["calls"]
+    assert after["calls"] == baseline["calls"]
+    assert len(baseline["calls"]) > len(before["calls"])  # il comando nel core ha agito davvero
+    for key in ("db", "state"):
+        assert reads_done[key] == before[key] and after[key] == baseline[key], key
+    assert after["balance"] == after["balance_at_start"]
+
+
+async def test_e2e_reads_have_no_side_effects_on_the_core(core: Core, tmp_path: Path) -> None:
+    errlog = (tmp_path / "mcp.err").open("w+")
+    before = core.send("DIGEST")
+    async with mcp(core, errlog) as s:
+        results: list[bool] = []
+
+        # MCP-01l: get_market_book ha un parametro; un mercato non seguito è una lettura valida
+        # (NOT_TRACKED).
+        tool_args = {"get_market_book": {"market_id": "1.1"}}
+
+        async def one(name: str) -> None:
+            result = await s.call_tool(name, tool_args.get(name, {}))
+            results.append(bool(result.isError))
+
+        async with anyio.create_task_group() as tg:  # letture concorrenti
+            for i in range(30):
+                tg.start_soon(one, READ_TOOLS[i % len(READ_TOOLS)])
+    after = core.send("DIGEST")
+    assert results == [False] * 30
+    # 30 letture concorrenti superano il tetto di connessioni servite (MAX_CONNECTIONS, MCP-SEC-01):
+    # quelle oltre il tetto ricevono BUSY prima di qualsiasi provider; l'MCP ritenta la lettura e,
+    # con l'errore di trasporto, rifà l'handshake nella nuova epoca. Nessun altro esito è ammesso.
+    counts = after["counts"]
+    assert set(counts) <= {"OK", "BUSY"}, counts
+    busy = counts.get("BUSY", 0)
+    handshakes = counts["OK"] - 30  # ogni lettura riesce una sola volta
+    assert 1 <= handshakes <= 1 + busy, counts
+    for key in ("db", "bus", "state", "balance"):
+        assert after[key] == before[key], key
+    assert after["calls"] == before["calls"]  # nessuna chiamata nuova a Betfair/broker/monitor
+
+
+async def test_e2e_invalid_token_is_unauthorized(core: Core, tmp_path: Path) -> None:
+    from pickfair_control_api.tokens import issue_token_file
+
+    other = core.token_dir / "other.token"
+    issue_token_file(other)
+    errlog = (tmp_path / "mcp.err").open("w+")
+    async with mcp(core, errlog, token_file=other) as s:
+        is_error, payload = await call(s, "get_status")
+    assert is_error and payload["error"]["code"] == "UPSTREAM_UNAUTHORIZED"
+    assert payload["data"] is None
+    assert core.send("DIGEST")["counts"] == {"UNAUTHORIZED": 2}
+
+
+async def test_e2e_unauthorized_principal_never_reaches_the_core(core: Core) -> None:
+    from mcp.shared.memory import create_connected_server_and_client_session
+
+    from pickfair_mcp.adapters.http import HttpControlApiAdapter
+    from pickfair_mcp.auth import Principal, Scope
+    from pickfair_mcp.auth.token_file import LocalTokenFile
+    from pickfair_mcp.server import build_server
+
+    adapter = HttpControlApiAdapter(
+        port=core.port, token_file=LocalTokenFile(core.token_path), timeout_s=2.0
+    )
+    writer = Principal(principal_id="writer", scopes=frozenset({Scope.WRITE}))
+    server = build_server(adapter, timeout_s=2.0, principal=writer)
+    async with create_connected_server_and_client_session(server) as s:
+        is_error, payload = await call(s, "get_status")
+    assert is_error and payload["error"]["code"] == "FORBIDDEN"
+    assert core.send("DIGEST")["counts"] == {}
+
+
+async def test_e2e_core_down_restart_timeout_incompatible_and_stale(
+    core: Core, tmp_path: Path
+) -> None:
+    errlog = (tmp_path / "mcp.err").open("w+")
+    async with mcp(core, errlog, timeout_s=1.0) as s:
+        ok = await call(s, "get_status")
+        core.send("STOP_API")
+        down = await call(s, "get_status")
+        core.send("START_API")  # riavvio: token nuovo, nuovo handshake
+        restarted = await call(s, "get_status")
+        core.send("HANG 3")
+        timeout = await call(s, "get_status")
+        core.send("HANG 0")
+        core.send("INCOMPATIBLE")
+        incompatible = await call(s, "get_status")
+    assert ok[0] is False
+    assert (
+        down[0]
+        and down[1]["error"]["code"] == "UPSTREAM_UNAVAILABLE"
+        and down[1]["error"]["retryable"]
+    )
+    assert restarted[0] is False, restarted
+    assert timeout[0] and timeout[1]["error"]["code"] == "UPSTREAM_TIMEOUT"
+    assert incompatible[0] and incompatible[1]["error"]["code"] == "CONTRACT_INCOMPATIBLE"
+    for _, payload in (down, timeout, incompatible):
+        assert payload["data"] is None and "simulated" not in json.dumps(payload)
+
+
+async def test_e2e_stale_core_snapshot_is_rejected(core: Core, tmp_path: Path) -> None:
+    errlog = (tmp_path / "mcp.err").open("w+")
+    core.send("CLOCK_SKEW -3600")
+    async with mcp(core, errlog) as s:
+        is_error, payload = await call(s, "get_status")
+    assert is_error and payload["error"]["details"]["reasons"] == [
+        "UPSTREAM_INVALID_RESPONSE:STALE_SNAPSHOT"
+    ]
+
+
+async def test_e2e_no_secret_leaks(core: Core, tmp_path: Path) -> None:
+    errlog = (tmp_path / "mcp.err").open("w+")
+    async with mcp(core, errlog) as s:
+        payloads = [
+            await call(s, n) for n in ("get_meta", "get_status", "get_reconciliation_status")
+        ]
+    token = core.token_path.read_text()
+    core_err = core.close()
+    errlog.seek(0)
+    mcp_err = errlog.read()
+    for text in (json.dumps(payloads), mcp_err, core_err):
+        assert token not in text
+    assert str(core.token_path) not in json.dumps(payloads)
+
+
+async def test_e2e_account_and_exposure_report_the_core_values(core: Core, tmp_path: Path) -> None:
+    """MCP-01e: get_account e get_exposure dal RuntimeController reale avviato in SIM."""
+    errlog = (tmp_path / "mcp.err").open("w+")
+    before = core.send("DIGEST")
+    async with mcp(core, errlog) as s:
+        tools = {t.name: t for t in (await s.list_tools()).tools}
+        account = await call(s, "get_account")
+        exposure = await call(s, "get_exposure")
+        reads_done = core.send("DIGEST")
+        expected = core.send("FINANCE")
+        activated = core.send("ACTIVATE")  # comando al CORE: occupa un tavolo
+        baseline = core.send("DIGEST")
+        exposure_after = await call(s, "get_exposure")
+        after = core.send("DIGEST")
+    for name, (is_error, payload) in (("get_account", account), ("get_exposure", exposure)):
+        assert is_error is False, payload
+        jsonschema.validate(payload, tools[name].outputSchema)
+        assert payload["data"]["upstream"] == {"kind": "http", "certified": False}
+    a = account[1]["data"]["account"]
+    assert a["source"] == "core" and a["consistency"] == "PER_SECTION_LOCKED"
+    assert a["execution_mode"] == "SIM"
+    assert a["bankroll"] == {k: float(expected["bankroll"][k]) for k in a["bankroll"]}
+    assert a["desk_mode"] == expected["desk_mode"]
+    assert a["cash"]["committed_exposure"] == expected["cash"][1]
+    assert a["cash"]["verified"] is (expected["cash"][0] is not None)
+    funds = a["exchange_funds"]
+    assert funds["ok"] is expected["funds"]["ok"] and funds["source"] == "START"
+    assert funds["available"] == expected["funds"]["available"]
+    e = exposure[1]["data"]["exposure"]
+    assert len(e["tables"]) == expected["tables"]
+    assert e["total_exposure"] == expected["total_exposure"]
+    assert e["recovery"]["active_count"] == expected["recovery_active"]
+    # dopo il comando al core il tavolo risulta occupato; nome evento e meta non escono
+    e2 = exposure_after[1]["data"]["exposure"]
+    table = next(t for t in e2["tables"] if t["table_id"] == 1)
+    assert table["occupied"] is True and table["status"] == "ACTIVE"
+    assert table["market_id"] == "1.234567" and table["selection_id"] == "47972"
+    assert e2["total_exposure"] == activated["total"] == 12.5
+    text = json.dumps(exposure_after)
+    assert "Juventus" not in text and "IGNORE" not in text and "cref-secret" not in text
+    # finestre di sole letture: nessun effetto sul core
+    assert reads_done["calls"] == before["calls"] and after["calls"] == baseline["calls"]
+    for key in ("db", "bus", "balance"):
+        assert reads_done[key] == before[key] and after[key] == baseline[key], key
+
+
+async def test_e2e_unserved_reads_are_not_implemented(core: Core) -> None:
+    """Route approvate ma assenti nel core: 501 tipizzato dal server reale, mai un dato."""
+    from pickfair_mcp.adapters.http import _LoopbackConnection  # niente DNS: socket IPv4 diretto
+
+    token = core.token_path.read_text()
+    for path in ("/v1/events", "/v1/operations/op-1", "/v1/audit/corr-1"):
+        conn = _LoopbackConnection(core.port, 5.0)
+        conn.request("GET", path, headers={"Authorization": f"Bearer {token}"})
+        resp = conn.getresponse()
+        assert (resp.status, json.loads(resp.read())) == (
+            501,
+            {"error": {"code": "NOT_IMPLEMENTED"}},
+        )
+        conn.close()
+    for method in ("POST", "PATCH"):
+        conn = _LoopbackConnection(core.port, 5.0)
+        conn.request(method, "/v1/orders", body=b"{}", headers={"Authorization": f"Bearer {token}"})
+        assert conn.getresponse().status == 405  # nessun comando servito
+        conn.close()
+
+
+async def test_e2e_diagnostics_protections_and_positions(core: Core, tmp_path: Path) -> None:
+    """MCP-01f: diagnostica, protezioni e posizioni dal RuntimeController reale avviato in SIM."""
+    from decimal import Decimal
+
+    errlog = (tmp_path / "mcp.err").open("w+")
+    async with mcp(core, errlog) as s:
+        tools = {t.name: t for t in (await s.list_tools()).tools}
+        status = await call(s, "get_status")
+        empty = await call(s, "list_positions")
+        filled = core.send("FILL")  # comando al CORE, non alla Control API
+        positions = await call(s, "list_positions")
+        core.send("EMERGENCY")
+        after_stop = await call(s, "get_status")
+    for name, (is_error, payload) in (("get_status", status), ("list_positions", positions)):
+        assert is_error is False, payload
+        jsonschema.validate(payload, tools[name].outputSchema)
+    st = status[1]["data"]["status"]
+    prot = st["protections"]
+    assert len(prot["items"]) == 23
+    assert prot["items"]["market_tradability"]["state"] == "UNAVAILABLE"
+    assert set(prot["unverifiable"]) == {
+        k for k, v in prot["items"].items() if v["state"] in ("UNKNOWN", "UNAVAILABLE")
+    }
+    assert all((v["state"] == "ACTIVE") == (v["reason"] is None) for v in prot["items"].values())
+    assert st["engine"]["betfair"]["client_kind"] == "SIMULATION"
+    assert st["engine"]["modes"]["read_only_mode"] == "NOT_IN_CORE"
+    assert empty[1]["data"]["positions"]["positions"] == []
+    pos = positions[1]["data"]["positions"]["positions"][0]
+    assert pos["side"] == "LAY" and pos["amounts_source"] == "LEDGER_DECIMAL"
+    assert Decimal(pos["open_size"]) == Decimal(filled["open_size"])
+    assert Decimal(pos["avg_entry_price"]) == Decimal(filled["avg"])
+    assert Decimal(pos["exposure"]) == Decimal(filled["exposure"])
+    text = json.dumps(positions)
+    assert "Juventus" not in text and "cref-secret" not in text
+    em = after_stop[1]["data"]["status"]["protections"]["items"]["emergency_stop"]
+    assert em["state"] == "TRIGGERED" and em["reason"] == "DAILY_LOSS_BREACH"
+    assert em["as_of"] is not None
+
+
+async def test_e2e_orders_from_the_core_ledger(core: Core, tmp_path: Path) -> None:
+    """MCP-01g: list_orders dal ledger `orders` reale del core avviato in SIM."""
+    errlog = (tmp_path / "mcp.err").open("w+")
+    async with mcp(core, errlog) as s:
+        tools = {t.name: t for t in (await s.list_tools()).tools}
+        before = core.send("DIGEST")
+        written = core.send("ORDERS")  # comando al CORE
+        baseline = core.send("DIGEST")
+        result = await call(s, "list_orders")
+        after = core.send("DIGEST")
+    is_error, payload = result
+    assert is_error is False, payload
+    jsonschema.validate(payload, tools["list_orders"].outputSchema)
+    snap = payload["data"]["orders"]["snapshot"]
+    assert snap["state"] == "OK"
+    by_core = {o["core_status"]: o for o in snap["orders"]}
+    assert by_core["SUBMITTED"]["status"] == "PARTIALLY_MATCHED"
+    assert by_core["AMBIGUOUS"]["status"] == "AMBIGUOUS"
+    assert by_core["AMBIGUOUS"]["bet_id"] is None
+    assert by_core["AMBIGUOUS"]["reconciliation"]["ambiguity_reason"] == "TIMEOUT_AFTER_SUBMIT"
+    assert by_core["COMPLETED"]["status"] == "MATCHED"
+    assert by_core["SUBMITTED"]["broker_view"] == "ABSENT"  # nel ledger, non nel broker SIM
+    open_ids = sorted(
+        o["bet_id"] or "" for o in snap["orders"] if o["reconciliation"]["in_reconciliation"]
+    )
+    assert open_ids == written["open_bet_ids"]  # stesso betId della riconciliazione del core
+    text = json.dumps(payload)
+    assert "cref-secret" not in text and "Juventus" not in text
+    assert len(baseline["calls"]) >= len(before["calls"])
+    assert after["calls"] == baseline["calls"]  # la lettura non chiama broker né Betfair
+    assert after["db"] == baseline["db"] and after["balance"] == baseline["balance"]
+
+
+async def test_e2e_sl_tp_settlement_and_cashout_barriers(core: Core, tmp_path: Path) -> None:
+    """MCP-01h: SL/TP per tavolo, settlement e barriere di cashout dal core reale avviato in SIM."""
+    errlog = (tmp_path / "mcp.err").open("w+")
+    async with mcp(core, errlog) as s:
+        tools = {t.name: t for t in (await s.list_tools()).tools}
+        core.send("SLTP_SETTLEMENT")  # comando al CORE
+        exposure = await call(s, "get_exposure")
+        recon = await call(s, "get_reconciliation_status")
+        status = await call(s, "get_status")
+    for name, (is_error, payload) in (
+        ("get_exposure", exposure),
+        ("get_reconciliation_status", recon),
+        ("get_status", status),
+    ):
+        assert is_error is False, payload
+        jsonschema.validate(payload, tools[name].outputSchema)
+    tables = {t["table_id"]: t for t in exposure[1]["data"]["exposure"]["tables"]}
+    assert tables[3]["sl_tp"] == {
+        "state": "ARMED",
+        "stop_loss": "2.5",
+        "take_profit": "5",
+        "stop_loss_pct": "25",
+        "take_profit_pct": "50",
+        "trailing_stop_pct": None,
+        # MCP-01m: con F-03 nel core il trailing senza percentuale è OFF; senza F-03 NOT_IN_CORE
+        "trailing": tables[3]["sl_tp"]["trailing"],
+    }
+    assert tables[3]["sl_tp"]["trailing"]["state"] in ("OFF", "NOT_IN_CORE")
+    assert tables[1]["sl_tp"]["state"] == "NOT_ARMED"
+    settlement = recon[1]["data"]["reconciliation"]["settlement"]
+    assert settlement["effects"]["held"] == 1 and settlement["unavailable"] == []
+    assert isinstance(settlement["sim_settlements"], int)
+    assert status[1]["data"]["status"]["engine"]["queues"]["cashout_barriers"] == 0
+    text = json.dumps([exposure, recon])
+    assert "cref-secret" not in text and "Juventus" not in text
+
+
+async def test_e2e_config_is_read_only_and_redacted(core: Core, tmp_path: Path) -> None:
+    """MCP-01j: get_config dalla RoserpinaConfig reale del core; segreti nel DB mai esposti."""
+    require_core_feature("F-18")
+    errlog = (tmp_path / "mcp.err").open("w+")
+    async with mcp(core, errlog) as s:
+        tools = {t.name: t for t in (await s.list_tools()).tools}
+        expected = core.send("CONFIG")  # comando al CORE
+        baseline = core.send("DIGEST")
+        result = await call(s, "get_config")
+        after = core.send("DIGEST")
+    is_error, payload = result
+    assert is_error is False, payload
+    jsonschema.validate(payload, tools["get_config"].outputSchema)
+    cfg = payload["data"]["config"]
+    assert cfg["source"] == "core" and cfg["unavailable"] == []
+    s = {x["key"]: x for x in cfg["settings"]}
+    assert s["max_single_bet_pct"]["value"] == "4.25" == str(expected["max_single_bet_pct"])
+    assert s["max_daily_loss"]["value"] == "75.5" == str(expected["max_daily_loss"])
+    assert s["table_count"]["value"] == expected["table_count"] == 3
+    assert s["risk_profile"]["value"] == expected["risk_profile"]
+    assert expected["max_session_loss"] is None
+    assert s["max_session_loss"] == {
+        "key": "max_session_loss",
+        "kind": "DECIMAL",
+        "state": "NOT_SET",
+        "value": None,
+    }
+    text = json.dumps(payload)
+    for secret in (
+        "E2E-APPKEY-SECRET",
+        "E2E-CERT-SECRET",
+        "E2E-PK-SECRET",
+        "E2E-PASSWORD-SECRET",
+        "E2E-HASH-SECRET",
+        "E2E-SS-SECRET",
+        "424242",
+        "e2e-user",
+    ):
+        assert secret not in text
+    assert after["calls"] == baseline["calls"]  # nessuna chiamata a broker o Betfair
+    assert after["db"] == baseline["db"] and after["state"] == baseline["state"]
+    assert after["bus"] == baseline["bus"] and after["balance"] == baseline["balance"]
+
+
+async def test_e2e_p0_ambiguous_row_without_unconfirmed_amounts(core: Core, tmp_path: Path) -> None:
+    """MCP-01k: riga AMBIGUOUS nella forma del fix P0 di Claude D: betId visibile, importi mai
+    esposti."""
+    errlog = (tmp_path / "mcp.err").open("w+")
+    async with mcp(core, errlog) as s:
+        tools = {t.name: t for t in (await s.list_tools()).tools}
+        written = core.send("COMPAT_P0")  # comando al CORE
+        is_error, payload = await call(s, "list_orders")
+    assert is_error is False, payload
+    jsonschema.validate(payload, tools["list_orders"].outputSchema)
+    row = next(
+        o
+        for o in payload["data"]["orders"]["snapshot"]["orders"]
+        if str(o["local_id"]) == str(written["id"])
+    )
+    assert row["status"] == "AMBIGUOUS" and row["bet_id"] == "31415"
+    assert "31415" in written["open_bet_ids"]  # stessa identità della riconciliazione del core
+    assert (row["size_matched"], row["avg_price_matched"], row["size_remaining"]) == (
+        None,
+        None,
+        None,
+    )
+    assert row["reconciliation"]["in_reconciliation"] is True
+    assert row["reconciliation"]["ambiguity_reason"] == "BET_STATUS_UNRECOGNIZED"
+
+
+async def test_e2e_markets_and_book_from_the_real_tracker(core: Core, tmp_path: Path) -> None:
+    """MCP-01l: list_markets e get_market_book dal MarketTracker reale del core avviato in SIM."""
+    errlog = (tmp_path / "mcp.err").open("w+")
+    async with mcp(core, errlog) as s:
+        tools = {t.name: t for t in (await s.list_tools()).tools}
+        core.send("MARKET")  # comando al CORE
+        baseline = core.send("DIGEST")
+        markets = await call(s, "list_markets")
+        result = await s.call_tool("get_market_book", {"market_id": "1.987654"})
+        missing = await s.call_tool("get_market_book", {"market_id": "1.1"})
+        after = core.send("DIGEST")
+    is_error, payload = markets
+    assert is_error is False, payload
+    jsonschema.validate(payload, tools["list_markets"].outputSchema)
+    assert "1.987654" in [m["market_id"] for m in payload["data"]["markets"]["markets"]]
+    book = result.structuredContent
+    assert result.isError is False, book
+    jsonschema.validate(book, tools["get_market_book"].outputSchema)
+    runner = book["data"]["book"]["book"]["runners"][0]
+    assert runner["back"] == [{"price": "2.5", "size": "100"}] and runner["lay"] == [
+        {"price": "2.52", "size": "60"}
+    ]
+    assert missing.structuredContent["data"]["book"]["state"] == "NOT_TRACKED"
+    # MCP-01n: età dall'istante monotono del tracker (core con claude/d-market-book-age);
+    # senza, null dichiarato. PICKFAIR_CORE_BOOK_AGE=1 la esige (core che la fornisce).
+    listed = {m["market_id"]: m for m in payload["data"]["markets"]["markets"]}
+    listed_age = listed["1.987654"]["book_age_s"]
+    book_age = book["data"]["book"]["book"]["book_age_s"]
+    if os.environ.get("PICKFAIR_CORE_BOOK_AGE") == "1":
+        assert listed_age is not None and book_age is not None
+    if listed_age is not None:  # stesso istante di ricezione, book letto dopo la lista
+        assert book_age is not None and Decimal(book_age) >= Decimal(listed_age) >= 0
+    else:
+        assert book_age is None
+    assert after["calls"] == baseline["calls"] and after["db"] == baseline["db"]
+    assert after["bus"] == baseline["bus"] and after["balance"] == baseline["balance"]
+
+
+async def test_e2e_sl_tp_close_from_the_core_record(core: Core, tmp_path: Path) -> None:
+    """MCP-01i: chiusura SL/TP persistita con le funzioni di F-04 nel core reale (SIM), letta da
+    get_exposure."""
+    require_core_feature("F-04")
+    errlog = (tmp_path / "mcp.err").open("w+")
+    async with mcp(core, errlog) as s:
+        tools = {t.name: t for t in (await s.list_tools()).tools}
+        core.send("SL_TP_CLOSE")  # comando al CORE
+        baseline = core.send("DIGEST")
+        is_error, payload = await call(s, "get_exposure")
+        after = core.send("DIGEST")
+    assert is_error is False, payload
+    jsonschema.validate(payload, tools["get_exposure"].outputSchema)
+    section = payload["data"]["exposure"]["sl_tp_closes"]
+    assert section["state"] == "OK"
+    close = next(c for c in section["closes"] if c["table_id"] == 4)
+    assert (close["trigger"], close["close_state"], close["retryable"]) == (
+        "STOP_LOSS",
+        "NOT_EXECUTED",
+        True,
+    )
+    assert close["detail"] == "GATE_REJECTED" and close["bet_ids"] == ["SIMBET-close"]
+    assert close["position"]["orders"] == 1 and close["position"]["partially_matched"] == 1
+    assert (close["residual_source"], close["residual_exposure"]) == ("TABLE", "8")
+    text = json.dumps(payload)
+    assert "cref-secret-close" not in text and "Juventus" not in text
+    assert after["db"] == baseline["db"] and after["calls"] == baseline["calls"]
+
+
+async def test_e2e_trailing_from_the_core_trailing_module(core: Core, tmp_path: Path) -> None:
+    """MCP-01m: trailing F-03 con picco persistito, letto dal core reale (fusione locale F-03)."""
+    require_core_feature("F-03")
+    errlog = (tmp_path / "mcp.err").open("w+")
+    async with mcp(core, errlog) as s:
+        tools = {t.name: t for t in (await s.list_tools()).tools}
+        expected = core.send("TRAILING")  # comando al CORE
+        baseline = core.send("DIGEST")
+        is_error, payload = await call(s, "get_exposure")
+        st_error, status = await call(s, "get_status")
+        after = core.send("DIGEST")
+    assert is_error is False and st_error is False, payload
+    jsonschema.validate(payload, tools["get_exposure"].outputSchema)
+    table = next(t for t in payload["data"]["exposure"]["tables"] if t["table_id"] == 5)
+    assert table["sl_tp"]["trailing"] == {
+        "state": "ARMED",
+        "pct": "20",
+        "peak": "15",
+        "threshold": "12",
+        "peak_source": "PERSISTED",
+    }
+    assert expected["threshold"] == "12.00"  # stessa soglia della funzione del core
+    validity = status["data"]["status"]["protections"]["items"]["config_validity"]
+    assert validity["state"] in ("ACTIVE", "TRIGGERED")
+    assert "cref-secret-trail" not in json.dumps(payload)
+    assert after["db"] == baseline["db"] and after["calls"] == baseline["calls"]
