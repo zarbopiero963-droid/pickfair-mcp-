@@ -416,3 +416,51 @@ def test_waiting_for_a_slot_beyond_the_timeout_is_a_timeout_without_request(
         anyio.run(adapter.get_status_raw)
     assert sent == []  # nessuna richiesta partita
     assert adapter.connection_epoch == epoch  # nessuna nuova epoca: il trasporto non ha fallito
+
+
+def test_read_abandoned_while_waiting_for_a_slot_is_never_sent(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Una lettura annullata in coda non arriva mai al core quando il posto si libera.
+
+    Senza questo controllo il thread abbandonato inviava comunque la richiesta: con il nuovo
+    tentativo del tool il core riceveva letture doppie (CI su c289e3f: 23 risposte invece di 21).
+    """
+    import threading
+
+    import pickfair_mcp.adapters.http as http_mod
+
+    adapter = HttpControlApiAdapter(
+        port=12345, token_file=LocalTokenFile(tmp_path / "t"), timeout_s=5.0
+    )
+    sent: list[str] = []
+    done = threading.Event()
+
+    def record(path: str, *_a: Any) -> tuple[int, str, bytes]:
+        sent.append(path)
+        return 200, http_mod.EXPECTED_CONTENT_TYPE, b"{}"
+
+    monkeypatch.setattr(adapter, "_request", record)
+    monkeypatch.setattr(adapter, "_current_token", lambda *, reload: "t" * 43)
+    for _ in range(http_mod.MAX_CONCURRENT_REQUESTS):  # tutti i posti occupati
+        assert adapter._slots.acquire(timeout=1)
+
+    real_bounded = adapter._get_bounded
+
+    def bounded(path: str, abandoned: threading.Event) -> bytes:
+        try:
+            return real_bounded(path, abandoned)
+        finally:
+            done.set()
+
+    monkeypatch.setattr(adapter, "_get_bounded", bounded)
+
+    async def main() -> None:
+        with anyio.move_on_after(0.2):  # il chiamante rinuncia mentre la lettura è in coda
+            await adapter.get_status_raw()
+
+    anyio.run(main)
+    for _ in range(http_mod.MAX_CONCURRENT_REQUESTS):  # ora i posti si liberano
+        adapter._slots.release()
+    assert done.wait(10)  # il thread abbandonato ha ottenuto il posto ed è uscito
+    assert sent == []  # e non ha inviato nulla

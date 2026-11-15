@@ -78,5 +78,10 @@ attendono; posto non ottenuto entro il timeout ⇒ `UPSTREAM_TIMEOUT` senza rich
 server invariato. Test (falliscono senza la correzione) e mutante critico `X07`. Dopo la correzione:
 10/10 esecuzioni pulite del test di concorrenza.
 
+Correzione successiva (CI su `c289e3f`, un caso non riprodotto in locale): una lettura annullata
+mentre attendeva il posto veniva comunque inviata quando il posto si liberava, e con il nuovo
+tentativo del tool il core riceveva letture doppie. Ora una lettura abbandonata in coda non parte
+mai (test dedicato, mutante critico `X08`).
+
 Il test sugli effetti collaterali ora ammette `BUSY` solo come risposta prima di qualsiasi provider
 e verifica che le risposte OK siano 30 letture più da 1 a 1+BUSY handshake.

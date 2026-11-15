@@ -1303,12 +1303,20 @@ MUTANTS: tuple[Mutant, ...] = (
             (
                 "src/pickfair_mcp/adapters/http.py",
                 "        if not self._slots.acquire(timeout=self._timeout_s):\n"
-                "            raise UpstreamTimeout  # nessuna richiesta partita: nessuna nuova epoca\n"
-                "        try:\n"
-                "            return self._get_blocking(path)\n"
-                "        finally:\n"
-                "            self._slots.release()",
-                "        return self._get_blocking(path)",
+                "            raise UpstreamTimeout  # nessuna richiesta partita: nessuna nuova epoca\n",
+                "        if not self._slots.acquire(blocking=False) and False:\n"
+                "            raise UpstreamTimeout  # nessuna richiesta partita: nessuna nuova epoca\n",
+            ),
+        ),
+    ),
+    Mutant(
+        "X08",
+        "lettura abbandonata in coda inviata comunque al core (richieste doppie)",
+        (
+            (
+                "src/pickfair_mcp/adapters/http.py",
+                "            if abandoned.is_set():",
+                "            if False:",
             ),
         ),
     ),

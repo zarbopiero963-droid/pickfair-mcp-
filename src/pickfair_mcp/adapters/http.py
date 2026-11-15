@@ -208,17 +208,28 @@ class HttpControlApiAdapter:
             raise UpstreamProtocolError("CONTENT_TYPE")
         return body
 
-    def _get_bounded(self, path: str) -> bytes:
+    def _get_bounded(self, path: str, abandoned: threading.Event) -> bytes:
         # Semaforo di thread, non di anyio: lo stesso adapter può servire event loop diversi.
         if not self._slots.acquire(timeout=self._timeout_s):
             raise UpstreamTimeout  # nessuna richiesta partita: nessuna nuova epoca
         try:
+            if abandoned.is_set():
+                # Il chiamante ha già rinunciato (timeout o annullamento) mentre attendeva il
+                # posto: la lettura non parte, mai una richiesta che nessuno leggerà.
+                raise UpstreamTimeout
             return self._get_blocking(path)
         finally:
             self._slots.release()
 
     async def _get(self, path: str) -> bytes:
-        return await anyio.to_thread.run_sync(self._get_bounded, path, abandon_on_cancel=True)
+        abandoned = threading.Event()
+        try:
+            return await anyio.to_thread.run_sync(
+                self._get_bounded, path, abandoned, abandon_on_cancel=True
+            )
+        except BaseException:
+            abandoned.set()
+            raise
 
     async def get_meta_raw(self) -> bytes:
         return await self._get("/v1/meta")
