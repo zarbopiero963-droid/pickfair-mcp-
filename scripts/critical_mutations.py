@@ -6,10 +6,12 @@ Un mutante che sopravvive indica un controllo non coperto dai test.
 
 Uso: python scripts/critical_mutations.py [--json report.json] [--jobs N]
 
-I mutanti girano in parallelo (``--jobs``, predefinito il doppio delle CPU, al più 8: molti test
-attendono socket, timer e sottoprocessi più che la CPU), ognuno nella propria copia e con la
-propria suite; l'esito di ciascuno non dipende dagli altri. Il rapporto segue l'ordine del
-catalogo.
+I mutanti girano in parallelo (``--jobs``, predefinito il numero di CPU), ognuno nella propria
+copia; l'esito di ciascuno non dipende dagli altri. Il rapporto segue l'ordine del catalogo.
+
+Due fasi per mutante, stesso verdetto della suite completa: prima i soli file di test che citano
+il modulo mutato (se uno fallisce il mutante è rilevato: un test reale ha fallito); se passano,
+la suite completa. Un mutante risulta SURVIVED solo dopo aver superato l'intera suite.
 """
 
 from __future__ import annotations
@@ -2587,7 +2589,7 @@ def apply(tmp: Path, mutant: Mutant) -> None:
 SUITE_TIMEOUT_S = 300
 
 
-def run_suite(tmp: Path, *, explain: bool = False) -> str:
+def run_suite(tmp: Path, *, explain: bool = False, tests: tuple[str, ...] = TEST_ARGS) -> str:
     """'pass', 'fail', 'timeout' (suite bloccata = mutante rilevato) o 'error'.
 
     Con ``explain`` (solo la baseline) un esito diverso da 'pass' stampa il codice d'uscita e la
@@ -2596,7 +2598,7 @@ def run_suite(tmp: Path, *, explain: bool = False) -> str:
     env = {**os.environ, "PYTHONPATH": str(tmp / "src"), "PYTHONDONTWRITEBYTECODE": "1"}
     try:
         proc = subprocess.run(
-            [sys.executable, "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider", *TEST_ARGS],
+            [sys.executable, "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider", *tests],
             cwd=tmp,
             env=env,
             capture_output=True,
@@ -2615,10 +2617,37 @@ def run_suite(tmp: Path, *, explain: bool = False) -> str:
     return {0: "pass", 1: "fail"}.get(proc.returncode, "error")
 
 
+def targeted_tests(mutant: Mutant, root: Path = ROOT) -> tuple[str, ...]:
+    """File di test (dentro TEST_ARGS) che citano il modulo mutato: la prima fase, mai l'unica."""
+    stems = set()
+    for rel, _original, _mutated in mutant.edits:
+        path = Path(rel)
+        stems.add(path.parent.name if path.stem == "__init__" else path.stem)
+    found: list[str] = []
+    for base in TEST_ARGS:
+        start = root / base
+        files = [start] if start.is_file() else sorted(start.rglob("test_*.py"))
+        for f in files:
+            text = f.read_text(encoding="utf-8", errors="replace")
+            if any(stem in text for stem in stems):
+                found.append(f.relative_to(root).as_posix())
+    return tuple(found)
+
+
+def run_mutant_suite(work: Path, mutant: Mutant) -> str:
+    """Prima i test mirati; se non rilevano il mutante, la suite completa (verdetto invariato)."""
+    targeted = targeted_tests(mutant)
+    if targeted:
+        first = run_suite(work, tests=targeted)
+        if first in ("fail", "timeout"):
+            return first
+    return run_suite(work)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--json", type=Path)
-    parser.add_argument("--jobs", type=int, default=min(8, 2 * (os.cpu_count() or 1)))
+    parser.add_argument("--jobs", type=int, default=os.cpu_count() or 1)
     args = parser.parse_args()
     if args.jobs < 1:
         print("--jobs deve essere almeno 1")
@@ -2645,7 +2674,7 @@ def main() -> int:
             shutil.copytree(clean, work)
             apply(work, mutant)
             started = time.monotonic()
-            outcome = run_suite(work)
+            outcome = run_mutant_suite(work, mutant)
             status = {"pass": "SURVIVED", "error": "ERROR"}.get(outcome, "KILLED")
             print(f"{mutant.ident} {status:8} ({outcome:7}) {mutant.control}", flush=True)
             shutil.rmtree(work)

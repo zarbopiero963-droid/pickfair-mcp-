@@ -345,7 +345,9 @@ async def test_rate_limited_is_a_retryable_error_never_retried_automatically(
     assert again_error is False
 
 
-def test_in_flight_requests_never_exceed_the_adapter_bound(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_in_flight_requests_never_exceed_the_adapter_bound(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     """Gate crossrepo MCP-116: 30 letture concorrenti, mai più di MAX_CONCURRENT_REQUESTS in volo.
 
     Con la scatola nera reale ogni richiesta del core dura di più: senza limite lato MCP le letture
@@ -356,7 +358,7 @@ def test_in_flight_requests_never_exceed_the_adapter_bound(monkeypatch: pytest.M
     import pickfair_mcp.adapters.http as http_mod
 
     adapter = HttpControlApiAdapter(
-        port=12345, token_file=LocalTokenFile("/nonexistent/t"), timeout_s=5.0
+        port=12345, token_file=LocalTokenFile(tmp_path / "t"), timeout_s=5.0
     )
     monkeypatch.setattr(adapter, "_current_token", lambda *, reload: "t" * 43)
     lock = threading.Lock()
@@ -397,13 +399,13 @@ def test_in_flight_requests_never_exceed_the_adapter_bound(monkeypatch: pytest.M
 
 
 def test_waiting_for_a_slot_beyond_the_timeout_is_a_timeout_without_request(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     import pickfair_mcp.adapters.http as http_mod
     from pickfair_mcp.adapters.base import UpstreamTimeout
 
     adapter = HttpControlApiAdapter(
-        port=12345, token_file=LocalTokenFile("/nonexistent/t"), timeout_s=0.05
+        port=12345, token_file=LocalTokenFile(tmp_path / "t"), timeout_s=0.05
     )
     sent: list[str] = []
     monkeypatch.setattr(adapter, "_request", lambda path, *_a: sent.append(path))
