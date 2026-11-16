@@ -49,7 +49,22 @@ async def test_stdio_initialize_list_and_call_get_meta(tmp_path: Path) -> None:
             init = await session.initialize()
             assert init.serverInfo.name == "pickfair-mcp"
             tools = (await session.list_tools()).tools
-            assert [t.name for t in tools] == ["get_meta"]
+            assert [t.name for t in tools] == [
+                "get_meta",
+                "get_status",
+                "get_reconciliation_status",
+                "get_account",
+                "get_exposure",
+                "list_positions",
+                "list_orders",
+                "get_config",
+                "list_markets",
+                "get_market_book",
+                "get_blackbox_status",
+                "list_blackbox_sessions",
+                "list_blackbox_events",
+                "get_blackbox_event",
+            ]
             result = await session.call_tool("get_meta", {})
             assert result.isError is False
             assert result.structuredContent is not None
@@ -92,19 +107,20 @@ def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def test_http_adapter_is_blocked_core() -> None:
+def test_http_adapter_without_configuration_exits_without_fallback() -> None:
     proc = run_cli("serve", "--adapter", "http")
     assert proc.returncode == 2
-    assert "BLOCKED_CORE" in proc.stderr
+    assert proc.stderr.strip() == "CONFIG_ERROR: HTTP_ADAPTER_REQUIRES_PORT_AND_TOKEN_FILE"
     assert proc.stdout == ""
 
 
 @pytest.mark.parametrize(
     "args",
     [
-        ("serve", "--sim-scenario", "does_not_exist"),
-        ("serve", "--upstream-timeout", "nan"),
-        ("serve", "--upstream-timeout", "0"),
+        # sorgente esplicita: l'uscita 2 deve venire dall'argomento invalido, non da SOURCE_REQUIRED
+        ("serve", "--adapter", "simulated", "--sim-scenario", "does_not_exist"),
+        ("serve", "--adapter", "simulated", "--upstream-timeout", "nan"),
+        ("serve", "--adapter", "simulated", "--upstream-timeout", "0"),
         ("serve", "--adapter", "betfair"),
     ],
 )
@@ -118,8 +134,23 @@ def test_contract_info_prints_version_and_hash() -> None:
     proc = run_cli("contract-info")
     assert proc.returncode == 0
     info = json.loads(proc.stdout)
-    assert info["supported_contract_version"] == "1.0.0"
+    assert info["supported_contract_version"] == "1.16.0"
     assert len(info["schema_hash"]) == 64
-    assert info["routes"] == 25
-    assert info["tools"] == ["get_meta"]
+    assert info["routes"] == 29  # 25 + 4 di lettura della scatola nera (PF-BLACKBOX-01)
+    assert info["tools"] == [
+        "get_meta",
+        "get_status",
+        "get_reconciliation_status",
+        "get_account",
+        "get_exposure",
+        "list_positions",
+        "list_orders",
+        "get_config",
+        "list_markets",
+        "get_market_book",
+        "get_blackbox_status",
+        "list_blackbox_sessions",
+        "list_blackbox_events",
+        "get_blackbox_event",
+    ]
     assert info["mutation_exposure"] == "BLOCKED_UNTIL_CORE_AUTHORITY_READY"

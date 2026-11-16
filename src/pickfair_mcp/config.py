@@ -2,22 +2,16 @@
 
 - La Control API può essere raggiunta solo su loopback IP letterale
   (127.0.0.0/8 o ::1) con porta esplicita: niente nomi host, niente reti esterne.
-- In MCP-01a l'adapter HTTP non esiste: il validatore prepara il vincolo per
-  quando la Control API sarà pronta (BLOCKED_CORE).
+- L'adapter HTTP di prodotto (MCP-01d, `adapters/http.py`) accetta solo 127.0.0.1 e una
+  porta esplicita passata dalla riga di comando.
 """
 
 from __future__ import annotations
 
 import ipaddress
-from typing import Final
 from urllib.parse import urlsplit
 
 from pickfair_mcp.policy.handshake import validate_timeout_s
-
-BLOCKED_CORE_MESSAGE: Final = (
-    "BLOCKED_CORE: la Control API Pickfair (PF-API-0/1) non esiste ancora; "
-    "l'adapter HTTP sarà abilitato solo quando sarà pronta e certificata."
-)
 
 
 class ConfigError(ValueError):

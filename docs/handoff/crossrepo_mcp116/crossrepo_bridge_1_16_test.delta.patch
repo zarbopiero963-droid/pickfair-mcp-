@@ -1,0 +1,175 @@
+diff --git a/control_api/bridge.py b/control_api/bridge.py
+index d40c1eb..9879b3a 100644
+--- a/control_api/bridge.py
++++ b/control_api/bridge.py
+@@ -1,4 +1,11 @@
+-"""Collega le viste di sola lettura del core al server ``pickfair_control_api``."""
++"""Collega le viste di sola lettura del core al server ``pickfair_control_api``.
++
++PATCH DI PROVA 1.16.0 (PF-OWNER-MCP116-CROSSREPO-BRIDGE-20261112): artefatto temporaneo per il
++collaudo cross-repository di MCP-116, NON il ponte ufficiale (che resta PR-18 di Claude B). Rispetto
++al ponte 1.12.0 del branch di consegna aggiunge solo: pin del contratto 1.16.0, scatola nera BB-1
++(lettore reale, provider e ``request_hook`` obbligatori) e limite di frequenza dichiarato dal
++chiamante (C-AUD-06), senza valori predefiniti.
++"""
+ 
+ from __future__ import annotations
+ 
+@@ -21,14 +28,18 @@ from control_api.views import (
+ 
+ # Pin esatto del package pickfair_control_api (repository pickfair-mcp-). Un package diverso da
+ # quello verificato non viene MAI usato: la Control API non parte (CONTRACT_PIN_MISMATCH).
+-EXPECTED_CONTROL_API_VERSION = "1.12.0"
+-EXPECTED_SCHEMA_HASH = "10c5df547566aab57ab8b70e50545cc11e9ca24998c0938be93c2db14986dd9a"
++EXPECTED_CONTROL_API_VERSION = "1.16.0"
++EXPECTED_SCHEMA_HASH = "194301d45e858201d71ed5a7057d63dc7294a9c32d8c16f1a12cb140a1ecf325"
+ 
+ 
+ class ControlApiPinMismatch(Exception):
+     """Il package installato non è quello verificato per questo ponte."""
+ 
+ 
++class ControlApiBlackBoxUnavailable(Exception):
++    """Scatola nera assente o lettore incompatibile: la Control API non parte (fail-closed)."""
++
++
+ def verify_pinned_package() -> None:
+     import pickfair_control_api
+ 
+@@ -56,24 +67,38 @@ def make_providers(
+ 
+ def start_control_api(
+     runtime: object, *, port: int, token_path: Path, git_sha: str,
++    blackbox_reader: object, rate_per_s: object, burst: object,
+     clock: Callable[[], float] = time.time, allow_ephemeral_port: bool = False,
+ ) -> Any:
+     """Avvio in quest'ordine, senza servizi parziali:
+ 
+     1. pin esatto del package (versione e schema hash): se fallisce, nessun socket e nessun file;
+-    2. token nuovo SOLO in memoria;
+-    3. bind del listener su 127.0.0.1: se fallisce, nessun file del token;
+-    4. pubblicazione atomica del token (0600): se fallisce, il listener viene chiuso;
+-    5. avvio del servizio.
++    2. scatola nera: lettore presente e con l'interfaccia attesa, altrimenti nessun socket;
++    3. limite di frequenza valido (dichiarato dal chiamante), altrimenti nessun socket;
++    4. token nuovo SOLO in memoria;
++    5. bind del listener su 127.0.0.1: se fallisce, nessun file del token;
++    6. pubblicazione atomica del token (0600): se fallisce, il listener viene chiuso;
++    7. avvio del servizio.
+     """
+     verify_pinned_package()
+     # Import locale: il package serve solo quando la Control API è richiesta esplicitamente.
++    from pickfair_control_api import blackbox_bridge
++    from pickfair_control_api.rate_limit import RateLimit
+     from pickfair_control_api.server import ControlApiServer
+     from pickfair_control_api.tokens import generate_token_store
+ 
++    if blackbox_reader is None or blackbox_bridge.check_reader(blackbox_reader):
++        raise ControlApiBlackBoxUnavailable("BLACKBOX_UNAVAILABLE")
++    rate_limit = RateLimit.from_values(rate_per_s, burst)  # RateLimitConfigError se fuori limite
++    providers = {
++        **make_providers(runtime, clock=clock),
++        **blackbox_bridge.make_providers(blackbox_reader, clock=clock),
++    }
+     tokens = generate_token_store()
+     server = ControlApiServer(
+-        make_providers(runtime, clock=clock), port=port, tokens=tokens, git_sha=git_sha,
++        providers, port=port, tokens=tokens, git_sha=git_sha,
++        request_hook=blackbox_bridge.make_request_hook(blackbox_reader),
++        rate_limit=rate_limit,
+         allow_ephemeral_port=allow_ephemeral_port,
+     )
+     try:
+diff --git a/control_api/launcher.py b/control_api/launcher.py
+index 21cfa9c..094bd0a 100644
+--- a/control_api/launcher.py
++++ b/control_api/launcher.py
+@@ -31,6 +31,8 @@ logger = logging.getLogger(__name__)
+ 
+ PORT_FLAG = "--control-api-port"
+ TOKEN_FLAG = "--control-api-token-file"
++RATE_FLAG = "--control-api-rate"
++BURST_FLAG = "--control-api-burst"
+ SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+ 
+ 
+@@ -46,6 +48,8 @@ class ControlApiLaunchError(Exception):
+ class LaunchConfig:
+     port: int
+     token_path: Path
++    rate_per_s: float
++    burst: int
+ 
+ 
+ def _flag_value(argv: Sequence[str], flag: str) -> str | None:
+@@ -64,7 +68,8 @@ def _flag_value(argv: Sequence[str], flag: str) -> str | None:
+ 
+ def requested(argv: Sequence[str]) -> bool:
+     """True solo se uno dei flag è presente. Nessun altro canale attiva la Control API."""
+-    return any(a == f or a.startswith(f + "=") for a in argv for f in (PORT_FLAG, TOKEN_FLAG))
++    flags = (PORT_FLAG, TOKEN_FLAG, RATE_FLAG, BURST_FLAG)
++    return any(a == f or a.startswith(f + "=") for a in argv for f in flags)
+ 
+ 
+ def parse(argv: Sequence[str]) -> LaunchConfig:
+@@ -76,7 +81,27 @@ def parse(argv: Sequence[str]) -> LaunchConfig:
+     token_path = Path(token_raw)
+     if not token_path.is_absolute() or ".." in token_path.parts:
+         raise ControlApiLaunchError("TOKEN_PATH_INVALID")
+-    return LaunchConfig(port=int(port_raw), token_path=token_path)
++    rate_raw, burst_raw = _flag_value(argv, RATE_FLAG), _flag_value(argv, BURST_FLAG)
++    if rate_raw is None or burst_raw is None:
++        raise ControlApiLaunchError("RATE_LIMIT_REQUIRED")
++    try:
++        rate = float(rate_raw)
++    except ValueError:
++        raise ControlApiLaunchError("RATE_LIMIT_INVALID") from None
++    if not burst_raw.isdigit():
++        raise ControlApiLaunchError("RATE_LIMIT_INVALID")
++    return LaunchConfig(
++        port=int(port_raw), token_path=token_path, rate_per_s=rate, burst=int(burst_raw)
++    )
++
++
++def runtime_blackbox_reader() -> Any | None:
++    """Lettore della scatola nera del processo (BB-1), o None se il registro non è aperto."""
++    from core import blackbox_runtime
++    from core.blackbox_query import BlackBoxReader
++
++    box = blackbox_runtime.get()
++    return BlackBoxReader(box) if box is not None else None
+ 
+ 
+ def check_private_dir(directory: Path) -> None:
+@@ -116,16 +141,28 @@ def maybe_start(runtime: object, argv: Sequence[str], *, app_root: Path) -> Any
+         check_private_dir(config.token_path.parent)
+         sha = resolve_code_sha(app_root)
+         try:
+-            from control_api.bridge import ControlApiPinMismatch, start_control_api
++            from control_api.bridge import (
++                ControlApiBlackBoxUnavailable,
++                ControlApiPinMismatch,
++                start_control_api,
++            )
++            from pickfair_control_api.rate_limit import RateLimitConfigError
+         except ImportError:
+             raise ControlApiLaunchError("PACKAGE_MISSING") from None
+         try:
+-            server = start_control_api(runtime, port=config.port, token_path=config.token_path,
+-                                       git_sha=sha)
++            server = start_control_api(
++                runtime, port=config.port, token_path=config.token_path, git_sha=sha,
++                blackbox_reader=runtime_blackbox_reader(),
++                rate_per_s=config.rate_per_s, burst=config.burst,
++            )
+         except ImportError:
+             raise ControlApiLaunchError("PACKAGE_MISSING") from None
+         except ControlApiPinMismatch:
+             raise ControlApiLaunchError("CONTRACT_PIN_MISMATCH") from None
++        except ControlApiBlackBoxUnavailable:
++            raise ControlApiLaunchError("BLACKBOX_UNAVAILABLE") from None
++        except RateLimitConfigError:
++            raise ControlApiLaunchError("RATE_LIMIT_INVALID") from None
+         except OSError:
+             raise ControlApiLaunchError("BIND_FAILED") from None
+     except ControlApiLaunchError as exc:

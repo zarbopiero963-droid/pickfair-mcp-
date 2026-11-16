@@ -28,6 +28,13 @@ _INET_FAMILIES = {socket.AF_INET, socket.AF_INET6}
 # (`import _overlapped` -> WinError 10106). Ai sottoprocessi dei test si passa un ambiente minimo:
 # PATH, le variabili del test e, solo su Windows, le variabili di sistema indispensabili.
 _WINDOWS_SYSTEM_ENV = ("SYSTEMROOT", "SYSTEMDRIVE", "WINDIR", "COMSPEC", "TEMP", "TMP")
+# mutmut (job «mutation testing generale»): il codice mutato decide quale mutante attivare leggendo
+# MUTANT_UNDER_TEST; un processo figlio senza la variabile non importa i moduli mutati (KeyError).
+# Si propaga solo quella, e solo se è impostata: fuori da mutmut l'ambiente resta identico.
+# In fase «stats» il figlio non può registrare le chiamate (lo stato di mutmut vive nel padre):
+# riceve "" ed esegue il codice originale, come mutmut fa per ogni funzione fuori mutante.
+_MUTMUT_ENV = "MUTANT_UNDER_TEST"
+_MUTMUT_PARENT_ONLY = frozenset({"stats", "list_all_tests"})
 
 
 def subprocess_env(**extra: str) -> dict[str, str]:
@@ -35,6 +42,9 @@ def subprocess_env(**extra: str) -> dict[str, str]:
     env = {"PATH": os.environ.get("PATH", ""), **extra}
     if sys.platform == "win32":
         env.update({k: os.environ[k] for k in _WINDOWS_SYSTEM_ENV if k in os.environ})
+    if _MUTMUT_ENV in os.environ:
+        selector = os.environ[_MUTMUT_ENV]
+        env[_MUTMUT_ENV] = "" if selector in _MUTMUT_PARENT_ONLY else selector
     return env
 
 
@@ -52,7 +62,20 @@ _NETWORK_AUDIT_EVENTS = {
     "socket.getnameinfo",
 }
 _network_guard_active = False
+_loopback_allowed = False
 _hook_attempts: list[object] = []
+LOOPBACK_ADDRESS = "127.0.0.1"
+
+
+def _is_loopback_target(address: object) -> bool:
+    """Solo (\"127.0.0.1\", porta) e solo nei test marcati `loopback` (adapter MCP-01d)."""
+    return (
+        _loopback_allowed
+        and isinstance(address, tuple)
+        and len(address) == 2
+        and address[0] == LOOPBACK_ADDRESS
+    )
+
 
 # MCP-CI (Windows): dove manca un socketpair nativo (Windows), `socket.socketpair()` è
 # implementato in Python con un listener su 127.0.0.1 e una connessione a sé stesso; l'event
@@ -88,7 +111,9 @@ def _audit_hook(event: str, args: tuple[object, ...]) -> None:
         sock = args[0]
         if getattr(sock, "family", None) not in _INET_FAMILIES:
             return
-        if event == "socket.connect" and _inside_socketpair_to_loopback(args[1]):
+        if event == "socket.connect" and (
+            _is_loopback_target(args[1]) or _inside_socketpair_to_loopback(args[1])
+        ):
             return
     _hook_attempts.append(event)
     raise NetworkAttemptError(f"operazione di rete vietata: {event}")
@@ -98,15 +123,21 @@ sys.addaudithook(_audit_hook)  # gli audit hook non si rimuovono: si attiva per 
 
 
 @pytest.fixture(autouse=True)
-def network_audit_guard() -> Iterator[None]:
-    """Copre anche i percorsi che il monkeypatch non vede (_socket, sendmsg, DNS)."""
-    global _network_guard_active
+def network_audit_guard(request: pytest.FixtureRequest) -> Iterator[None]:
+    """Copre anche i percorsi che il monkeypatch non vede (_socket, sendmsg, DNS).
+
+    Eccezione circoscritta: nei test marcati `loopback` è ammessa SOLO la connessione TCP a
+    127.0.0.1; DNS, create_connection, UDP e ogni altra destinazione restano vietati.
+    """
+    global _network_guard_active, _loopback_allowed
     _hook_attempts.clear()
     _network_guard_active = True
+    _loopback_allowed = request.node.get_closest_marker("loopback") is not None
     try:
         yield
     finally:
         _network_guard_active = False
+        _loopback_allowed = False
     assert _hook_attempts == [], f"operazioni di rete rilevate: {_hook_attempts!r}"
 
 
@@ -117,7 +148,9 @@ def forbid_network(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[object]]:
     original_connect_ex = socket.socket.connect_ex
 
     def guarded_connect(self: socket.socket, address: object) -> None:
-        if self.family in _INET_FAMILIES and not _inside_socketpair_to_loopback(address):
+        if self.family in _INET_FAMILIES and not (
+            _is_loopback_target(address) or _inside_socketpair_to_loopback(address)
+        ):
             attempts.append(address)
             raise NetworkAttemptError(f"connessione di rete vietata: {address!r}")
         original_connect(self, address)  # type: ignore[arg-type]

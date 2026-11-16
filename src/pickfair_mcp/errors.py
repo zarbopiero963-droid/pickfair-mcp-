@@ -13,9 +13,12 @@ class ErrorCode(Enum):
     UPSTREAM_TIMEOUT = "UPSTREAM_TIMEOUT"
     UPSTREAM_UNAVAILABLE = "UPSTREAM_UNAVAILABLE"
     UPSTREAM_INVALID_RESPONSE = "UPSTREAM_INVALID_RESPONSE"
+    UPSTREAM_UNAUTHORIZED = "UPSTREAM_UNAUTHORIZED"
+    UPSTREAM_NOT_IMPLEMENTED = "UPSTREAM_NOT_IMPLEMENTED"
     INTERNAL_ERROR = "INTERNAL_ERROR"
     JOURNAL_UNAVAILABLE = "JOURNAL_UNAVAILABLE"
     FORBIDDEN = "FORBIDDEN"
+    RATE_LIMITED = "RATE_LIMITED"
 
 
 # Messaggi fissi: nessun testo proveniente da eccezioni o dall'upstream.
@@ -28,17 +31,26 @@ MESSAGES: Final[dict[ErrorCode, str]] = {
     ErrorCode.UPSTREAM_TIMEOUT: "Control API did not answer within the configured timeout.",
     ErrorCode.UPSTREAM_UNAVAILABLE: "Control API is not reachable.",
     ErrorCode.UPSTREAM_INVALID_RESPONSE: "Control API answer violates the contract.",
+    ErrorCode.UPSTREAM_UNAUTHORIZED: (
+        "Control API rejected the adapter credentials; nothing was performed."
+    ),
+    ErrorCode.UPSTREAM_NOT_IMPLEMENTED: (
+        "Pickfair does not implement this capability yet; nothing was read or performed."
+    ),
     ErrorCode.INTERNAL_ERROR: "Internal adapter error; no operation was performed.",
     ErrorCode.JOURNAL_UNAVAILABLE: (
         "Request journal unavailable; mutations are blocked, reads are still allowed."
     ),
     ErrorCode.FORBIDDEN: "Caller is not authorized for this tool; nothing was performed.",
+    ErrorCode.RATE_LIMITED: (
+        "Control API request rate limit reached; nothing was read. Retry later."
+    ),
 }
 
 # Solo letture idempotenti possono essere ripetute dal client. I comandi
 # (non esposti in MCP-01a) non saranno mai retryable lato MCP.
 RETRYABLE_FOR_READS: Final[frozenset[ErrorCode]] = frozenset(
-    {ErrorCode.UPSTREAM_TIMEOUT, ErrorCode.UPSTREAM_UNAVAILABLE}
+    {ErrorCode.UPSTREAM_TIMEOUT, ErrorCode.UPSTREAM_UNAVAILABLE, ErrorCode.RATE_LIMITED}
 )
 
 

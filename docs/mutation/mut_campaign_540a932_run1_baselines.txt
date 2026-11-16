@@ -1,0 +1,6 @@
+{"ident": "BASELINE", "status": "PASS", "detail": "2188 passed, 4 skipped in 72.72s (0:01:12)", "seconds": 73.7}
+{"ident": "BASELINE", "status": "BASELINE_FAIL", "detail": "tests/control_api/test_tokens.py::test_concurrent_processes_never_read_a_partial_token", "seconds": 71.5}
+{"ident": "BASELINE", "status": "PASS", "detail": "2188 passed, 4 skipped in 71.57s (0:01:11)", "seconds": 72.4}
+exit=0
+
+[exited with code 0]

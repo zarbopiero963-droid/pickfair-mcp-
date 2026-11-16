@@ -1,10 +1,11 @@
-"""CLI in-process: argomenti, BLOCKED_CORE e contract-info."""
+"""CLI in-process: argomenti, adapter http senza fallback e contract-info."""
 
 from __future__ import annotations
 
 import json
 import signal
 from collections.abc import Iterator
+from typing import Any
 
 import pytest
 
@@ -28,15 +29,132 @@ def forced_exits(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[bool]]:
 def test_contract_info(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["contract-info"]) == 0
     info = json.loads(capsys.readouterr().out)
-    assert info["tools"] == ["get_meta"]
+    assert info["tools"] == [
+        "get_meta",
+        "get_status",
+        "get_reconciliation_status",
+        "get_account",
+        "get_exposure",
+        "list_positions",
+        "list_orders",
+        "get_config",
+        "list_markets",
+        "get_market_book",
+        "get_blackbox_status",
+        "list_blackbox_sessions",
+        "list_blackbox_events",
+        "get_blackbox_event",
+    ]
     assert info["live_commands"] == "DISABLED"
 
 
-def test_http_adapter_is_blocked_core(capsys: pytest.CaptureFixture[str]) -> None:
-    assert main(["serve", "--adapter", "http"]) == 2
+@pytest.mark.parametrize(
+    ("args", "code"),
+    [
+        (["serve", "--adapter", "http"], "HTTP_ADAPTER_REQUIRES_PORT_AND_TOKEN_FILE"),
+        (
+            ["serve", "--adapter", "http", "--control-api-port", "8765"],
+            "HTTP_ADAPTER_REQUIRES_PORT_AND_TOKEN_FILE",
+        ),
+        (
+            [
+                "serve",
+                "--adapter",
+                "http",
+                "--control-api-port",
+                "0",
+                "--control-api-token-file",
+                "/x",
+            ],
+            "CONFIG_PORT",
+        ),
+        (
+            [
+                "serve",
+                "--adapter",
+                "http",
+                "--control-api-port",
+                "70000",
+                "--control-api-token-file",
+                "/x",
+            ],
+            "CONFIG_PORT",
+        ),
+        (
+            [
+                "serve",
+                "--adapter",
+                "http",
+                "--control-api-port",
+                "8765",
+                "--control-api-token-file",
+                "relative/t",
+            ],
+            "TOKEN_PATH_INVALID",
+        ),
+        (
+            [
+                "serve",
+                "--adapter",
+                "http",
+                "--control-api-port",
+                "8765",
+                "--control-api-token-file",
+                "/nonexistent-dir/t",
+            ],
+            "TOKEN_DIR_UNSAFE",
+        ),
+        (
+            [
+                "serve",
+                "--adapter",
+                "http",
+                "--sim-status-scenario",
+                "live_blocked",
+                "--control-api-port",
+                "8765",
+                "--control-api-token-file",
+                "/x",
+            ],
+            "SIM_OPTIONS_WITH_HTTP_ADAPTER",
+        ),
+        (
+            ["serve", "--adapter", "simulated", "--control-api-port", "8765"],
+            "HTTP_OPTIONS_WITH_SIMULATED_ADAPTER",
+        ),
+    ],
+)
+def test_http_adapter_misconfiguration_never_falls_back(
+    args: list[str], code: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(args) == 2
     captured = capsys.readouterr()
-    assert "BLOCKED_CORE" in captured.err
+    assert captured.err.strip() == f"CONFIG_ERROR: {code}"
     assert captured.out == ""
+
+
+def test_http_adapter_token_file_unsafe_is_refused_without_leaking(
+    tmp_path: Any, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from pickfair_control_api.tokens import issue_token_file
+
+    d = tmp_path / "s"
+    d.mkdir(mode=0o700)
+    token = issue_token_file(d / "t")
+    (d / "t").chmod(0o644)
+    args = [
+        "serve",
+        "--adapter",
+        "http",
+        "--control-api-port",
+        "8765",
+        "--control-api-token-file",
+        str(d / "t"),
+    ]
+    assert main(args) == 2
+    captured = capsys.readouterr()
+    assert captured.err.strip() == "CONFIG_ERROR: TOKEN_FILE_PERMISSIONS"
+    assert token not in captured.err and str(d) not in captured.err
 
 
 @pytest.mark.parametrize("value", ["nan", "inf", "0", "31", "-1"])
@@ -44,7 +162,7 @@ def test_invalid_timeout_exits_with_usage_error(
     value: str, capsys: pytest.CaptureFixture[str]
 ) -> None:
     with pytest.raises(SystemExit) as excinfo:
-        main(["serve", "--upstream-timeout", value])
+        main(["serve", "--adapter", "simulated", "--upstream-timeout", value])
     assert excinfo.value.code == 2
     assert capsys.readouterr().out == ""
 
@@ -70,7 +188,7 @@ def test_interrupt_is_classified_even_inside_exception_groups(
     monkeypatch.setattr(cli.anyio, "run", fake_run)
     monkeypatch.setattr(cli, "configure_stderr_logging", lambda: None)
     monkeypatch.setattr(cli.os, "dup2", lambda *_: None)
-    assert main(["serve"]) == 130
+    assert main(["serve", "--adapter", "simulated"]) == 130
 
 
 def test_transport_failure_is_not_reported_as_interrupt(
@@ -84,7 +202,7 @@ def test_transport_failure_is_not_reported_as_interrupt(
     monkeypatch.setattr(cli.anyio, "run", fake_run)
     monkeypatch.setattr(cli, "configure_stderr_logging", lambda: None)
     monkeypatch.setattr(cli.os, "dup2", lambda *_: None)
-    assert main(["serve"]) == 1
+    assert main(["serve", "--adapter", "simulated"]) == 1
 
 
 def _patch_serve_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -108,7 +226,7 @@ def test_sigint_is_classified_even_when_the_runtime_loses_the_interrupt(
 
     monkeypatch.setattr(cli.anyio, "run", fake_run)
     _patch_serve_env(monkeypatch)
-    assert main(["serve"]) == 130
+    assert main(["serve", "--adapter", "simulated"]) == 130
 
 
 def test_interrupt_on_the_normal_exit_path_is_reported(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -119,7 +237,7 @@ def test_interrupt_on_the_normal_exit_path_is_reported(monkeypatch: pytest.Monke
 
     monkeypatch.setattr(cli.anyio, "run", fake_run)
     _patch_serve_env(monkeypatch)
-    assert main(["serve"]) == 130
+    assert main(["serve", "--adapter", "simulated"]) == 130
 
 
 def test_asyncio_runner_keeps_its_own_sigint_handling(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -137,7 +255,7 @@ def test_asyncio_runner_keeps_its_own_sigint_handling(monkeypatch: pytest.Monkey
     try:
         monkeypatch.setattr(cli.anyio, "run", fake_run)
         _patch_serve_env(monkeypatch)
-        main(["serve"])
+        main(["serve", "--adapter", "simulated"])
     finally:
         signal_module.signal(signal_module.SIGINT, previous)
     assert seen == [signal_module.default_int_handler]
@@ -158,7 +276,7 @@ def test_inherited_ignored_sigint_stays_ignored(monkeypatch: pytest.MonkeyPatch)
     try:
         monkeypatch.setattr(cli.anyio, "run", fake_run)
         _patch_serve_env(monkeypatch)
-        main(["serve"])
+        main(["serve", "--adapter", "simulated"])
         after = signal_module.getsignal(signal_module.SIGINT)
     finally:
         signal_module.signal(signal_module.SIGINT, previous)
@@ -298,7 +416,7 @@ def test_main_disarms_the_watchdog_on_every_exit_path(monkeypatch: pytest.Monkey
 
     for fake_run in (ok_run, broken_run):
         monkeypatch.setattr(cli.anyio, "run", fake_run)
-        cli.main(["serve"])
+        cli.main(["serve", "--adapter", "simulated"])
     assert disarmed == [True, True]
 
 
@@ -352,7 +470,7 @@ def test_every_interrupted_exit_goes_through_the_forced_exit_once(
 
     monkeypatch.setattr(cli.anyio, "run", fake_run)
     _patch_serve_env(monkeypatch)
-    assert main(["serve"]) == 130
+    assert main(["serve", "--adapter", "simulated"]) == 130
     assert forced_exits == [True]
 
 
@@ -366,7 +484,7 @@ def test_transport_error_does_not_use_the_forced_exit(
 
     monkeypatch.setattr(cli.anyio, "run", fake_run)
     _patch_serve_env(monkeypatch)
-    assert main(["serve"]) == 1
+    assert main(["serve", "--adapter", "simulated"]) == 1
     assert forced_exits == []
 
 
@@ -520,7 +638,7 @@ def test_main_ignores_late_sigint_before_deciding_the_exit(
     monkeypatch.setattr(cli.anyio, "run", fake_run)
     _patch_serve_env(monkeypatch)
     signal.signal(signal.SIGINT, signal.default_int_handler)
-    assert main(["serve"]) == (0 if outcome == "ok" else 1)
+    assert main(["serve", "--adapter", "simulated"]) == (0 if outcome == "ok" else 1)
     assert signal.getsignal(signal.SIGINT) is signal.SIG_IGN
 
 

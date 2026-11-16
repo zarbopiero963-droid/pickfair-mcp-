@@ -1,7 +1,9 @@
 """Tabella unica delle route Control API v1 approvate (pickfair-mcp- #1).
 
-Copia fedele delle 25 route: 14 di lettura e 11 comandi. Nessuna route oltre
-queste può essere introdotta senza una nuova decisione owner.
+Copia fedele delle 25 route approvate (14 di lettura e 11 comandi) più le 4 route di
+SOLA LETTURA della scatola nera ratificate dalla decisione owner PF-BLACKBOX-01 del
+08/11/2026: 29 in tutto, 18 di lettura. Nessuna route oltre queste può essere introdotta
+senza una nuova decisione owner.
 """
 
 from __future__ import annotations
@@ -53,6 +55,11 @@ APPROVED_ROUTES: tuple[Route, ...] = (
     Route(_R, "GET", "/v1/operations?status=pending", "Pending operations"),
     Route(_R, "GET", "/v1/reconciliation/status", "Recovery/readiness"),
     Route(_R, "GET", "/v1/audit/{correlation_id}", "Audit trail redatto"),
+    # PF-BLACKBOX-01 (owner, 08/11/2026): lettura della scatola nera, mai scrittura.
+    Route(_R, "GET", "/v1/blackbox/status", "Stato del registro cronologico, lacune, integrità"),
+    Route(_R, "GET", "/v1/blackbox/sessions", "Sessioni di avvio registrate"),
+    Route(_R, "GET", "/v1/blackbox/events", "Eventi per seq con filtri in whitelist chiusa"),
+    Route(_R, "GET", "/v1/blackbox/events/{event_id}", "Un evento e la sua catena causale"),
     Route(_C, "POST", "/v1/preview", "Zero effetti ordine; schema e business autorevoli"),
     Route(_C, "POST", "/v1/orders", "Place order tramite authority"),
     Route(_C, "POST", "/v1/dutching", "Dutching tramite authority"),

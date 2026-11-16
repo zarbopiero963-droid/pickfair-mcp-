@@ -1,0 +1,242 @@
+{
+  "schema": "pf-mcp-suites/1",
+  "version": 1,
+  "repository": "zarbopiero963-droid/pickfair-mcp-",
+  "gap": "G8 (PF-UNIVERSAL-360-TESTING, docs/roadmap/pf_universal_360_testing.md §3 su pf-gov-persistent-roadmap-01)",
+  "pf_catalog_status": {
+    "state": "UNSUPPORTED",
+    "reason": "il catalogo canonico tests/catalog/pf-test-catalog.json di Pickfair-nogui esegue solo percorsi tests/ di quel repository: nessun runner per pickfair-mcp-. Queste suite girano nel repository MCP con scripts/run_suites.py (stesse regole di argv fisso ed evidenze junit/log)."
+  },
+  "suites": [
+    {
+      "id": "mcp-unit",
+      "component": "pickfair_mcp + pickfair_control_api",
+      "behaviour": "contratto, modelli, parsing, handshake, journal, token, CLI",
+      "category": "unit",
+      "runner": "pytest",
+      "args": [
+        "tests/unit"
+      ],
+      "environment": "OFFLINE",
+      "risk": "LOW",
+      "timeout_seconds": 900,
+      "resources": {
+        "cpu": 2,
+        "memory_mb": 2048
+      },
+      "datasets": [],
+      "evidence": [
+        "junit",
+        "log"
+      ],
+      "requires": [],
+      "criteria": {
+        "PASS": "exit 0, nessun test fallito o in errore e nessun test saltato fuori da allowed_skips",
+        "FAIL": "almeno un test fallito o in errore",
+        "BLOCKED": "prerequisito assente (es. checkout del core) o test saltato fuori da allowed_skips: mai PASS"
+      },
+      "allowed_skips": [
+        {
+          "nodeid": "tests/unit/test_journal.py::test_permission_denied_fails_closed",
+          "reason": "il controllo dei permessi non vale per root (container); verificato da utente non privilegiato"
+        }
+      ]
+    },
+    {
+      "id": "mcp-guards",
+      "component": "repository",
+      "behaviour": "nessun bypass, superficie dei tool, igiene dello scope, coerenza del descrittore",
+      "category": "guardrails",
+      "runner": "pytest",
+      "args": [
+        "tests/guards"
+      ],
+      "environment": "OFFLINE",
+      "risk": "LOW",
+      "timeout_seconds": 900,
+      "resources": {
+        "cpu": 2,
+        "memory_mb": 2048
+      },
+      "datasets": [],
+      "evidence": [
+        "junit",
+        "log"
+      ],
+      "requires": [],
+      "criteria": {
+        "PASS": "exit 0, nessun test fallito o in errore e nessun test saltato fuori da allowed_skips",
+        "FAIL": "almeno un test fallito o in errore",
+        "BLOCKED": "prerequisito assente (es. checkout del core) o test saltato fuori da allowed_skips: mai PASS"
+      },
+      "allowed_skips": []
+    },
+    {
+      "id": "mcp-control-api",
+      "component": "pickfair_control_api",
+      "behaviour": "server HTTP reale su loopback: autenticazione, route, errori, sicurezza (MCP-SEC-01), route con parametro",
+      "category": "security",
+      "runner": "pytest",
+      "args": [
+        "tests/control_api"
+      ],
+      "environment": "OFFLINE",
+      "risk": "LOW",
+      "timeout_seconds": 900,
+      "resources": {
+        "cpu": 2,
+        "memory_mb": 2048
+      },
+      "datasets": [],
+      "evidence": [
+        "junit",
+        "log"
+      ],
+      "requires": [],
+      "criteria": {
+        "PASS": "exit 0, nessun test fallito o in errore e nessun test saltato fuori da allowed_skips",
+        "FAIL": "almeno un test fallito o in errore",
+        "BLOCKED": "prerequisito assente (es. checkout del core) o test saltato fuori da allowed_skips: mai PASS"
+      },
+      "allowed_skips": []
+    },
+    {
+      "id": "mcp-integration",
+      "component": "pickfair_mcp",
+      "behaviour": "server MCP in processo con adapter simulato e Control API reale via HTTP",
+      "category": "integration",
+      "runner": "pytest",
+      "args": [
+        "tests/integration"
+      ],
+      "environment": "OFFLINE",
+      "risk": "LOW",
+      "timeout_seconds": 900,
+      "resources": {
+        "cpu": 2,
+        "memory_mb": 2048
+      },
+      "datasets": [],
+      "evidence": [
+        "junit",
+        "log"
+      ],
+      "requires": [],
+      "criteria": {
+        "PASS": "exit 0, nessun test fallito o in errore e nessun test saltato fuori da allowed_skips",
+        "FAIL": "almeno un test fallito o in errore",
+        "BLOCKED": "prerequisito assente (es. checkout del core) o test saltato fuori da allowed_skips: mai PASS"
+      },
+      "allowed_skips": []
+    },
+    {
+      "id": "mcp-contract",
+      "component": "pickfair_mcp",
+      "behaviour": "contract test BB-1 della scatola nera: lettore nella forma del motore (pf_blackbox_01 §3) -> adapter -> Control API reale -> MCP; nessun PASS sul motore reale",
+      "category": "contract",
+      "runner": "pytest",
+      "args": [
+        "tests/contract"
+      ],
+      "environment": "OFFLINE",
+      "risk": "LOW",
+      "timeout_seconds": 900,
+      "resources": {
+        "cpu": 2,
+        "memory_mb": 2048
+      },
+      "datasets": [],
+      "evidence": [
+        "junit",
+        "log"
+      ],
+      "requires": [],
+      "criteria": {
+        "PASS": "exit 0, nessun test fallito o in errore e nessun test saltato fuori da allowed_skips",
+        "FAIL": "almeno un test fallito o in errore",
+        "BLOCKED": "prerequisito assente (es. checkout del core) o test saltato fuori da allowed_skips: mai PASS"
+      },
+      "allowed_skips": []
+    },
+    {
+      "id": "mcp-e2e",
+      "component": "pickfair_mcp",
+      "behaviour": "processo stdio reale: protocollo MCP, journal, kill, raw stdio",
+      "category": "e2e",
+      "runner": "pytest",
+      "args": [
+        "tests/e2e"
+      ],
+      "environment": "OFFLINE",
+      "risk": "LOW",
+      "timeout_seconds": 1800,
+      "resources": {
+        "cpu": 2,
+        "memory_mb": 2048
+      },
+      "datasets": [],
+      "evidence": [
+        "junit",
+        "log"
+      ],
+      "requires": [],
+      "criteria": {
+        "PASS": "exit 0, nessun test fallito o in errore e nessun test saltato fuori da allowed_skips",
+        "FAIL": "almeno un test fallito o in errore",
+        "BLOCKED": "prerequisito assente (es. checkout del core) o test saltato fuori da allowed_skips: mai PASS"
+      },
+      "allowed_skips": []
+    },
+    {
+      "id": "mcp-crossrepo",
+      "component": "MCP -> Control API -> RuntimeController",
+      "behaviour": "catena fra processi col core reale avviato in SIM (richiede PICKFAIR_CORE_PATH e PICKFAIR_CORE_PYTHON)",
+      "category": "e2e",
+      "runner": "pytest",
+      "args": [
+        "tests/crossrepo"
+      ],
+      "environment": "SIM",
+      "risk": "MEDIUM",
+      "timeout_seconds": 1800,
+      "resources": {
+        "cpu": 2,
+        "memory_mb": 2048
+      },
+      "datasets": [],
+      "evidence": [
+        "junit",
+        "log"
+      ],
+      "requires": [
+        "PICKFAIR_CORE_PATH",
+        "PICKFAIR_CORE_PYTHON"
+      ],
+      "criteria": {
+        "PASS": "exit 0, nessun test fallito o in errore e nessun test saltato fuori da allowed_skips",
+        "FAIL": "almeno un test fallito o in errore",
+        "BLOCKED": "prerequisito assente (es. checkout del core) o test saltato fuori da allowed_skips: mai PASS"
+      },
+      "allowed_skips": []
+    }
+  ],
+  "campaigns": {
+    "all-offline": [
+      "mcp-unit",
+      "mcp-guards",
+      "mcp-control-api",
+      "mcp-integration",
+      "mcp-contract",
+      "mcp-e2e"
+    ],
+    "all": [
+      "mcp-unit",
+      "mcp-guards",
+      "mcp-control-api",
+      "mcp-integration",
+      "mcp-contract",
+      "mcp-e2e",
+      "mcp-crossrepo"
+    ]
+  }
+}

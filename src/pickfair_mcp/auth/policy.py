@@ -29,6 +29,11 @@ TOOL_SCOPES: Final = MappingProxyType(
         "list_pending_operations": Scope.READ,
         "get_reconciliation_status": Scope.READ,
         "get_audit_trail": Scope.READ,
+        # PF-BLACKBOX-01: lettura della scatola nera.
+        "get_blackbox_status": Scope.READ,
+        "list_blackbox_sessions": Scope.READ,
+        "list_blackbox_events": Scope.READ,
+        "get_blackbox_event": Scope.READ,
         "preview_order": Scope.WRITE,
         "place_order": Scope.WRITE,
         "place_dutching": Scope.WRITE,

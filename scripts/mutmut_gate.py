@@ -37,6 +37,10 @@ EQUIVALENT = {
     "pickfair_mcp.journal.store.xǁJournalǁ_load__mutmut_6",
     "pickfair_mcp.journal.store.xǁJournalǁ_load__mutmut_12",
     "pickfair_mcp.journal.store.xǁJournalǁ_load__mutmut_13",
+    # MCP-116: varianti maiuscolo/minuscolo della regex r"[_.\-]" (nessuna lettera): sorgente
+    # mutato identico all'originale, verificato con `mutmut show` (diff vuoto) e nel file mutato.
+    "pickfair_mcp.contract.models.x__is_sensitive_name__mutmut_14",
+    "pickfair_mcp.contract.models.x__is_sensitive_name__mutmut_15",
     # valore iniziale sovrascritto: con attempts >= 1 il ciclo assegna sempre `last`
     "pickfair_mcp.journal.retry.x_read_with_retry__mutmut_5",
     # _ino iniziale mai letto: _append è raggiungibile solo dopo fstat riuscito

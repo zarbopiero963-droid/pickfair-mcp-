@@ -132,7 +132,22 @@ def test_stdout_is_pure_jsonrpc_and_stderr_has_no_client_input(server: RawServer
     server.send({"jsonrpc": "2.0", "method": "notifications/initialized"})
     server.send({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
     tools = server.read()
-    assert [t["name"] for t in tools["result"]["tools"]] == ["get_meta"]
+    assert [t["name"] for t in tools["result"]["tools"]] == [
+        "get_meta",
+        "get_status",
+        "get_reconciliation_status",
+        "get_account",
+        "get_exposure",
+        "list_positions",
+        "list_orders",
+        "get_config",
+        "list_markets",
+        "get_market_book",
+        "get_blackbox_status",
+        "list_blackbox_sessions",
+        "list_blackbox_events",
+        "get_blackbox_event",
+    ]
     server.send(
         {
             "jsonrpc": "2.0",

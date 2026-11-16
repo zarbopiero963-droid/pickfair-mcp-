@@ -100,6 +100,12 @@ FORBIDDEN_ATTRIBUTES = {
     "execl",
 }
 FORBIDDEN_CALLS = {"eval", "exec", "compile", "__import__", "breakpoint", "getattr"}
+
+# MCP-01d: UNICA eccezione alle importazioni di rete. Solo questo file, solo questi moduli.
+# Ogni altra regola (attributi vietati come create_connection/getaddrinfo, testo vietato,
+# chiamate dinamiche) resta valida anche per questo file.
+NETWORK_EXCEPTION_FILE = SRC_ROOT / "adapters" / "http.py"
+NETWORK_EXCEPTION_IMPORTS = frozenset({"http.client", "socket"})
 PRINT_ALLOWED = {SRC_ROOT / "cli.py"}
 
 
@@ -143,17 +149,55 @@ def _imports(path: Path) -> list[tuple[int, str]]:
     return found
 
 
+def _forbidden_import(name: str) -> bool:
+    return (
+        name.split(".")[0] in FORBIDDEN_IMPORT_ROOTS
+        or name in FORBIDDEN_IMPORT_EXACT
+        or name.startswith(FORBIDDEN_IMPORT_PREFIXES)
+        or name.rsplit(".", 1)[-1] in FORBIDDEN_ATTRIBUTES  # from x import connect_tcp
+    )
+
+
 def test_no_forbidden_imports_in_package() -> None:
     hits = [
         f"{p.relative_to(REPO_ROOT)}:{line}:{name}"
         for p in sorted(SRC_ROOT.rglob("*.py"))
         for line, name in _imports(p)
-        if name.split(".")[0] in FORBIDDEN_IMPORT_ROOTS
-        or name in FORBIDDEN_IMPORT_EXACT
-        or name.startswith(FORBIDDEN_IMPORT_PREFIXES)
-        or name.rsplit(".", 1)[-1] in FORBIDDEN_ATTRIBUTES  # from x import connect_tcp
+        if _forbidden_import(name)
+        and not (p == NETWORK_EXCEPTION_FILE and name in NETWORK_EXCEPTION_IMPORTS)
     ]
     assert hits == []
+
+
+def test_network_exception_is_exactly_one_file_and_two_modules() -> None:
+    """L'eccezione non si allarga: esiste, usa SOLO i moduli ammessi, nessun altro li usa."""
+    assert NETWORK_EXCEPTION_FILE.is_file()
+    used = {name for _, name in _imports(NETWORK_EXCEPTION_FILE) if _forbidden_import(name)}
+    assert used == NETWORK_EXCEPTION_IMPORTS
+    others = [
+        f"{p.relative_to(REPO_ROOT)}:{name}"
+        for p in sorted(SRC_ROOT.rglob("*.py"))
+        if p != NETWORK_EXCEPTION_FILE
+        for _, name in _imports(p)
+        if name.split(".")[0] in {"http", "socket", "ssl"}
+    ]
+    assert others == []
+
+
+def test_network_exception_file_never_resolves_names() -> None:
+    """Nemmeno l'adapter può risolvere nomi o usare scorciatoie di connessione."""
+    tree = ast.parse(NETWORK_EXCEPTION_FILE.read_text(encoding="utf-8"))
+    attrs = {n.attr for n in ast.walk(tree) if isinstance(n, ast.Attribute)}
+    assert not attrs & {
+        "getaddrinfo",
+        "gethostbyname",
+        "create_connection",
+        "set_tunnel",
+        "HTTPSConnection",
+        "urlopen",
+    }
+    text = NETWORK_EXCEPTION_FILE.read_text(encoding="utf-8")
+    assert "environ" not in text and "getenv" not in text  # nessuna configurazione ambientale
 
 
 def test_no_dynamic_execution_or_stray_prints() -> None:

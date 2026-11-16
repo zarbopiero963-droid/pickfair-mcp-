@@ -36,15 +36,30 @@ def spec(name: str, route: str) -> ToolSpec:
     )
 
 
-def test_catalog_maps_25_names_onto_the_25_routes() -> None:
-    assert len(APPROVED_TOOL_ROUTES) == 25
+def test_catalog_maps_29_names_onto_the_29_routes() -> None:
+    assert len(APPROVED_TOOL_ROUTES) == 29  # 25 + 4 di lettura della scatola nera (PF-BLACKBOX-01)
     assert set(APPROVED_TOOL_ROUTES.values()) == {route_key(r) for r in APPROVED_ROUTES}
 
 
-def test_default_registry_exposes_only_get_meta() -> None:
+def test_default_registry_exposes_only_read_tools() -> None:
     from pickfair_mcp.tools import build_default_registry
 
-    assert build_default_registry().names() == ("get_meta",)
+    assert build_default_registry().names() == (
+        "get_meta",
+        "get_status",
+        "get_reconciliation_status",
+        "get_account",
+        "get_exposure",
+        "list_positions",
+        "list_orders",
+        "get_config",
+        "list_markets",
+        "get_market_book",
+        "get_blackbox_status",
+        "list_blackbox_sessions",
+        "list_blackbox_events",
+        "get_blackbox_event",
+    )
 
 
 def test_read_tool_with_approved_name_registers() -> None:
@@ -183,3 +198,31 @@ def test_get_meta_description_states_read_only() -> None:
     assert spec_ is not None
     assert spec_.description.startswith("Read-only.")
     assert "Never places, cancels or changes anything." in spec_.description
+
+
+def test_default_registry_wires_the_default_read_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ogni lettura dei tool del registro predefinito è limitata da DEFAULT_TIMEOUT_S: mai senza
+    limite (``fail_after(None)``)."""
+    import anyio
+
+    from pickfair_mcp.adapters.simulated import Scenario, SimulatedControlApiAdapter
+    from pickfair_mcp.policy.handshake import HandshakeGuard
+    from pickfair_mcp.tools import DEFAULT_TIMEOUT_S, build_default_registry
+    from pickfair_mcp.tools.registry import ToolContext
+
+    seen: list[float | None] = []
+    real_fail_after = anyio.fail_after
+
+    def recording_fail_after(delay: float | None, *args: object, **kwargs: object) -> object:
+        seen.append(delay)
+        return real_fail_after(delay, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(anyio, "fail_after", recording_fail_after)
+    adapter = SimulatedControlApiAdapter(Scenario.COMPATIBLE)
+    guard = HandshakeGuard(adapter, timeout_s=1.0)  # timeout del guard distinto e noto
+    spec_ = build_default_registry(adapter, guard).get("get_status")
+    assert spec_ is not None
+    anyio.run(spec_.handler, ToolContext(request_id="req_" + "0" * 32))
+    assert adapter.status_calls == 1
+    assert DEFAULT_TIMEOUT_S == 5.0
+    assert seen == [1.0, DEFAULT_TIMEOUT_S]

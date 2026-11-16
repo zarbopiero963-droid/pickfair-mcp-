@@ -28,7 +28,7 @@ from pickfair_mcp.journal import Journal, UpstreamAck
 jp, sends, start = Path(sys.argv[1]), Path(sys.argv[2]), int(sys.argv[3])
 j = Journal.open(jp)
 if not j.writable:
-    print("LOCKED", flush=True); sys.exit(3)
+    print("LOCKED", j.failure_reason, flush=True); sys.exit(3)
 j.recover()
 print("READY", flush=True)
 async def up(request_id):
@@ -111,7 +111,7 @@ def test_two_processes_only_one_writes(tmp_path: Path) -> None:
     assert a.stdout is not None and a.stdout.readline().strip() == "READY"
     b = _spawn(jp, sends, 0)
     assert b.stdout is not None
-    assert b.stdout.readline().strip() == "LOCKED"
+    assert b.stdout.readline().strip() == "LOCKED JOURNAL_LOCKED"
     assert b.wait(timeout=10) == 3
     a.send_signal(signal.SIGKILL)
     a.wait(timeout=10)
