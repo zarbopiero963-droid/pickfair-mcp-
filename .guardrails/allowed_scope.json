@@ -1128,6 +1128,22 @@
         "tests/unit/test_network_guard.py"
       ],
       "max_files": 13
+    },
+    "pr18-drawdown-view": {
+      "issue": "PF-OWNER-MCP-PR18-DRAWDOWN-VIEW-20261116 (Pickfair-nogui #628-C11, #628-C11-bis)",
+      "scheda": "PR-18 — patch di consegna: vista degli hard-stop di drawdown",
+      "description": "Patch di consegna del ponte control_api (lato core, consegnata come file, nessun commit nel core): la vista drawdown_abs_hard_stop/drawdown_pct_hard_stop legge lo stato reale del DrawdownHardStop del runtime in sola lettura (snapshot e motivi del core, mai reason/evaluate), nessun live_only (dopo #631 lo stop percentuale vale in SIM e LIVE), stati non verificabili UNKNOWN con il motivo del core. Lato MCP solo test crossrepo (helper DRAWDOWN e test di confronto stato core/vista MCP) e documentazione: nessun file sotto src/, contratto 1.16.0 e schema hash invariati. Nessuna PR senza GO owner.",
+      "files": [
+        ".guardrails/allowed_scope.json",
+        "docs/handoff/crossrepo_gate_mcp116.md",
+        "docs/handoff/pr18_drawdown_view.md",
+        "docs/handoff/pr18_drawdown_view/SHA256SUMS",
+        "docs/handoff/pr18_drawdown_view/pr18_build.sh",
+        "docs/handoff/pr18_drawdown_view/pr18_core_drawdown_view.patch",
+        "tests/crossrepo/core_runtime_server.py",
+        "tests/crossrepo/test_core_e2e.py"
+      ],
+      "max_files": 8
     }
   }
 }

@@ -1,0 +1,383 @@
+diff --git a/control_api/views.py b/control_api/views.py
+index d27879f..148894c 100644
+--- a/control_api/views.py
++++ b/control_api/views.py
+@@ -829,16 +829,71 @@ def _desk_lockdown(rc: object) -> dict[str, Any]:
+     return _p("ACTIVE", source="MONEY_MANAGEMENT", limit=limit)
+ 
+ 
+-def _drawdown_stop(rc: object, name: str, trigger: str, *, live_only: bool) -> dict[str, Any]:
++DRAWDOWN_SOURCE: Final = "DRAWDOWN_HARD_STOP"
++
++
++def _drawdown_limit(rc: object, name: str) -> dict[str, Any]:
++    """Limite configurato come lo legge il gate del core: assente = INACTIVE, non valido = UNKNOWN (il core nega ogni
++    ingresso con un limite non valido: mai ACTIVE). La percentuale è valida solo in (0, 100]."""
+     cap = _optional_cap(rc, name)
++    if cap["state"] == "ACTIVE" and name == "max_drawdown_hard_stop_pct" and Decimal(cap["limit"]) > 100:
++        return _p("UNKNOWN", "INVALID_LIMIT", source="CONFIG")
++    return cap
++
++
++def _breach_limit(value: object) -> str | None:
++    """Limite memorizzato nel superamento (stringa decimale del core); None se non rappresentabile."""
++    try:
++        return decimal_str(Decimal(value)) if isinstance(value, str) else None  # type: ignore[arg-type]
++    except (ArithmeticError, ValueError, _Unavailable):
++        return None
++
++
++def _drawdown_stop(rc: object, name: str) -> dict[str, Any]:
++    """PR-18 (#628-C11, #628-C11-bis): stato dell'hard-stop di drawdown letto dal DrawdownHardStop REALE del runtime.
++
++    Sola lettura: `snapshot()` e i motivi di blocco del core sotto il lock dello stop, mai `reason()`/`evaluate()`
++    (salvano il picco) né `_hard_stop()` (costruisce e rilegge lo stato). Nessuna regola parallela: il superamento è
++    quello memorizzato dal core, i motivi sono quelli del core. Lo stop percentuale vale in SIM e in LIVE (#631).
++    Ordine: stato illeggibile => UNKNOWN; superamento memorizzato di questo tipo => TRIGGERED anche se il limite è
++    stato tolto (lo sblocca solo l'owner); limite assente/non valido => INACTIVE/UNKNOWN; stato fuori ambito, picco
++    non salvato, baseline non verificata o storia insufficiente => UNKNOWN con il motivo del core (ingressi negati,
++    picco non verificabile); altrimenti ACTIVE. La cassa non verificata è una condizione del singolo ingresso, non uno
++    stato memorizzato: non compare qui."""
++    from core import drawdown_hard_stop as dd
++
++    stop = vars(rc).get("_drawdown_hard_stop")
++    if stop is None:
++        return _unknown(DRAWDOWN_SOURCE, "STATE_UNAVAILABLE")
++    lock = vars(stop).get("_lock")
++    if not _acquire(lock):
++        return _unknown(DRAWDOWN_SOURCE, "LOCK_BUSY")
++    try:
++        snap = stop.snapshot()
++        blocks = (stop.scope_block_reason(), dd.REASON_NOT_PERSISTED if snap["persist_failed"] else "",
++                  stop.baseline_block_reason(), stop.history_block_reason())
++    finally:
++        lock.release()  # type: ignore[union-attr]
++    if snap["unreadable"] is not False:
++        return _unknown(DRAWDOWN_SOURCE, _code_of(dd.REASON_STATE_UNREADABLE))
++    if snap["breached"] is True:
++        breach = snap["breach"]
++        kind = breach.get("kind")
++        if kind not in (dd.KIND_ABS, dd.KIND_PCT):
++            return _unknown(DRAWDOWN_SOURCE, "BREACH_KIND_UNKNOWN")
++        if kind == name:
++            active = dd.REASON_PCT_ACTIVE if kind == dd.KIND_PCT else dd.REASON_ACTIVE
++            return _p("TRIGGERED", _code_of(active), source=DRAWDOWN_SOURCE, limit=_breach_limit(breach.get("cap")),
++                      as_of=_epoch(breach.get("at")))
++    elif snap["breached"] is not False:
++        return _unknown(DRAWDOWN_SOURCE, "STATE_INCOHERENT")
++    cap = _drawdown_limit(rc, name)
+     if cap["state"] != "ACTIVE":
+         return cap
+-    if _lockdown_reason(rc) == trigger:
+-        return _p("TRIGGERED", trigger, source="RUNTIME", limit=cap["limit"])
+-    if live_only and _execution_mode(rc) != "LIVE":
+-        # Il core applica lo stop percentuale solo in LIVE (runtime_controller, Enforcement A1 #320).
+-        return _p("INACTIVE", "ENFORCED_ONLY_IN_LIVE", source="CONFIG", limit=cap["limit"])
+-    return cap
++    for block in blocks:
++        if block:
++            return _unknown(DRAWDOWN_SOURCE, _code_of(block))
++    return _p("ACTIVE", source=DRAWDOWN_SOURCE, limit=cap["limit"])
+ 
+ 
+ def _session_loss(rc: object) -> dict[str, Any]:
+@@ -1021,10 +1076,8 @@ def protections_view(rc: object, *, monotonic: Callable[[], float] = time.monoto
+         "emergency_stop": lambda: _emergency(rc),
+         "runtime_lockdown": lambda: _runtime_lockdown(rc),
+         "desk_lockdown": lambda: _desk_lockdown(rc),
+-        "drawdown_pct_hard_stop": lambda: _drawdown_stop(
+-            rc, "max_drawdown_hard_stop_pct", "DRAWDOWN_HARD_STOP_TRIGGERED", live_only=True),
+-        "drawdown_abs_hard_stop": lambda: _drawdown_stop(
+-            rc, "max_drawdown_abs", "DRAWDOWN_ABS_HARD_STOP_TRIGGERED", live_only=False),
++        "drawdown_pct_hard_stop": lambda: _drawdown_stop(rc, "max_drawdown_hard_stop_pct"),
++        "drawdown_abs_hard_stop": lambda: _drawdown_stop(rc, "max_drawdown_abs"),
+         "session_loss": lambda: _session_loss(rc),
+         "daily_loss": lambda: _daily_loss(rc),
+         "risk_stop": lambda: _risk_stop(rc),
+diff --git a/tests/control_api/test_diagnostics_views.py b/tests/control_api/test_diagnostics_views.py
+index b5ccfe6..df7b4a7 100644
+--- a/tests/control_api/test_diagnostics_views.py
++++ b/tests/control_api/test_diagnostics_views.py
+@@ -135,17 +135,25 @@ def test_risk_stop_and_disabled_controls(runtime: RuntimeController) -> None:
+ 
+ 
+ def test_drawdown_stops_follow_the_core_rules(runtime: RuntimeController) -> None:
++    """PR-18: stato letto dal DrawdownHardStop reale (dettaglio in test_drawdown_view.py). Dopo #631 lo stop
++    percentuale vale anche in SIM; il superamento è quello memorizzato dal core, non un codice di LOCKDOWN."""
+     runtime.config.max_drawdown_hard_stop_pct = 15.0
+     runtime.config.max_drawdown_abs = 50.0
+     it = items(runtime)
+-    assert it["drawdown_pct_hard_stop"]["state"] == "INACTIVE"  # il core lo applica solo in LIVE
+-    assert it["drawdown_pct_hard_stop"]["reason"] == "ENFORCED_ONLY_IN_LIVE"
+-    assert it["drawdown_abs_hard_stop"] == {"state": "ACTIVE", "reason": None, "source": "CONFIG",
++    assert runtime.execution_mode == "SIMULATION"
++    assert it["drawdown_pct_hard_stop"] == {"state": "ACTIVE", "reason": None, "source": "DRAWDOWN_HARD_STOP",
++                                            "limit": "15", "as_of": None}
++    assert it["drawdown_abs_hard_stop"] == {"state": "ACTIVE", "reason": None, "source": "DRAWDOWN_HARD_STOP",
+                                             "limit": "50", "as_of": None}
+-    runtime.force_lockdown("drawdown_abs_hard_stop_triggered:60.00€")
++    stop = runtime._hard_stop()
++    stop.evaluate(50.0, 100.0, pct_cap_raw=15.0)
++    assert stop.evaluate(50.0, 40.0, pct_cap_raw=15.0) is True  # 60€ di perdita: scatta l'assoluto
++    runtime.force_lockdown("drawdown_hard_stop_triggered:max_drawdown_abs:60.00€")
+     it = items(runtime)
+     assert it["drawdown_abs_hard_stop"]["state"] == "TRIGGERED"
+-    assert it["runtime_lockdown"]["reason"] == "DRAWDOWN_ABS_HARD_STOP_TRIGGERED"
++    assert it["drawdown_abs_hard_stop"]["reason"] == "MAX_DRAWDOWN_ABS_ACTIVE"
++    assert it["drawdown_pct_hard_stop"]["state"] == "ACTIVE"
++    assert it["runtime_lockdown"]["reason"] == "DRAWDOWN_HARD_STOP_TRIGGERED"
+ 
+ 
+ def test_invalid_limits_are_unknown_not_inactive(runtime: RuntimeController) -> None:
+diff --git a/tests/control_api/test_drawdown_view.py b/tests/control_api/test_drawdown_view.py
+new file mode 100644
+index 0000000..c90662f
+--- /dev/null
++++ b/tests/control_api/test_drawdown_view.py
+@@ -0,0 +1,246 @@
++"""PR-18 (PF-OWNER-MCP-PR18-DRAWDOWN-VIEW-20261116): vista degli hard-stop di drawdown.
++
++Difetti #628-C11 e #628-C11-bis: la vista ricostruiva lo stato dal LOCKDOWN del runtime (codice mai prodotto dal core:
++superamento assoluto reale dichiarato ACTIVE) e dichiarava lo stop percentuale INACTIVE in SIM, mentre dopo #631 il
++core lo applica in SIM e LIVE. Qui lo stato si legge dal DrawdownHardStop REALE del runtime (sola lettura), sempre
++nelle due modalità, e ogni stato non verificabile è UNKNOWN con il motivo del core.
++"""
++
++from __future__ import annotations
++
++import threading
++from typing import Any
++
++import pytest
++
++from control_api.views import protections_view
++from core.drawdown_hard_stop import KIND_ABS, KIND_PCT
++from core.runtime_controller import DRAWDOWN_ABS_ACTIVE, DRAWDOWN_PCT_ACTIVE, RuntimeController
++
++ABS, PCT = "drawdown_abs_hard_stop", "drawdown_pct_hard_stop"
++
++
++def items(rc: RuntimeController) -> dict[str, dict[str, Any]]:
++    return protections_view(rc)["items"]
++
++
++def _breach(rc: RuntimeController, *, abs_cap: Any = None, pct_cap: Any = None,
++            peak: float = 100.0, cash: float = 40.0) -> None:
++    """Superamento REALE sullo stato del core: picco e poi perdita oltre il limite (persistito nel DB del test)."""
++    stop = rc._hard_stop()
++    assert stop.evaluate(abs_cap, peak, pct_cap_raw=pct_cap) is False
++    assert stop.evaluate(abs_cap, cash, pct_cap_raw=pct_cap) is True
++
++
++# ---------------------------------------------------------------- drawdown assoluto
++
++
++def test_abs_not_configured_is_inactive(runtime: RuntimeController) -> None:
++    item = items(runtime)[ABS]
++    assert item == {"state": "INACTIVE", "reason": "NOT_CONFIGURED", "source": "CONFIG", "limit": None,
++                    "as_of": None}
++    assert ABS in protections_view(runtime)["disabled"]
++
++
++def test_abs_configured_without_breach_is_active(runtime: RuntimeController) -> None:
++    runtime.config.max_drawdown_abs = 50.0
++    assert items(runtime)[ABS] == {"state": "ACTIVE", "reason": None, "source": "DRAWDOWN_HARD_STOP",
++                                   "limit": "50", "as_of": None}
++
++
++def test_abs_real_breach_is_triggered_not_active(runtime: RuntimeController) -> None:
++    """RED su #628-C11: superamento memorizzato dal core, la vista precedente diceva ACTIVE."""
++    runtime.config.max_drawdown_abs = 50.0
++    _breach(runtime, abs_cap=50.0)
++    snap = runtime._hard_stop().snapshot()
++    assert snap["breached"] and snap["breach"]["kind"] == KIND_ABS
++    item = items(runtime)[ABS]
++    assert item["state"] == "TRIGGERED"
++    assert item["reason"] == "MAX_DRAWDOWN_ABS_ACTIVE"
++    assert item["source"] == "DRAWDOWN_HARD_STOP"
++    assert item["limit"] == "50"
++    assert isinstance(item["as_of"], float) and item["as_of"] > 1.7e9
++    # lo stop percentuale non configurato resta INACTIVE: il superamento è dell'assoluto
++    assert items(runtime)[PCT]["state"] == "INACTIVE"
++
++
++def test_abs_breach_with_the_core_lockdown_message_is_triggered(runtime: RuntimeController) -> None:
++    """RED su #628-C11: il messaggio di LOCKDOWN che il core produce davvero non era riconosciuto."""
++    runtime.config.max_drawdown_abs = 50.0
++    _breach(runtime, abs_cap=50.0)
++    runtime.force_lockdown(f"drawdown_hard_stop_triggered:{KIND_ABS}:60.00€")
++    it = items(runtime)
++    assert it[ABS]["state"] == "TRIGGERED"
++    assert it[PCT]["state"] == "INACTIVE"  # la vista precedente diceva TRIGGERED
++    assert it["runtime_lockdown"]["state"] == "TRIGGERED"
++
++
++def test_abs_breach_stays_triggered_after_the_cap_is_removed(runtime: RuntimeController) -> None:
++    """Il superamento memorizzato blocca anche senza limite (lo sblocca solo l'owner): mai INACTIVE."""
++    runtime.config.max_drawdown_abs = 50.0
++    _breach(runtime, abs_cap=50.0)
++    runtime.config.max_drawdown_abs = None
++    item = items(runtime)[ABS]
++    assert item["state"] == "TRIGGERED" and item["limit"] == "50"
++    assert ABS not in protections_view(runtime)["disabled"]
++
++
++@pytest.mark.parametrize(("field", "value", "reason"), [
++    ("unreadable", True, "MAX_DRAWDOWN_ABS_STATO_ILLEGGIBILE"),
++    ("persist_failed", True, "MAX_DRAWDOWN_ABS_PICCO_NON_PERSISTITO"),
++    ("baseline_verified", False, "DRAWDOWN_BASELINE_NON_VERIFICATA"),
++    ("history_insufficient", {"active": True}, "DRAWDOWN_STORIA_INSUFFICIENTE"),
++])
++def test_abs_unverifiable_states_are_unknown(runtime: RuntimeController, field: str, value: Any,
++                                             reason: str) -> None:
++    runtime.config.max_drawdown_abs = 50.0
++    setattr(runtime._hard_stop(), field, value)
++    item = items(runtime)[ABS]
++    assert item["state"] == "UNKNOWN" and item["reason"] == reason
++    assert ABS in protections_view(runtime)["unverifiable"]
++
++
++def test_abs_state_of_another_scope_is_unknown(runtime: RuntimeController) -> None:
++    runtime.config.max_drawdown_abs = 50.0
++    stop = runtime._hard_stop()
++    stop.scope = {"env": "SIM", "account": "a"}
++    stop.record_scope = {"env": "LIVE", "account": "b"}
++    assert items(runtime)[ABS] == {"state": "UNKNOWN", "reason": "DRAWDOWN_STATO_DI_ALTRO_AMBITO",
++                                   "source": "DRAWDOWN_HARD_STOP", "limit": None, "as_of": None}
++
++
++def test_unreadable_state_hides_a_stale_breach(runtime: RuntimeController) -> None:
++    """Stato illeggibile: il superamento in memoria non è affidabile (il core non lo usa): UNKNOWN, mai TRIGGERED."""
++    runtime.config.max_drawdown_abs = 50.0
++    _breach(runtime, abs_cap=50.0)
++    runtime._hard_stop().unreadable = True
++    assert items(runtime)[ABS]["state"] == "UNKNOWN"
++
++
++def test_breach_of_unknown_kind_is_unknown_for_both(runtime: RuntimeController) -> None:
++    runtime.config.max_drawdown_abs = 50.0
++    runtime.config.max_drawdown_hard_stop_pct = 10.0
++    stop = runtime._hard_stop()
++    stop.breached, stop.breach = True, {"kind": "altro"}
++    it = items(runtime)
++    assert it[ABS]["state"] == it[PCT]["state"] == "UNKNOWN"
++    assert it[ABS]["reason"] == it[PCT]["reason"] == "BREACH_KIND_UNKNOWN"
++
++
++@pytest.mark.parametrize("value", [None, 1, "true"])
++def test_non_boolean_breach_flag_is_incoherent(runtime: RuntimeController, value: Any) -> None:
++    """Flag di superamento non booleano: stato incoerente, mai ACTIVE né INACTIVE."""
++    runtime.config.max_drawdown_abs = 50.0
++    runtime._hard_stop().breached = value
++    item = items(runtime)[ABS]
++    assert item["state"] == "UNKNOWN" and item["reason"] == "STATE_INCOHERENT"
++
++
++def test_missing_stop_is_unknown_and_never_built_by_the_view(runtime: RuntimeController) -> None:
++    runtime.config.max_drawdown_abs = 50.0
++    runtime._drawdown_hard_stop = None
++    assert items(runtime)[ABS]["state"] == "UNKNOWN"
++    assert runtime._drawdown_hard_stop is None  # la vista non costruisce né rilegge lo stato
++
++
++def test_busy_stop_lock_is_unknown(runtime: RuntimeController) -> None:
++    runtime.config.max_drawdown_abs = 50.0
++    stop = runtime._hard_stop()
++    held, release = threading.Event(), threading.Event()
++
++    def hold() -> None:
++        with stop._lock:
++            held.set()
++            release.wait(5)
++
++    worker = threading.Thread(target=hold)
++    worker.start()
++    try:
++        assert held.wait(5)
++        assert items(runtime)[ABS] == {"state": "UNKNOWN", "reason": "LOCK_BUSY",
++                                       "source": "DRAWDOWN_HARD_STOP", "limit": None, "as_of": None}
++    finally:
++        release.set()
++        worker.join(5)
++
++
++def test_invalid_abs_limit_is_unknown(runtime: RuntimeController) -> None:
++    runtime.config.max_drawdown_abs = float("nan")
++    assert items(runtime)[ABS]["state"] == "UNKNOWN"
++
++
++def test_view_has_no_side_effects_on_the_stop(runtime: RuntimeController) -> None:
++    """Sola lettura: nessuna valutazione, nessun salvataggio (seq invariato), nessun picco nuovo."""
++    runtime.config.max_drawdown_abs = 50.0
++    runtime.config.max_drawdown_hard_stop_pct = 10.0
++    stop = runtime._hard_stop()
++    stop.evaluate(50.0, 100.0, pct_cap_raw=10.0)
++    before = stop.snapshot()
++    for _ in range(3):
++        items(runtime)
++    assert stop.snapshot() == before
++
++
++# ---------------------------------------------------------------- drawdown percentuale
++
++
++@pytest.mark.parametrize("mode", ["SIMULATION", "LIVE"])
++def test_pct_configured_is_active_in_sim_and_live(runtime: RuntimeController, mode: str) -> None:
++    """RED su #628-C11-bis: dopo #631 il core applica lo stop percentuale anche in SIM (prima: INACTIVE)."""
++    runtime.execution_mode = mode  # solo l'etichetta letta dalla vista: nessun avvio LIVE
++    runtime.config.max_drawdown_hard_stop_pct = 15.0
++    assert items(runtime)[PCT] == {"state": "ACTIVE", "reason": None, "source": "DRAWDOWN_HARD_STOP",
++                                   "limit": "15", "as_of": None}
++
++
++@pytest.mark.parametrize("mode", ["SIMULATION", "LIVE"])
++def test_pct_not_configured_is_inactive_in_sim_and_live(runtime: RuntimeController, mode: str) -> None:
++    runtime.execution_mode = mode
++    assert items(runtime)[PCT] == {"state": "INACTIVE", "reason": "NOT_CONFIGURED", "source": "CONFIG",
++                                   "limit": None, "as_of": None}
++
++
++@pytest.mark.parametrize("mode", ["SIMULATION", "LIVE"])
++def test_pct_real_breach_is_triggered_in_sim_and_live(runtime: RuntimeController, mode: str) -> None:
++    runtime.execution_mode = mode
++    runtime.config.max_drawdown_hard_stop_pct = 10.0
++    runtime.config.max_drawdown_abs = 50.0
++    _breach(runtime, pct_cap=10.0, abs_cap=50.0, cash=85.0)  # perdita 15% del picco, 15€ sotto i 50€
++    assert runtime._hard_stop().snapshot()["breach"]["kind"] == KIND_PCT
++    it = items(runtime)
++    assert it[PCT]["state"] == "TRIGGERED" and it[PCT]["reason"] == "DRAWDOWN_HARD_STOP_ACTIVE"
++    assert it[PCT]["limit"] == "10"
++    assert it[ABS]["state"] == "ACTIVE"  # l'assoluto non è scattato
++
++
++@pytest.mark.parametrize("value", [150.0, 0.0, -1.0, float("inf")])
++def test_invalid_pct_limit_is_unknown(runtime: RuntimeController, value: float) -> None:
++    """Il core nega ogni ingresso con una percentuale fuori (0, 100]: mai dichiararla ACTIVE."""
++    runtime.config.max_drawdown_hard_stop_pct = value
++    assert items(runtime)[PCT] == {"state": "UNKNOWN", "reason": "INVALID_LIMIT", "source": "CONFIG",
++                                   "limit": None, "as_of": None}
++
++
++# ---------------------------------------------------------------- confronto con il gate reale del core (SIM)
++
++
++@pytest.mark.parametrize(("kind", "core_reason", "item"), [
++    (KIND_ABS, DRAWDOWN_ABS_ACTIVE, ABS),
++    (KIND_PCT, DRAWDOWN_PCT_ACTIVE, PCT),
++])
++def test_view_matches_the_core_gate_in_sim(sim_runtime: RuntimeController, kind: str, core_reason: str,
++                                           item: str) -> None:
++    """Runtime reale avviato in SIM: la vista coincide con il gate d'ingresso del core prima e dopo il superamento."""
++    rc = sim_runtime
++    if kind == KIND_ABS:
++        rc.config.max_drawdown_abs = 50.0
++    else:
++        rc.config.max_drawdown_hard_stop_pct = 10.0
++    peak = rc._hard_stop().snapshot()["peak"]  # picco reale dato dal saldo SIM letto allo START
++    assert peak is not None and peak > 100
++    rc._evaluate_drawdown_hard_stop(peak)
++    assert rc._drawdown_hard_stop_reason() == ""
++    assert items(rc)[item]["state"] == "ACTIVE"
++    rc._evaluate_drawdown_hard_stop(peak * 0.5)  # perdita del 50%: oltre i 50€ e oltre il 10%
++    assert rc._drawdown_hard_stop_reason() == core_reason
++    assert items(rc)[item]["state"] == "TRIGGERED"

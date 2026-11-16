@@ -85,3 +85,12 @@ mai (test dedicato, mutante critico `X08`).
 
 Il test sugli effetti collaterali ora ammette `BUSY` solo come risposta prima di qualsiasi provider
 e verifica che le risposte OK siano 30 letture più da 1 a 1+BUSY handshake.
+
+## Aggiornamento PR-18 (drawdown, 16/11/2026)
+
+Dal branch della patch di consegna PR-18 (`PF-OWNER-MCP-PR18-DRAWDOWN-VIEW-20261116`) i test
+crossrepo sono 19: si aggiunge `test_e2e_drawdown_hard_stops_match_the_core_state[abs|pct]`, che
+confronta lo stato reale dell'hard-stop di drawdown del core con la vista MCP. Sull'albero di questo
+gate (ponte 1.16 senza correzione) i due casi **falliscono per costruzione**: sono la prova dei
+difetti #628-C11 e #628-C11-bis. Con la patch PR-18 l'esito è 16 PASS e 3 `BLOCKED_BY_DEPENDENCY`.
+Procedura ed evidenze in [pr18_drawdown_view.md](pr18_drawdown_view.md).

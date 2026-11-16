@@ -549,6 +549,35 @@ for line in sys.stdin:
         )
         state["recording"] = True
         reply(event="DIGEST", **snapshot)
+    elif cmd[0] == "DRAWDOWN":
+        # PR-18 (#628-C11/C11-bis): comando al CORE, non alla Control API. `STATE` legge e basta;
+        # `ARM <limite> <valore>`
+        # configura un hard-stop di drawdown; `BREACH <frazione>` valuta una cassa verificata pari
+        # alla frazione del picco reale (saldo SIM letto allo START) con la funzione del runtime
+        # usata dalle letture del conto. In entrambi i casi risponde lo stato REALE del core: il
+        # gate d'ingresso (`_drawdown_hard_stop_reason`, che applica anche il LOCKDOWN) e lo
+        # snapshot dell'hard-stop, da confrontare con la vista arrivata al MCP.
+        state["recording"] = False
+        if cmd[1] == "ARM":
+            setattr(rc.config, cmd[2], float(cmd[3]))
+        elif cmd[1] == "BREACH":
+            peak = rc._hard_stop().snapshot()["peak"]
+            rc._evaluate_drawdown_hard_stop(peak * float(cmd[2]))
+        gate = rc._drawdown_hard_stop_reason()
+        snap = rc._hard_stop().snapshot()
+        reply(
+            event="DRAWDOWN",
+            gate=gate,
+            breached=snap["breached"],
+            kind=snap["breach"].get("kind"),
+            at=snap["breach"].get("at"),
+            cap=snap["breach"].get("cap"),
+            peak=snap["peak"],
+            mode=rc.mode.value,
+            last_error=rc.last_error,
+            execution_mode=rc.execution_mode,
+        )
+        state["recording"] = True
     elif cmd[0] == "QUIT":
         if server is not None:
             server.stop()

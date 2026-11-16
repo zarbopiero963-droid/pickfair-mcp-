@@ -694,3 +694,80 @@ async def test_e2e_trailing_from_the_core_trailing_module(core: Core, tmp_path: 
     assert validity["state"] in ("ACTIVE", "TRIGGERED")
     assert "cref-secret-trail" not in json.dumps(payload)
     assert after["db"] == baseline["db"] and after["calls"] == baseline["calls"]
+
+
+@pytest.mark.parametrize(
+    ("limit", "value", "item", "core_reason", "code"),
+    [
+        (
+            "max_drawdown_abs",
+            "50",
+            "drawdown_abs_hard_stop",
+            "max_drawdown_abs_active",
+            "MAX_DRAWDOWN_ABS_ACTIVE",
+        ),
+        (
+            "max_drawdown_hard_stop_pct",
+            "10",
+            "drawdown_pct_hard_stop",
+            "drawdown_hard_stop_active",
+            "DRAWDOWN_HARD_STOP_ACTIVE",
+        ),
+    ],
+)
+async def test_e2e_drawdown_hard_stops_match_the_core_state(
+    core: Core, tmp_path: Path, limit: str, value: str, item: str, core_reason: str, code: str
+) -> None:
+    """PR-18 (#628-C11, #628-C11-bis): stato reale dell'hard-stop nel core ⇔ vista MCP.
+
+    Runtime reale avviato in SIM: non configurato ⇒ INACTIVE; configurato ⇒ ACTIVE anche in SIM
+    (dopo #631 il core applica lo stop percentuale in SIM e LIVE); superamento reale memorizzato
+    dal core (gate d'ingresso = motivo del core, LOCKDOWN) ⇒ TRIGGERED con l'istante del core.
+    """
+    from datetime import UTC, datetime
+
+    other = (
+        "drawdown_pct_hard_stop" if item == "drawdown_abs_hard_stop" else "drawdown_abs_hard_stop"
+    )
+    errlog = (tmp_path / "mcp.err").open("w+")
+    async with mcp(core, errlog) as s:
+        tools = {t.name: t for t in (await s.list_tools()).tools}
+        unarmed_core = core.send("DRAWDOWN STATE")
+        unarmed = await call(s, "get_status")
+        armed_core = core.send(f"DRAWDOWN ARM {limit} {value}")
+        armed = await call(s, "get_status")
+        breach_core = core.send("DRAWDOWN BREACH 0.5")  # perdita del 50%: oltre 50 € e oltre il 10%
+        breached = await call(s, "get_status")
+    for is_error, payload in (unarmed, armed, breached):
+        assert is_error is False, payload
+        jsonschema.validate(payload, tools["get_status"].outputSchema)
+
+    def items(payload: tuple[bool, dict[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = payload[1]["data"]["status"]["protections"]["items"]
+        return result
+
+    # nessun limite: il core non blocca, la vista dichiara INACTIVE (mai ACTIVE)
+    assert unarmed_core["gate"] == "" and unarmed_core["breached"] is False
+    assert unarmed_core["execution_mode"] == "SIMULATION"
+    assert unarmed[1]["data"]["status"]["execution_mode"] == "SIM"
+    assert items(unarmed)[item]["state"] == "INACTIVE"
+    assert items(unarmed)[item]["reason"] == "NOT_CONFIGURED"
+    # limite configurato, in SIM: il core lo applica, la vista dichiara ACTIVE (prima: INACTIVE)
+    assert armed_core["gate"] == "" and armed_core["breached"] is False
+    assert items(armed)[item]["state"] == "ACTIVE" and items(armed)[item]["reason"] is None
+    assert items(armed)[item]["limit"] == value
+    # superamento reale: il core nega con il proprio motivo e va in LOCKDOWN
+    assert breach_core["breached"] is True and breach_core["kind"] == limit
+    assert breach_core["gate"] == core_reason
+    assert breach_core["mode"] == "LOCKDOWN"
+    assert breach_core["last_error"].startswith(f"drawdown_hard_stop_triggered:{limit}:")
+    got = items(breached)
+    assert got[item]["state"] == "TRIGGERED" and got[item]["reason"] == code
+    assert got[item]["source"] == "DRAWDOWN_HARD_STOP"
+    assert Decimal(got[item]["limit"]) == Decimal(breach_core["cap"])
+    at = datetime.fromisoformat(breach_core["at"])
+    expected = (at if at.tzinfo else at.replace(tzinfo=UTC)).timestamp()
+    assert got[item]["as_of"] == pytest.approx(expected, abs=1e-3)
+    assert got[other]["state"] == "INACTIVE"  # l'altro stop non è configurato: mai TRIGGERED
+    assert got["runtime_lockdown"]["state"] == "TRIGGERED"
+    assert got["runtime_lockdown"]["reason"] == "DRAWDOWN_HARD_STOP_TRIGGERED"
